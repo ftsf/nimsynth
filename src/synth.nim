@@ -417,7 +417,7 @@ proc synthDraw() =
   for x in 1..<buffer.len:
     let y0 = clamp(buffer[x-1], -1.0, 1.0)
     let y1 = clamp(buffer[x]  , -1.0, 1.0)
-    line(x-1, screenHeight div 2 + (y0 * screenHeight).int, x, screenHeight div 2 + (y1 * screenHeight).int)
+    line(x-1, screenHeight div 2 + (y0 * screenHeight / 2.0).int, x, screenHeight div 2 + (y1 * screenHeight / 2.0).int)
 
   printShadow("synth: " & hzToNoteName(osc1.freq), 0, 0)
   printShadow("cutoff: " & ((filter1.cutoff + filter1.cutoffMod) * sampleRate).formatFloat(ffDecimal, 2), 0, 8)
