@@ -350,19 +350,19 @@ proc synthInit() =
   addKnob("mod", 32+32+32+32,64+32, -1.0, 1.0, 0.0) do(newValue: float):
     envMod = newValue
 
-  addKnob("del", 64,64+64, 0.01, 2.0, 0.333) do(newValue: float):
+  addKnob("del", 64, 64+48, 0.01, 2.0, 0.333) do(newValue: float):
     delay.setLen((sampleRate * newValue).int)
   do(value: float) -> string:
     return value.formatFloat(ffDecimal, 2)
-  addKnob("wet", 64+16,64+64, 0.0, 2.0, 0.5) do(newValue: float):
+  addKnob("wet", 64+16,64+48, 0.0, 2.0, 0.5) do(newValue: float):
     delay.wet = newValue
   do(value: float) -> string:
     return value.formatFloat(ffDecimal, 2)
-  addKnob("dry", 64+32,64+64, 0.0, 2.0, 0.5) do(newValue: float):
+  addKnob("dry", 64+32,64+48, 0.0, 2.0, 0.5) do(newValue: float):
     delay.dry = newValue
   do(value: float) -> string:
     return value.formatFloat(ffDecimal, 2)
-  addKnob("fb", 64+48,64+64, 0.0, 1.0, 0.1) do(newValue: float):
+  addKnob("fb", 64+48,64+48, 0.0, 1.0, 0.1) do(newValue: float):
     delay.feedback = newValue
   do(value: float) -> string:
     return value.formatFloat(ffDecimal, 2)
