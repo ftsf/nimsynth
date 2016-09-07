@@ -10,6 +10,7 @@ import osc
 import filter
 import env
 import distortion
+import gui
 
 import common
 
@@ -31,19 +32,22 @@ proc update(self: var Delay, sample: float32): float32 =
 var baseOctave = 6
 var lastmv: Point2d
 
-type
-  Knob = object of RootObj
-    x,y: int
-    min,max: float
-    value: float
-    default: float
-    onchange: proc(newValue: float)
-    getValueString: proc(value: float): string
-    label: string
-
 var currentKnob: ptr Knob
 
-proc draw(self: var Knob) =
+method draw(self: var GuiObject, x,y: int): (int,int) {.base.} =
+  discard
+
+method draw(self: var GuiGroup, x,y: int): (int,int) =
+  var x = x
+  var y = y
+  for item in mitems(items):
+    let (incx,incy) = item.draw(x,y)
+    if vertical:
+      y += incy
+    else:
+      x += incx
+
+method draw(self: var Knob, x,y: int): (int,int) =
   setColor(4)
   circfill(x,y,4)
   setColor(7)
@@ -55,26 +59,21 @@ proc draw(self: var Knob) =
     if self.getValueString != nil:
       printShadowC(self.getValueString(value), x, y + 16)
 
-var knobs = newSeq[Knob]()
-
-proc getAABB(self: Knob): AABB =
+proc getAABB(self: Knob, x,y: int): AABB =
   result.min.x = x.float - 4.0
   result.min.y = y.float - 4.0
   result.max.x = x.float + 8.0
   result.max.y = y.float + 8.0
 
-proc addKnob(label: string, x,y: int, min,max,default: float, onchange: proc(newValue: float) = nil, getValueString: proc(value: float): string = nil) =
-  var knob: Knob
-  knob.label = label
-  knob.x = x
-  knob.y = y
-  knob.min = min
-  knob.max = max
-  knob.default = default
-  knob.value = default
-  knob.onchange = onchange
-  knob.getValueString = getValueString
-  knobs.add(knob)
+proc initKnob(label: string, min,max,default,step: float, onchange: proc(newValue: float) {.locks: 0.} = nil, getValueString: proc(value: float): string {.locks: 0.} = nil): Knob =
+  result.label = label
+  result.min = min
+  result.max = max
+  result.default = default
+  result.step = step
+  result.value = default
+  result.onchange = onchange
+  result.getValueString = getValueString
 
 var osc1: Osc
 var osc2: Osc
@@ -278,108 +277,110 @@ proc synthInit() =
   setAudioCallback(synthAudio)
   setKeyFunc(synthKey)
 
-  addKnob("cut", 32,32, 1.0, 1.499, 0.01) do(newValue: float):
+  var filterGroup: GuiGroup
+  filterGroup.items.add(initKnob("cut", 1.0, 1.499, 1.0, 0.001) do(newValue: float):
     filter1.cutoff = log2(newValue)
   do(value: float) -> string:
     return $(filter1.cutoff * sampleRate).int
-  addKnob("q", 32+16,32, 0.001, 5.0, 1.0) do(newValue: float):
+  )
+  initKnob("q", 32+16,32, 0.001, 5.0, 1.0, 0.001) do(newValue: float):
     filter1.resonance = newValue
   do(value: float) -> string:
     return $(filter1.resonance).formatFloat(ffDecimal, 2)
-  addKnob("cent", 32+32,32, -100.0, 100.0, 1.0) do(newValue: float):
+  initKnob("cent", 32+32,32, -100.0, 100.0, 0.0, 1.0) do(newValue: float):
     centOffset = newValue.int.float
   do(value: float) -> string:
     return $centOffset.int
-  addKnob("mod", 32+32,8, -1.0, 1.0, 0.0) do(newValue: float):
+  initKnob("mod", 32+32,8, -1.0, 1.0, 0.0, 0.001) do(newValue: float):
     pitchModAmount = newValue
   do(value: float) -> string:
     return pitchModAmount.formatFloat(ffDecimal, 2)
-  addKnob("semi", 32+32+16,32, -12.0, 12.0, 1.0) do(newValue: float):
+  initKnob("semi", 32+32+16,32, -12.0, 12.0, 0.0, 1.0) do(newValue: float):
     semiOffset = newValue.int.float
   do(value: float) -> string:
     return $semiOffset.int
-  addKnob("osc1", 32+32+32,32, 0.0, 6.0, 0.0) do(newValue: float):
+  initKnob("osc1", 32+32+32,32, 0.0, 6.0, 0.0, 1.0) do(newValue: float):
     osc1.kind = cast[OscKind](newValue.int)
   do(value: float) -> string:
     return $osc1.kind
-  addKnob("osc2", 32+32+32+16,32, 0.0, 6.0, 0.0) do(newValue: float):
+  initKnob("osc2", 32+32+32+16,32, 0.0, 6.0, 0.0, 1.0) do(newValue: float):
     osc2.kind = cast[OscKind](newValue.int)
   do(value: float) -> string:
     return $osc2.kind
-  addKnob("vol", 32+32+32+32,32, 0.0, 1.0, 1.0) do(newValue: float):
+  initKnob("vol", 32+32+32+32,32, 0.0, 1.0, 1.0, 0.001) do(newValue: float):
     osc2Amount = newValue
   do(value: float) -> string:
     return osc2Amount.formatFloat(ffDecimal, 2)
 
-  addKnob("mod", 32, 64, -1.0, 1.0, 0.0) do(newValue: float):
+  initKnob("mod", 32, 64, -1.0, 1.0, 0.0, 0.001) do(newValue: float):
     cutoffModAmount = newValue
   do(value: float) -> string:
     return cutoffModAmount.formatFloat(ffDecimal, 2)
-  addKnob("mod", 32+16, 64, -1.0, 1.0, 0.0) do(newValue: float):
+  initKnob("mod", 32+16, 64, -1.0, 1.0, 0.0, 0.001) do(newValue: float):
     resonanceModAmount = newValue
   do(value: float) -> string:
     return resonanceModAmount.formatFloat(ffDecimal, 2)
 
 
-  addKnob("spd", 32, 64+32, 0.001, 30.0, 0.01) do(newValue: float):
+  initKnob("spd", 32, 64+32, 0.001, 30.0, 0.01, 0.001) do(newValue: float):
     cutoffMod.freq = newValue
   do(value: float) -> string:
     return cutoffMod.freq.formatFloat(ffDecimal, 2)
-  addKnob("spd", 32+16,64+32, 0.001, 30.0, 0.01) do(newValue: float):
+  initKnob("spd", 32+16,64+32, 0.001, 30.0, 0.01, 0.001) do(newValue: float):
     resonanceMod.freq = newValue
   do(value: float) -> string:
     return resonanceMod.freq.formatFloat(ffDecimal, 2)
 
-  addKnob("a", 32+32,64, 0.001, 1.0, 0.001) do(newValue: float):
+  initKnob("a", 32+32,64, 0.001, 1.0, 0.001, 0.001) do(newValue: float):
     env1.a = newValue
-  addKnob("d", 32+32+16,64, 0.001, 1.0, 0.001) do(newValue: float):
+  initKnob("d", 32+32+16,64, 0.001, 1.0, 0.001, 0.001) do(newValue: float):
     env1.d = newValue
-  addKnob("s", 32+32+32,64, 0.001, 1.0, 0.5) do(newValue: float):
+  initKnob("s", 32+32+32,64, 0.001, 1.0, 0.5) do(newValue: float):
     env1.s = newValue
-  addKnob("r", 32+32+32+16,64, 0.001, 1.0, 0.01) do(newValue: float):
+  initKnob("r", 32+32+32+16,64, 0.001, 1.0, 0.01) do(newValue: float):
     env1.r = newValue
 
-  addKnob("a", 32+32,64+32, 0.001, 1.0, 0.001) do(newValue: float):
+  initKnob("a", 32+32,64+32, 0.001, 1.0, 0.001) do(newValue: float):
     env2.a = newValue
-  addKnob("d", 32+32+16,64+32, 0.001, 1.0, 0.001) do(newValue: float):
+  initKnob("d", 32+32+16,64+32, 0.001, 1.0, 0.001) do(newValue: float):
     env2.d = newValue
-  addKnob("s", 32+32+32,64+32, 0.001, 1.0, 0.5) do(newValue: float):
+  initKnob("s", 32+32+32,64+32, 0.001, 1.0, 0.5) do(newValue: float):
     env2.s = newValue
-  addKnob("r", 32+32+32+16,64+32, 0.001, 1.0, 0.01) do(newValue: float):
+  initKnob("r", 32+32+32+16,64+32, 0.001, 1.0, 0.01) do(newValue: float):
     env2.r = newValue
-  addKnob("mod", 32+32+32+32,64+32, -1.0, 1.0, 0.0) do(newValue: float):
+  initKnob("mod", 32+32+32+32,64+32, -1.0, 1.0, 0.0) do(newValue: float):
     envMod = newValue
 
-  addKnob("del", 64, 64+48, 0.01, 2.0, 0.333) do(newValue: float):
+  initKnob("del", 64, 64+48, 0.01, 2.0, 0.333) do(newValue: float):
     delay.setLen((sampleRate * newValue).int)
   do(value: float) -> string:
     return value.formatFloat(ffDecimal, 2)
-  addKnob("wet", 64+16,64+48, 0.0, 2.0, 0.5) do(newValue: float):
+  initKnob("wet", 64+16,64+48, 0.0, 2.0, 0.5) do(newValue: float):
     delay.wet = newValue
   do(value: float) -> string:
     return value.formatFloat(ffDecimal, 2)
-  addKnob("dry", 64+32,64+48, 0.0, 2.0, 0.5) do(newValue: float):
+  initKnob("dry", 64+32,64+48, 0.0, 2.0, 0.5) do(newValue: float):
     delay.dry = newValue
   do(value: float) -> string:
     return value.formatFloat(ffDecimal, 2)
-  addKnob("fb", 64+48,64+48, 0.0, 1.0, 0.1) do(newValue: float):
+  initKnob("fb", 64+48,64+48, 0.0, 1.0, 0.1) do(newValue: float):
     delay.feedback = newValue
   do(value: float) -> string:
     return value.formatFloat(ffDecimal, 2)
 
-  addKnob("dist", 64+64, 64+48, 0.0, 3.0, 1.0) do(newValue: float):
+  initKnob("dist", 64+64, 64+48, 0.0, 3.0, 1.0) do(newValue: float):
     dist.kind = newValue.DistortionKind
   do(value: float) -> string:
     return $value.DistortionKind
-  addKnob("thrs", 64+64+16, 64+48, 0.0, 1.0, 1.0) do(newValue: float):
+  initKnob("thrs", 64+64+16, 64+48, 0.0, 1.0, 1.0) do(newValue: float):
     dist.threshold = newValue
   do(value: float) -> string:
     return value.formatFloat(ffDecimal, 2)
-  addKnob("pre", 64+64+32, 64+48, 0.0, 2.0, 1.0) do(newValue: float):
+  initKnob("pre", 64+64+32, 64+48, 0.0, 2.0, 1.0) do(newValue: float):
     dist.preGain = newValue
   do(value: float) -> string:
     return value.formatFloat(ffDecimal, 2)
-  addKnob("post", 64+64+48, 64+48, 0.0, 2.0, 1.0) do(newValue: float):
+  initKnob("post", 64+64+48, 64+48, 0.0, 2.0, 1.0) do(newValue: float):
     dist.postGain = newValue
   do(value: float) -> string:
     return value.formatFloat(ffDecimal, 2)

@@ -1,0 +1,49 @@
+Mini Music Studio
+-----------------
+
+Workspace similar to buzz where you lay out generator/effects/sequencers
+
+
+1. SubSynth
+  - 2 Oscs
+  - 1 Filter
+  - Amp Env
+  - Filter Env
+  - Glissando
+
+2. FMSynth
+
+3. Sampler
+  - 8 channels
+  - assign sfx to channel
+  - volume
+
+4. Looper
+  - Records input and plays it back looped
+  - Import external music file
+  - Multiple loops
+  - Can adjust speed/pitch/reverse/do glitchy stuff
+
+5. Effects:
+  - Delay
+  - Distortion
+  - Reverb
+  - EQ
+  - Chorus
+  - Compressor
+  - Flanger
+  - Phaser
+
+6. Sequencer
+  - Add patterns, add columns that map to attributes of synths/samplers/effects.
+  - Tell it which pattern to play
+  - You can sequence sequencers
+
+Sequencer1 -> Sequencer2 (some notes) -> MonoSynth
+
+Sequencer1 tells Sequencer2 which patterns to play, and Sequencer2 tells MonoSynth which notes to play
+A sequencer can control multiple different instruments
+
+Sequencer1 -> Sequencer2 -> MonoSynth1
+                         -> Sampler1
+           -> Sequencer3 -> PolySynth1
