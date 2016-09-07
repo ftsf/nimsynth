@@ -9,6 +9,7 @@ import ringbuffer
 import osc
 import filter
 import env
+import distortion
 
 import common
 
@@ -20,23 +21,12 @@ type
     wet,dry: float
     feedback: float
 
-  Distortion = object of RootObj
-    threshold: float
-    gain: float
-
 proc setLen(self: var Delay, newLength: int) =
   self.buffer = newRingBuffer[float32](newLength)
 
 proc update(self: var Delay, sample: float32): float32 =
   self.buffer.add([(sample + self.buffer[0] * feedback).float32])
   return self.buffer[0] * wet + sample * dry
-
-proc update(self: Distortion, sample: float32): float32 =
-  let sample = sample * gain
-  if sample > threshold or sample < -threshold:
-    #return abs(abs((sample - threshold) mod (threshold * 4.0)) - threshold * 2.0) - threshold
-    return tanh(sample)
-  return sample
 
 var baseOctave = 6
 var lastmv: Point2d
@@ -90,9 +80,10 @@ var osc1: Osc
 var osc2: Osc
 var filter1: Filter
 var delay: Delay
-var distortion: Distortion
-distortion.threshold = 0.8
-distortion.gain = 1.1
+var dist: Distortion
+dist.threshold = 0.8
+dist.preGain = 1.1
+dist.postGain = 1.0
 
 var centOffset = 1.0
 var semiOffset = 0.0
@@ -129,7 +120,7 @@ var envMod = 0.0
 #[
 #
 #  osc1 * osc1Amount +    env2 \
-#                    +--> filter1 * env1 --> delay --> distortion --> output
+#                    +--> filter1 * env1 --> delay --> dist --> output
 #  osc2 * osc2Amount +    lfo1 /
 #
 ]#
@@ -186,7 +177,7 @@ proc synthAudio(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.} =
     filter1.calc()
     samples[i] = filter1.process(samples[i])
     samples[i] = delay.update(samples[i])
-    samples[i] = distortion.update(samples[i])
+    samples[i] = dist.update(samples[i])
 
   for i in 0..<buffer.len:
     if i > nSamples:
@@ -376,12 +367,20 @@ proc synthInit() =
   do(value: float) -> string:
     return value.formatFloat(ffDecimal, 2)
 
-  addKnob("dist", 64+64,64+64, 0.0, 1.0, 1.0) do(newValue: float):
-    distortion.threshold = newValue
+  addKnob("dist", 64+64, 64+48, 0.0, 3.0, 1.0) do(newValue: float):
+    dist.kind = newValue.DistortionKind
+  do(value: float) -> string:
+    return $value.DistortionKind
+  addKnob("thrs", 64+64+16, 64+48, 0.0, 1.0, 1.0) do(newValue: float):
+    dist.threshold = newValue
   do(value: float) -> string:
     return value.formatFloat(ffDecimal, 2)
-  addKnob("gain", 64+64+16,64+64, 0.0, 2.0, 1.0) do(newValue: float):
-    distortion.gain = newValue
+  addKnob("pre", 64+64+32, 64+48, 0.0, 2.0, 1.0) do(newValue: float):
+    dist.preGain = newValue
+  do(value: float) -> string:
+    return value.formatFloat(ffDecimal, 2)
+  addKnob("post", 64+64+48, 64+48, 0.0, 2.0, 1.0) do(newValue: float):
+    dist.postGain = newValue
   do(value: float) -> string:
     return value.formatFloat(ffDecimal, 2)
 
