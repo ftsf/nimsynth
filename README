@@ -4,27 +4,27 @@ Mini Music Studio
 Workspace similar to buzz where you lay out generator/effects/sequencers
 
 
-1. SubSynth
+* SubSynth
   - 2 Oscs
   - 1 Filter
   - Amp Env
   - Filter Env
   - Glissando
 
-2. FMSynth
+* FMSynth
 
-3. Sampler
+* Sampler
   - 8 channels
   - assign sfx to channel
   - volume
 
-4. Looper
+* Looper
   - Records input and plays it back looped
   - Import external music file
   - Multiple loops
   - Can adjust speed/pitch/reverse/do glitchy stuff
 
-5. Effects:
+* Effects:
   - Delay
   - Distortion
   - Reverb
@@ -34,12 +34,25 @@ Workspace similar to buzz where you lay out generator/effects/sequencers
   - Flanger
   - Phaser
 
-6. Sequencer
-  - Add patterns, add columns that map to attributes of synths/samplers/effects.
+* LFO
+  - Binding: machine, param
+  - Shape
+  - Frequency
+  - Amplitude
+
+* Sequencer
+  - Add patterns, add columns that map to attributes of machine.
   - Tell it which pattern to play
   - You can sequence sequencers
 
 Sequencer1 -> Sequencer2 (some notes) -> MonoSynth
+
+Each column of the sequencer maps to an attribute of a machine
+	- Binding (machine: machineID, param: paramID, interpolation: ?)
+	- Store as int
+	- Note type  (-1 = ...), (-2 = OFF), anything else is note value
+	- Param type (-1 = ...), (0x00 = min value) (0xff = max value)
+	  - Show graph of value next to value
 
 Sequencer1 tells Sequencer2 which patterns to play, and Sequencer2 tells MonoSynth which notes to play
 A sequencer can control multiple different instruments
