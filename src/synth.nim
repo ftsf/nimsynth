@@ -10,10 +10,15 @@ import osc
 import filter
 import env
 import distortion
+import sequencer
 
 import common
 
 {.this:self.}
+
+type
+  Synth = ref object of View
+    discard
 
 type
   Delay = object of RootObj
@@ -46,9 +51,11 @@ var currentKnob: ptr Knob
 proc draw(self: var Knob) =
   setColor(4)
   circfill(x,y,4)
-  setColor(7)
+  setColor(1)
   let range = max - min
-  let angle = lerp(-PI, 0.0, ((value - min) / range))
+
+  setColor(7)
+  let angle = lerp(degToRad(-180 - 45), degToRad(45), ((value - min) / range))
   line(x,y, x + cos(angle) * 4, y + sin(angle) * 4)
   printShadowC(label, x, y + 8)
   if currentKnob == addr(self):
@@ -71,10 +78,13 @@ proc addKnob(label: string, x,y: int, min,max,default: float, onchange: proc(new
   knob.min = min
   knob.max = max
   knob.default = default
-  knob.value = default
+  knob.value = clamp(default, min, max)
   knob.onchange = onchange
   knob.getValueString = getValueString
   knobs.add(knob)
+
+  if knob.onchange != nil:
+    knob.onchange(knob.value)
 
 var osc1: Osc
 var osc2: Osc
@@ -116,6 +126,11 @@ env2.s = 0.1
 env2.r = 0.3
 
 var envMod = 0.0
+
+var synthView = new(Synth)
+var sequencerView = newSequencer()
+
+var currentView: View = synthView
 
 #[
 #
@@ -184,7 +199,7 @@ proc synthAudio(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.} =
       break
     buffer[i] = samples[i]
 
-proc synthKey(key: KeyboardEventPtr, down: bool): bool =
+method key(self: Synth, key: KeyboardEventPtr, down: bool): bool =
   let scancode = key.keysym.scancode
 
   if (int16(key.keysym.modstate) and int16(KMOD_CTRL)) != 0:
@@ -258,6 +273,21 @@ proc synthKey(key: KeyboardEventPtr, down: bool): bool =
 
   return true
 
+proc keyFunc(key: KeyboardEventPtr, down: bool): bool =
+  let scancode = key.keysym.scancode
+  case scancode:
+  of SDL_SCANCODE_F1:
+    if down:
+      currentView = synthView
+    return true
+  of SDL_SCANCODE_F2:
+    if down:
+      currentView = sequencerView
+    return true
+  else:
+    discard
+
+  return currentView.key(key, down)
 
 proc synthInit() =
   loadSpriteSheet("spritesheet.png")
@@ -276,9 +306,9 @@ proc synthInit() =
   filter1.peakGain = 1.0
   filter1.calc()
   setAudioCallback(synthAudio)
-  setKeyFunc(synthKey)
+  setKeyFunc(keyFunc)
 
-  addKnob("cut", 32,32, 1.0, 1.499, 0.01) do(newValue: float):
+  addKnob("cut", 32,32, 1.0, 1.499, 1.2) do(newValue: float):
     filter1.cutoff = log2(newValue)
   do(value: float) -> string:
     return $(filter1.cutoff * sampleRate).int
@@ -310,6 +340,14 @@ proc synthInit() =
     osc2Amount = newValue
   do(value: float) -> string:
     return osc2Amount.formatFloat(ffDecimal, 2)
+  addKnob("pw1", 32+32+32+32+16,32, 0.0, 1.0, 0.5) do(newValue: float):
+    osc1.pulseWidth = newValue
+  do(value: float) -> string:
+    return value.formatFloat(ffDecimal, 2)
+  addKnob("pw2", 32+32+32+32+32,32, 0.0, 1.0, 0.5) do(newValue: float):
+    osc2.pulseWidth = newValue
+  do(value: float) -> string:
+    return value.formatFloat(ffDecimal, 2)
 
   addKnob("mod", 32, 64, -1.0, 1.0, 0.0) do(newValue: float):
     cutoffModAmount = newValue
@@ -385,7 +423,7 @@ proc synthInit() =
     return value.formatFloat(ffDecimal, 2)
 
 
-proc synthUpdate(dt: float) =
+method update(self: Synth, dt: float) =
   if btnp(0):
     baseOctave -= 1
   if btnp(1):
@@ -409,7 +447,7 @@ proc synthUpdate(dt: float) =
 
   osc2.freq = osc1.freq * pow(2.0, centOffset / 1200.0 + semiOffset / 12.0)
 
-proc synthDraw() =
+method draw(self: Synth) =
   cls()
   setColor(7)
 
@@ -427,5 +465,11 @@ proc synthDraw() =
   var mv = mouse()
   spr(20, mv.x, mv.y)
 
+proc update(dt: float) =
+  currentView.update(dt)
+
+proc draw() =
+  currentView.draw()
+
 pico.init(false)
-pico.run(synthInit, synthUpdate, synthDraw)
+pico.run(synthInit, update, draw)
