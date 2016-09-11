@@ -24,6 +24,7 @@ type
     osc1,osc2,osc3,osc4: Osc
     env1,env2,env3,env4: Envelope
     filter: BiquadFilter
+    glissando: OnePoleFilter
   Synth = ref object of Machine
     osc1Amount: float
     osc1Kind: OscKind
@@ -35,10 +36,12 @@ type
     osc2Cent: float
     osc3Amount: float
     osc4Amount: float
+    glissando: float
     cutoff: float
     resonance: float
     env: array[4, tuple[a,d,s,r: float]]
-    env2Mod: float
+    env2CutoffMod: float
+    env3PitchMod: float
 
 method init*(self: SynthVoice, machine: Synth) =
   echo "synth voice init"
@@ -55,6 +58,7 @@ method init*(self: SynthVoice, machine: Synth) =
   filter.cutoff = 0.25
   filter.resonance = 1.0
   filter.init()
+  glissando.init()
 
 method addVoice*(self: Synth) =
   var voice = new(SynthVoice)
@@ -66,15 +70,6 @@ method init*(self: Synth) =
   name = "synth"
   nInputs = 0
   nOutputs = 1
-  osc1Amount = 0.5
-  osc2Amount = 0.5
-  osc3Amount = 0.5
-  osc4Amount = 0.1
-  env2Mod = 0.0
-  cutoff = 0.25
-  resonance = 1.0
-  osc2Semi = 12.0
-  osc2Cent = 4.0
 
   self.globalParams.add([
     Parameter(name: "cutoff", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
@@ -138,8 +133,26 @@ method init*(self: Synth) =
     Parameter(name: "env2 r", kind: Float, min: 0.0, max: 1.0, default: 0.001, onchange: proc(newValue: float, voice: int) =
       self.env[1].r = newValue
     ),
-    Parameter(name: "env2 mod", kind: Float, min: -1.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
-      self.env2Mod = newValue
+    Parameter(name: "env2 cutoff", kind: Float, min: -1.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.env2CutoffMod = newValue
+    ),
+    Parameter(name: "env3 a", kind: Float, min: 0.0, max: 1.0, default: 0.001, onchange: proc(newValue: float, voice: int) =
+      self.env[2].a = newValue
+    ),
+    Parameter(name: "env3 d", kind: Float, min: 0.0, max: 1.0, default: 0.05, onchange: proc(newValue: float, voice: int) =
+      self.env[2].d = newValue
+    ),
+    Parameter(name: "env3 s", kind: Float, min: 0.0, max: 1.0, default: 0.25, onchange: proc(newValue: float, voice: int) =
+      self.env[2].s = newValue
+    ),
+    Parameter(name: "env3 r", kind: Float, min: 0.0, max: 1.0, default: 0.001, onchange: proc(newValue: float, voice: int) =
+      self.env[2].r = newValue
+    ),
+    Parameter(name: "env3 pmod", kind: Float, min: -1.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.env3PitchMod = newValue
+    ),
+    Parameter(name: "glissando", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.glissando = exp(lerp(-12.0, 0.0, 1.0-newValue))
     ),
   ])
   self.voiceParams.add(
@@ -170,7 +183,16 @@ method trigger(self: Synth, note: int) =
       v2.env2.trigger()
       v2.env3.trigger()
       v2.env4.trigger()
-      break
+      return
+  # no free note, play it anyway
+  var v2 = SynthVoice(voices[0])
+  v2.note = note
+  v2.pitch = noteToHz(note.float)
+  v2.env1.trigger()
+  v2.env2.trigger()
+  v2.env3.trigger()
+  v2.env4.trigger()
+
 
 method release(self: Synth, note: int) =
   # find the voice playing that note, this is very ugly
@@ -181,7 +203,6 @@ method release(self: Synth, note: int) =
       v2.env2.release()
       v2.env3.release()
       v2.env4.release()
-      break
 
 proc newSynth*(): Synth =
   result = new(Synth)
@@ -201,16 +222,18 @@ method process*(self: Synth): float32 {.inline.} =
     v.env2.r = env[1].r
 
     v.osc1.kind = osc1Kind
-    v.osc1.freq = v.pitch
+    v.glissando.setCutoff(glissando)
+    v.glissando.calc()
+    v.osc1.freq = v.glissando.process(v.pitch)
     v.osc1.pulseWidth = osc1Pw
     v.osc2.kind = osc2Kind
-    v.osc2.freq = v.pitch * pow(2.0, osc2Cent / 1200.0 + osc2Semi / 12.0)
+    v.osc2.freq = v.osc1.freq * pow(2.0, osc2Cent / 1200.0 + osc2Semi / 12.0)
     v.osc2.pulseWidth = osc2Pw
     v.osc3.kind = osc1Kind
     v.osc3.pulseWidth = osc1Pw
-    v.osc3.freq = v.pitch * 0.5
+    v.osc3.freq = v.osc1.freq * 0.5
     var vs = (v.osc1.process() * osc1Amount + v.osc2.process() * osc2Amount + v.osc3.process() * osc3Amount + v.osc4.process() * osc4Amount) * v.env1.process()
-    v.filter.cutoff = cutoff + v.env2.process() * env2Mod
+    v.filter.cutoff = clamp(cutoff + v.env2.process() * env2CutoffMod, 0.001, 0.499)
     v.filter.resonance = resonance
     v.filter.calc()
     vs = v.filter.process(vs)

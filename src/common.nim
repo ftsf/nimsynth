@@ -175,7 +175,7 @@ proc noteToHz*(note: float): float =
   return pow(2.0,((note - 69.0) / 12.0)) * 440.0
 
 proc hzToNote*(hz: float): int =
-  return (69.0 * log2(hz / 440.0)).int
+  return (12.0 * log2(hz / 440.0) + 69.0).int
 
 proc noteToNoteName*(note: int): string =
   let oct = note div 12 - 1

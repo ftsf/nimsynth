@@ -91,9 +91,9 @@ method key*(self: MachineView, key: KeyboardEventPtr, down: bool): bool =
 
   let note = keyToNote(key)
   if note > -1:
-    if down:
+    if down and not key.repeat:
       machine.trigger(note)
-    else:
+    elif not down:
       machine.release(note)
 
   return false

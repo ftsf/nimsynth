@@ -128,9 +128,9 @@ method key*(self: LayoutView, key: KeyboardEventPtr, down: bool): bool =
   if currentMachine != nil:
     let note = keyToNote(key)
     if note > -1:
-      if down:
+      if down and not key.repeat:
         currentMachine.trigger(note)
-      else:
+      elif not down:
         currentMachine.release(note)
   return false
 
