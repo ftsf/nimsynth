@@ -73,6 +73,9 @@ proc rotated*(v: Vector2d, angle: float): Vector2d =
 proc lerp*[T](a, b: T, t: float): T =
   return a + (b - a) * t
 
+proc invLerp*[T](a, b: T, t: T): float =
+  return (t - a) / (b - a)
+
 proc trifill*(tri: Triangle | Polygon) =
   trifill(tri[0],tri[1],tri[2])
 
@@ -109,6 +112,12 @@ type AABB* = tuple[min: Point2d, max: Point2d]
 
 proc rect*(aabb: AABB) =
   rect(aabb.min.x.int, aabb.min.y.int, aabb.max.x.int, aabb.max.y.int)
+
+proc getAABB*(p: Point2d, expand: float): AABB =
+  result.min.x = p.x - expand
+  result.min.y = p.y - expand
+  result.max.x = p.x + expand
+  result.max.y = p.y + expand
 
 proc getAABB*(poly: Triangle | Polygon): AABB =
   var aabb: AABB
@@ -392,6 +401,9 @@ proc wrapAngleTAU*(angle: float): float =
 import unittest
 
 suite "util":
+  test "invLerp":
+    check(invLerp(-1.0,  1.0, 0.0) == 0.5)
+    check(invLerp( 1.0, -1.0, 0.0) == 0.5)
   test "angleDiff":
     check(angleDiff(0,0) == 0)
     check(angleDiff(TAU,0) == 0)

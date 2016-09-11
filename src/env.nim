@@ -1,25 +1,27 @@
 import util
 
 import common
+import filter
 
 {.this:self.}
 
 type
-  EnvState = enum
+  EnvState* = enum
     End
     Attack
     Decay
     Sustain
     Release
-  Envelope* = object of RootObj
+  Envelope* = object of Modulator
     a*,d*,s*,r*: float
-    state: EnvState
+    state*: EnvState
     time: float
     released: bool
+    filter: OnePoleFilter
     targetLevel: float
     actualLevel: float
 
-proc update*(self: var Envelope): float32 =
+proc process*(self: var Envelope): float32 =
   case state:
   of Attack:
     targetLevel = lerp(0.0, 1.0, time / a)
