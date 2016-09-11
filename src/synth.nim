@@ -136,19 +136,19 @@ method init*(self: Synth) =
     Parameter(name: "env2 cutoff", kind: Float, min: -1.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.env2CutoffMod = newValue
     ),
-    Parameter(name: "env3 a", kind: Float, min: 0.0, max: 1.0, default: 0.001, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env3 a", kind: Float, min: 0.0, max: 1.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
       self.env[2].a = newValue
     ),
-    Parameter(name: "env3 d", kind: Float, min: 0.0, max: 1.0, default: 0.05, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env3 d", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.env[2].d = newValue
     ),
-    Parameter(name: "env3 s", kind: Float, min: 0.0, max: 1.0, default: 0.25, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env3 s", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.env[2].s = newValue
     ),
     Parameter(name: "env3 r", kind: Float, min: 0.0, max: 1.0, default: 0.001, onchange: proc(newValue: float, voice: int) =
       self.env[2].r = newValue
     ),
-    Parameter(name: "env3 pmod", kind: Float, min: -1.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env3 pmod", kind: Float, min: -24.0, max: 24.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.env3PitchMod = newValue
     ),
     Parameter(name: "glissando", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
@@ -221,10 +221,16 @@ method process*(self: Synth): float32 {.inline.} =
     v.env2.s = env[1].s
     v.env2.r = env[1].r
 
+    v.env3.a = env[2].a
+    v.env3.d = env[2].d
+    v.env3.s = env[2].s
+    v.env3.r = env[2].r
+
     v.osc1.kind = osc1Kind
     v.glissando.setCutoff(glissando)
     v.glissando.calc()
     v.osc1.freq = v.glissando.process(v.pitch)
+    v.osc1.freq *= pow(2.0, (v.env3.process() * env3PitchMod) / 12.0)
     v.osc1.pulseWidth = osc1Pw
     v.osc2.kind = osc2Kind
     v.osc2.freq = v.osc1.freq * pow(2.0, osc2Cent / 1200.0 + osc2Semi / 12.0)
