@@ -3,6 +3,7 @@ import pico
 import strutils
 import util
 import basic2d
+import math
 import synth
 
 import machineview
@@ -12,11 +13,73 @@ import machineview
 
 {.this:self.}
 
+type
+  MenuItem* = ref object of RootObj
+    label: string
+    action: proc()
+  Menu* = ref object of RootObj
+    pos: Point2d
+    items: seq[MenuItem]
+
+proc draw(self: Knob) =
+  let x = self.pos.x.int
+  let y = self.pos.y.int
+
+  setColor(4)
+  circfill(x, y, 4)
+  setColor(1)
+  circ(x, y, 5)
+  setColor(6)
+  if self.param != nil:
+    let range = param.max - param.min
+    let angle = lerp(degToRad(-180 - 45), degToRad(45), ((param.value - param.min) / range))
+    line(x,y, x + cos(angle) * 4, y + sin(angle) * 4)
+    printShadowC(self.param.name, x, y + 8)
+    printShadowC(if self.param.getValueString != nil: self.param.getValueString(self.param.value, -1) else: self.param.value.formatFloat(ffDecimal, 2), x, y + 16)
+  else:
+    printShadowC("?", x, y + 8)
+
+proc getAABB(self: Knob): AABB =
+  result.min.x = self.pos.x - 6.0
+  result.min.y = self.pos.y - 6.0
+  result.max.x = self.pos.x + 6.0
+  result.max.y = self.pos.y + 6.0
+
+proc newMenu(): Menu =
+  result = new(Menu)
+  result.items = newSeq[MenuItem]()
+
+proc newMenuItem(label: string, action: proc() = nil): MenuItem =
+  result = new(MenuItem)
+  result.label = label
+  result.action = action
+
+proc getAABB(self: Menu): AABB =
+  result.min.x = pos.x - 2
+  result.min.y = pos.y - 2
+  result.max.x = pos.x + 64 + 1
+  result.max.y = pos.y + items.len.float * 9.0 + 1.0
+
+proc draw(self: Menu) =
+  setColor(1)
+  let aabb = self.getAABB()
+  rectfill(aabb.min.x, aabb.min.y, aabb.max.x, aabb.max.y)
+  var y = pos.y.int
+  for i,item in items:
+    setColor(6)
+    print(item.label, pos.x.int + 1, y)
+    y += 9
+
+  setColor(6)
+  rect(aabb.min.x.int, aabb.min.y.int, aabb.max.x.int, aabb.max.y.int)
+
 type LayoutView* = ref object of View
   currentMachine*: Machine
+  currentKnob*: Knob
   dragging*: bool
   connecting*: bool
   lastmv*: Point2d
+  menu*: Menu
 
 const arrowVerts = [
   point2d(-5,-3),
@@ -45,9 +108,12 @@ method draw*(self: LayoutView) =
 
   var mv = mouse() + vector2d(-screenWidth div 2, -screenHeight div 2)
 
-  if connecting:
+  if connecting and currentMachine != nil:
     setColor(1)
     line(currentMachine.pos, mv)
+  elif connecting and currentKnob != nil:
+    setColor(4)
+    line(currentKnob.pos, mv)
 
   # draw connections
   for machine in mitems(machines):
@@ -62,13 +128,24 @@ method draw*(self: LayoutView) =
       setColor(1)
       poly(rotatedPoly(mid, arrowVerts, (machine.pos - input.machine.pos).angle))
 
+  for knob in mitems(knobs):
+    if knob.param != nil and knob.machine != nil:
+      setColor(4)
+      line(knob.pos, knob.machine.pos)
+
   # draw boxes
   for machine in mitems(machines):
-    setColor(if currentMachine == machine: 4 else: 1)
+    setColor(if recordMachine == machine: 8 elif currentMachine == machine: 4 else: 1)
     rectfill(machine.pos.x - 16, machine.pos.y - 4, machine.pos.x + 16, machine.pos.y + 4)
     setColor(6)
     rect(machine.pos.x.int - 16, machine.pos.y.int - 4, machine.pos.x.int + 16, machine.pos.y.int + 4)
     printc(machine.name, machine.pos.x, machine.pos.y - 2)
+
+  for knob in knobs:
+    knob.draw()
+
+  if menu != nil:
+    menu.draw()
 
   spr(20, mv.x, mv.y)
 
@@ -76,43 +153,12 @@ method draw*(self: LayoutView) =
   setColor(1)
   printr("layout", screenWidth - 1, 1)
 
+
 proc getAABB(self: Machine): AABB =
   result.min.x = pos.x - 16
   result.min.y = pos.y - 4
   result.max.x = pos.x + 16
   result.max.y = pos.y + 4
-
-proc getAdjacent(self: Machine): seq[Machine] =
-  result = newSeq[Machine]()
-  for input in mitems(inputs):
-    result.add(input.machine)
-
-proc DFS[T](current: T, white: var seq[T], grey: var seq[T], black: var seq[T]): bool =
-  grey.add(current)
-  for adj in current.getAdjacent():
-    if adj in black:
-      continue
-    if adj in grey:
-      # contains cycle
-      return true
-    if DFS(adj, white, grey, black):
-      return true
-  # fully explored: move from grey to black
-  grey.del(grey.find(current))
-  black.add(current)
-  return false
-
-proc hasCycle[T](G: seq[T]): bool =
-  var white = newSeq[T]()
-  white.add(G)
-  var grey = newSeq[T]()
-  var black = newSeq[T]()
-
-  while white.len > 0:
-    var current = white.pop()
-    if(DFS(current, white, grey, black)):
-      return true
-  return false
 
 method key*(self: LayoutView, key: KeyboardEventPtr, down: bool): bool =
   let scancode = key.keysym.scancode
@@ -122,18 +168,22 @@ method key*(self: LayoutView, key: KeyboardEventPtr, down: bool): bool =
       if currentMachine != nil:
         MachineView(vMachineView).machine = currentMachine
         currentView = vMachineView
-        echo "machine view"
+        return true
+    of SDL_SCANCODE_INSERT:
+      if currentMachine != nil:
+        recordMachine = currentMachine
+    of SDL_SCANCODE_DELETE:
+      if currentKnob != nil:
+        knobs.del(knobs.find(currentKnob))
+        currentKnob = nil
+        return true
+      if currentMachine != nil and currentMachine != masterMachine:
+        currentMachine.delete()
+        currentMachine = nil
         return true
     else:
       discard
 
-  if currentMachine != nil:
-    let note = keyToNote(key)
-    if note > -1:
-      if down and not key.repeat:
-        currentMachine.trigger(note)
-      elif not down:
-        currentMachine.release(note)
   return false
 
 method update*(self: LayoutView, dt: float) =
@@ -141,12 +191,32 @@ method update*(self: LayoutView, dt: float) =
   mv.x += (-screenWidth div 2).float
   mv.y += (-screenHeight div 2).float
 
+  if menu != nil:
+    if mousebtnp(0):
+      if pointInAABB(mv,menu.getAABB()):
+        # check which item they clicked on
+        let item = (mv.y - menu.pos.y).int div 8
+        if item >= 0 and item < menu.items.len:
+          menu.items[item].action()
+          menu = nil
+      else:
+        # clicked outside of menu, close it
+        menu = nil
+
   # left click to select and move machines
   if mousebtnp(0):
+    for knob in mitems(knobs):
+      if pointInAABB(mv, knob.getAABB()):
+        currentKnob = knob
+        currentMachine = nil
+        dragging = true
+        break
     for machine in mitems(machines):
       if pointInAABB(mv, machine.getAABB()):
         currentMachine = machine
+        currentKnob = nil
         dragging = true
+        break
 
   if not mousebtn(0):
     dragging = false
@@ -166,19 +236,61 @@ method update*(self: LayoutView, dt: float) =
         for i,input in machine.inputs:
           let mid = (input.machine.pos + machine.pos) / 2.0
           if pointInAABB(mv, mid.getAABB(4.0)):
-            machine.inputs.del(i)
+            disconnectMachines(input.machine, machine)
             return
-      # TODO: open new machine menu
-      var m = newSynth()
-      m.pos = mv
-      machines.add(m)
-      currentMachine = m
+      for knob in mitems(knobs):
+        if pointInAABB(mv, knob.getAABB()):
+          currentKnob = knob
+          currentMachine = nil
+          connecting = true
+          return
+      # open new machine menu
+      self.menu = newMenu()
+      self.menu.pos = mv
+      for i in 0..machineTypes.high:
+        (proc =
+          let mtype = machineTypes[i]
+          var item = newMenuItem(mtype.name, proc() =
+            var m = mtype.factory()
+            m.pos = mv
+            machines.add(m)
+          )
+          self.menu.items.add(item)
+        )()
+
+      self.menu.items.add(newMenuItem("knob", proc() =
+        var knob = new(Knob)
+        knob = Knob(pos: mv, param: nil)
+        knobs.add(knob)
+      ))
 
   if not mousebtn(1) and not connecting and currentMachine == nil:
     # release right click when not over machine and not dragging from machine
     # TODO: open menu to select machine to insert
     # TODO: need a list of possible machines
     discard
+  elif not mousebtn(1) and connecting and currentKnob != nil:
+    # connect knob to machine
+    for machine in mitems(machines):
+      if pointInAABB(mv, machine.getAABB()):
+        # open menu of params to connect knob to
+        self.menu = newMenu()
+        self.menu.pos = mv
+        var knob = currentKnob
+        var targetMachine = machine
+        for i in 0..targetMachine.globalParams.high:
+          (proc =
+            var param = targetMachine.globalParams[i]
+            var item = newMenuItem(param.name, proc() =
+              knob.machine = targetMachine
+              knob.param = addr(param)
+            )
+            self.menu.items.add(item)
+          )()
+        break
+    connecting = false
+    currentKnob = nil
+
   elif not mousebtn(1) and connecting and currentMachine != nil:
     # release right click drag, attempt to create connection
     # check if a connection was made
@@ -190,22 +302,15 @@ method update*(self: LayoutView, dt: float) =
         discard
       else:
         if pointInAABB(mv, machine.getAABB()):
-          if machine.nInputs > 0:
-            # check it doesn't connect back to us
-            for rinput in currentMachine.inputs:
-              if rinput.machine == machine:
-                connecting = false
-                echo "can't connect back"
-                return
-            machine.inputs.add(Input(machine: currentMachine, output: 0, gain: 1.0))
-            if hasCycle(machines):
-              echo "loop detected"
-              discard machine.inputs.pop()
-          else:
-            echo "no inputs"
+          discard connectMachines(currentMachine, machine)
     connecting = false
 
-  if dragging:
+  if dragging and currentKnob != nil:
+    if currentKnob.param != nil:
+      currentKnob.param.value -= (mv.y - lastmv.y) * 0.01 * (currentKnob.param.max - currentKnob.param.min)
+      currentKnob.param.value = clamp(currentKnob.param.value, currentKnob.param.min, currentKnob.param.max)
+      currentKnob.param.onchange(currentKnob.param.value)
+  elif dragging and currentMachine != nil:
     currentMachine.pos += (mv - lastmv)
 
   lastmv = mv

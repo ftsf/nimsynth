@@ -20,7 +20,7 @@ method init*(self: Master) =
 
 method process*(self: Master): float32 =
   for input in inputs:
-    result += input.machine.process() * input.gain
+    result += input.machine.outputSample * input.gain
   result *= gain
 
 proc newMaster*(): Master =

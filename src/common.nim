@@ -2,6 +2,7 @@ const sampleRate* = 48000.0
 const invSampleRate* = 1.0/sampleRate
 
 import sdl2
+import sdl2.audio
 import math
 import basic2d
 
@@ -10,6 +11,7 @@ export sdl2
 var baseOctave* = 4
 var beatsPerMinute* = 128
 
+var sampleId*: int
 var sampleBuffer*: array[1024, float32]
 
 type
@@ -41,16 +43,26 @@ type
     voiceParams*: seq[Parameter]
     voices*: seq[Voice]
     inputs*: seq[Input]
+    outputs*: seq[Machine]
     nOutputs*: int
     nInputs*: int
+    cachedOutputSampleId: int
+    cachedOutputSample*: float32
   View* = ref object of RootObj
     discard
+  Knob* = ref object of RootObj
+    pos*: Point2d
+    machine*: Machine
+    param*: ptr Parameter
 
 var machines*: seq[Machine]
+var knobs*: seq[Knob]
+
 var currentView*: View
 var vLayoutView*: View
 var vMachineView*: View
 var masterMachine*: Machine
+var recordMachine*: Machine
 
 {.this:self.}
 
@@ -59,9 +71,9 @@ method init*(self: Machine) {.base.} =
   voiceParams = newSeq[Parameter]()
   voices = newSeq[Voice]()
   inputs = newSeq[Input]()
+  outputs = newSeq[Machine]()
 
 method init*(self: Voice, machine: Machine) {.base.} =
-  echo "base voice init"
   parameters = newSeq[Parameter]()
   for p in machine.voiceParams:
     parameters.add(p)
@@ -73,6 +85,85 @@ method addVoice*(self: Machine) {.base.} =
   var voice = new(Voice)
   voice.init(self)
   self.voices.add(voice)
+
+proc getAdjacent(self: Machine): seq[Machine] =
+  result = newSeq[Machine]()
+  for input in mitems(inputs):
+    result.add(input.machine)
+
+proc DFS[T](current: T, white: var seq[T], grey: var seq[T], black: var seq[T]): bool =
+  grey.add(current)
+  for adj in current.getAdjacent():
+    if adj in black:
+      continue
+    if adj in grey:
+      # contains cycle
+      return true
+    if DFS(adj, white, grey, black):
+      return true
+  # fully explored: move from grey to black
+  grey.del(grey.find(current))
+  black.add(current)
+  return false
+
+proc hasCycle[T](G: seq[T]): bool =
+  var white = newSeq[T]()
+  white.add(G)
+  var grey = newSeq[T]()
+  var black = newSeq[T]()
+
+  while white.len > 0:
+    var current = white.pop()
+    if(DFS(current, white, grey, black)):
+      return true
+  return false
+
+proc connectMachines*(source, dest: Machine): bool =
+  # check dest accepts inputs
+  if dest.nInputs == 0:
+    return false
+  if source.nOutputs == 0:
+    return false
+  # check not already connected
+  if dest in source.outputs:
+    return false
+  # check not connected the other way
+  for input in source.inputs:
+    if input.machine == dest:
+      return false
+  # add it and test for cycle
+  source.outputs.add(dest)
+  dest.inputs.add(Input(machine: source, output: 0, gain: 1.0))
+  if hasCycle(machines):
+    # undo
+    discard dest.inputs.pop()
+    discard source.outputs.pop()
+    return false
+  return true
+
+proc disconnectMachines*(source, dest: Machine) =
+  pauseAudio(1)
+  for i,input in dest.inputs:
+    if input.machine == source:
+      dest.inputs.del(i)
+      break
+  for i,output in source.outputs:
+    if output == dest:
+      source.outputs.del(i)
+  pauseAudio(0)
+
+proc delete*(self: Machine) =
+  pauseAudio(1)
+  # remove all connections and references to it
+  for output in mitems(self.outputs):
+    for i,input in output.inputs:
+      if input.machine == self:
+        output.inputs.del(i)
+        break
+  machines.del(machines.find(self))
+  if recordMachine == self:
+    recordMachine = nil
+  pauseAudio(0)
 
 var machineTypes* = newSeq[tuple[name: string, factory: proc(): Machine]]()
 
@@ -123,6 +214,14 @@ method getParameter*(self: Machine, paramId: int): (int, ptr Parameter) {.base.}
 
 method process*(self: Machine): float32 {.base.} =
   return 0.0
+
+proc outputSample*(self: Machine): float32 =
+  if self.cachedOutputSampleId == sampleId:
+    return self.cachedOutputSample
+  else:
+    self.cachedOutputSample = self.process()
+    self.cachedOutputSampleId = sampleId
+    return self.cachedOutputSample
 
 method update*(self: View, dt: float) {.base.} =
   discard

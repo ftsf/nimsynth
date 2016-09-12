@@ -24,6 +24,10 @@ proc add*[T](b: var RingBuffer[T], data: openArray[T]) =
   b.size = min(b.size + len(data), b.length)
   b.adjustHead()
 
+proc setLen*[T](b: var RingBuffer[T], newLen: int) =
+  b.data.setLen(newLen)
+  b.length = newLen
+
 proc `[]`*[T](b: RingBuffer[T], idx: int): T {.inline} =
   b.data[(idx + b.head) mod b.length]
 

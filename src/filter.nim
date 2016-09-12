@@ -243,19 +243,30 @@ method init(self: FilterMachine) =
   self.globalParams.add([
     Parameter(name: "filter", kind: Int, min: FilterKind.low.float, max: FilterKind.high.float, default: Lowpass.float, onchange: proc(newValue: float, voice: int) =
       self.filter.kind = newValue.FilterKind
+    , getValueString: proc(value: float, voice: int): string =
+      return $value.FilterKind
     ),
     Parameter(name: "cutoff", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
       self.filter.cutoff = exp(lerp(-8.0, -0.8, newValue))
+    , getValueString: proc(value: float, voice: int): string =
+      return $(value * sampleRate).int
     ),
     Parameter(name: "resonance", kind: Float, min: 0.0, max: 5.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
       self.filter.resonance = newValue
     )
   ])
 
-method process(self: FilterMachine, sample: float32): float32 {.inline.} =
-  # TODO: modulate
+  for param in mitems(self.globalParams):
+    param.value = param.default
+    if param.onchange != nil:
+      param.onchange(param.value)
+
+
+method process(self: FilterMachine): float32 {.inline.} =
+  for input in mitems(self.inputs):
+    result += input.machine.outputSample
   self.filter.calc()
-  result = self.filter.process(sample)
+  result = self.filter.process(result)
 
 proc newFilterMachine(): Machine =
   result = new(FilterMachine)
