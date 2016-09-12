@@ -269,7 +269,7 @@ when not defined(emscripten):
 import math
 import stb_image
 
-const screenScale = 4
+const screenScale = 3
 
 var window: WindowPtr
 var spriteSheet: SurfacePtr
@@ -291,10 +291,10 @@ var hwCanvas: TexturePtr
 var swCanvas: SurfacePtr
 var swCanvas32: SurfacePtr
 
-const screenWidth* = 256
-const screenHeight* = 144
-const screenPaddingX = 8
-const screenPaddingY = 8
+const screenWidth* = 480
+const screenHeight* = 272
+const screenPaddingX = 0
+const screenPaddingY = 0
 
 var srcRect = rect(0,0,screenWidth,screenHeight)
 var dstRect = rect(screenPaddingX,screenPaddingY,screenWidth,screenHeight)
