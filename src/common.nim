@@ -107,9 +107,11 @@ method popVoice*(self: Machine) {.base.} =
   discard self.voices.pop()
 
 method getParameterCount*(self: Machine): int {.base.} =
+  # TODO: add support for input gain params
   return self.globalParams.len + self.voiceParams.len * self.voices.len
 
 method getParameter*(self: Machine, paramId: int): (int, ptr Parameter) {.base.} =
+  # TODO: add support for input gain params
   let voice = if paramId < globalParams.len: -1 else: (paramId - globalParams.len) div voiceParams.len
   if voice == -1:
     return (voice, addr(self.globalParams[paramId]))

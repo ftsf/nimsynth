@@ -168,7 +168,7 @@ method update*(self: LayoutView, dt: float) =
           if pointInAABB(mv, mid.getAABB(4.0)):
             machine.inputs.del(i)
             return
-      # open new machine menu
+      # TODO: open new machine menu
       var m = newSynth()
       m.pos = mv
       machines.add(m)
