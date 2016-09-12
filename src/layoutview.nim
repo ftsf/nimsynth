@@ -52,6 +52,8 @@ method draw*(self: LayoutView) =
   # draw connections
   for machine in mitems(machines):
     for input in machine.inputs:
+      # TODO: find nearest points on AABBs
+      # TODO: use nice bezier splines for connections
       setColor(1)
       line(input.machine.pos, machine.pos)
       let mid = (input.machine.pos + machine.pos) / 2.0
@@ -172,11 +174,21 @@ method update*(self: LayoutView, dt: float) =
       machines.add(m)
       currentMachine = m
 
-  # release right click drag, attempt to create connection
-  if not mousebtn(1) and connecting and currentMachine != nil:
+  if not mousebtn(1) and not connecting and currentMachine == nil:
+    # release right click when not over machine and not dragging from machine
+    # TODO: open menu to select machine to insert
+    # TODO: need a list of possible machines
+    discard
+  elif not mousebtn(1) and connecting and currentMachine != nil:
+    # release right click drag, attempt to create connection
     # check if a connection was made
     for machine in mitems(machines):
-      if machine != currentMachine:
+      if machine == currentMachine:
+        # TODO: same machine, open context menu
+        # delete
+        # replace
+        discard
+      else:
         if pointInAABB(mv, machine.getAABB()):
           if machine.nInputs > 0:
             # check it doesn't connect back to us

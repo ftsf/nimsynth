@@ -66,10 +66,36 @@ method init*(self: Voice, machine: Machine) {.base.} =
   for p in machine.voiceParams:
     parameters.add(p)
 
+method rename*(self: Machine, newName: string) {.base.} =
+  self.name = newName
+
 method addVoice*(self: Machine) {.base.} =
   var voice = new(Voice)
   voice.init(self)
   self.voices.add(voice)
+
+var machineTypes* = newSeq[tuple[name: string, factory: proc(): Machine]]()
+
+proc registerMachine*(name: string, factory: proc(): Machine) =
+  machineTypes.add((name: name, factory: factory))
+
+proc savePatch*(machine: Machine, name: string) =
+  # TODO add patch saving code
+  # save each parameter
+  # as json
+  discard
+
+proc loadPatch*(machine: Machine, name: string) =
+  # TODO add patch loading code
+  # load each parameter value
+  # from json
+  discard
+
+proc getPatches*(machine: Machine): seq[string] =
+  result = newSeq[string]()
+  # scan directory for json files
+  # each machine gets its own directory
+  # each patch has its own json file
 
 method trigger*(self: Machine, note: int) {.base.} =
   discard

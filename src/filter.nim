@@ -1,4 +1,5 @@
 import math
+import util
 
 import common
 
@@ -224,3 +225,41 @@ method setCutoff*(self: var OnePoleFilter, cutoff: float) =
 method process*(self: var OnePoleFilter, sample: float32): float32 {.inline.} =
   z1 = sample * a0 + z1 * b1
   return z1
+
+import osc
+
+type
+  FilterMachine = ref object of Machine
+    filter: BiquadFilter
+    lfo: Osc
+
+method init(self: FilterMachine) =
+  procCall init(Machine(self))
+  name = "filter"
+  nInputs = 1
+  nOutputs = 1
+  filter.init()
+
+  self.globalParams.add([
+    Parameter(name: "filter", kind: Int, min: FilterKind.low.float, max: FilterKind.high.float, default: Lowpass.float, onchange: proc(newValue: float, voice: int) =
+      self.filter.kind = newValue.FilterKind
+    ),
+    Parameter(name: "cutoff", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+      self.filter.cutoff = exp(lerp(-8.0, -0.8, newValue))
+    ),
+    Parameter(name: "resonance", kind: Float, min: 0.0, max: 5.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+      self.filter.resonance = newValue
+    )
+  ])
+
+method process(self: FilterMachine, sample: float32): float32 {.inline.} =
+  # TODO: modulate
+  self.filter.calc()
+  result = self.filter.process(sample)
+
+proc newFilterMachine(): Machine =
+  result = new(FilterMachine)
+  result.init()
+
+
+registerMachine("filter", newFilterMachine)

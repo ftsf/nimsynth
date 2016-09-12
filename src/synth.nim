@@ -184,14 +184,15 @@ method trigger(self: Synth, note: int) =
       v2.env3.trigger()
       v2.env4.trigger()
       return
-  # no free note, play it anyway
-  var v2 = SynthVoice(voices[0])
-  v2.note = note
-  v2.pitch = noteToHz(note.float)
-  v2.env1.trigger()
-  v2.env2.trigger()
-  v2.env3.trigger()
-  v2.env4.trigger()
+  # no free note, play it anyway on voice 0 (if it exists)
+  if voices.len > 0:
+    var v2 = SynthVoice(voices[0])
+    v2.note = note
+    v2.pitch = noteToHz(note.float)
+    v2.env1.trigger()
+    v2.env2.trigger()
+    v2.env3.trigger()
+    v2.env4.trigger()
 
 
 method release(self: Synth, note: int) =
@@ -204,9 +205,11 @@ method release(self: Synth, note: int) =
       v2.env3.release()
       v2.env4.release()
 
-proc newSynth*(): Synth =
+proc newSynth*(): Machine =
   result = new(Synth)
   result.init()
+
+registerMachine("synth", newSynth)
 
 method process*(self: Synth): float32 {.inline.} =
   for voice in mitems(self.voices):
