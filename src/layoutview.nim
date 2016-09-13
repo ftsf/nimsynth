@@ -46,6 +46,12 @@ proc getAABB(self: Knob): AABB =
   result.max.x = self.pos.x + 6.0
   result.max.y = self.pos.y + 6.0
 
+proc getHandleAABB(self: Knob): AABB =
+  result.min.x = self.pos.x - 12.0
+  result.max.x = self.pos.x + 12.0
+  result.min.y = self.pos.y + 6.0
+  result.max.y = self.pos.y + 12.0
+
 proc newMenu(): Menu =
   result = new(Menu)
   result.items = newSeq[MenuItem]()
@@ -78,6 +84,7 @@ type LayoutView* = ref object of View
   currentMachine*: Machine
   currentKnob*: Knob
   dragging*: bool
+  tweaking*: bool
   connecting*: bool
   lastmv*: Point2d
   menu*: Menu
@@ -210,8 +217,12 @@ method update*(self: LayoutView, dt: float) =
       if pointInAABB(mv, knob.getAABB()):
         currentKnob = knob
         currentMachine = nil
-        dragging = true
+        tweaking = true
         break
+      elif pointInAABB(mv, knob.getHandleAABB()):
+        currentKnob = knob
+        currentMachine = nil
+        dragging = true
     for machine in mitems(machines):
       if pointInAABB(mv, machine.getAABB()):
         currentMachine = machine
@@ -221,6 +232,7 @@ method update*(self: LayoutView, dt: float) =
 
   if not mousebtn(0):
     dragging = false
+    tweaking = false
 
   # right click drag to create connections, or delete them
   if mousebtnp(1):
@@ -307,7 +319,7 @@ method update*(self: LayoutView, dt: float) =
           discard connectMachines(currentMachine, machine)
     connecting = false
 
-  if dragging and currentKnob != nil:
+  if tweaking and currentKnob != nil:
     if currentKnob.paramId > -1:
       var (voice,param) = currentKnob.machine.getParameter(currentKnob.paramId)
       let shift = (getModState() and KMOD_SHIFT) != 0
@@ -316,6 +328,10 @@ method update*(self: LayoutView, dt: float) =
       param.value -= (mv.y - lastmv.y) * move * (param.max - param.min)
       param.value = clamp(param.value, param.min, param.max)
       param.onchange(param.value)
+  elif dragging and currentKnob != nil:
+    currentKnob.pos += (mv - lastmv)
+  elif dragging and currentMachine != nil:
+    currentMachine.pos += (mv - lastmv)
   elif dragging and currentMachine != nil:
     currentMachine.pos += (mv - lastmv)
 
