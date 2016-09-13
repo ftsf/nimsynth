@@ -310,7 +310,10 @@ method update*(self: LayoutView, dt: float) =
   if dragging and currentKnob != nil:
     if currentKnob.paramId > -1:
       var (voice,param) = currentKnob.machine.getParameter(currentKnob.paramId)
-      param.value -= (mv.y - lastmv.y) * 0.01 * (param.max - param.min)
+      let shift = (getModState() and KMOD_SHIFT) != 0
+      let ctrl = (getModState() and KMOD_CTRL) != 0
+      let move = if ctrl: 0.1 elif shift: 0.001 else: 0.01
+      param.value -= (mv.y - lastmv.y) * move * (param.max - param.min)
       param.value = clamp(param.value, param.min, param.max)
       param.onchange(param.value)
   elif dragging and currentMachine != nil:
