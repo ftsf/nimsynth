@@ -30,12 +30,13 @@ proc draw(self: Knob) =
   setColor(1)
   circ(x, y, 5)
   setColor(6)
-  if self.param != nil:
+  if self.paramId > -1:
+    var (voice,param) = self.machine.getParameter(self.paramId)
     let range = param.max - param.min
     let angle = lerp(degToRad(-180 - 45), degToRad(45), ((param.value - param.min) / range))
     line(x,y, x + cos(angle) * 4, y + sin(angle) * 4)
-    printShadowC(self.param.name, x, y + 8)
-    printShadowC(if self.param.getValueString != nil: self.param.getValueString(self.param.value, -1) else: self.param.value.formatFloat(ffDecimal, 2), x, y + 16)
+    printShadowC(param.name, x, y + 8)
+    printShadowC(if param.getValueString != nil: param.getValueString(param.value, voice) else: param.value.formatFloat(ffDecimal, 2), x, y + 16)
   else:
     printShadowC("?", x, y + 8)
 
@@ -129,7 +130,7 @@ method draw*(self: LayoutView) =
       poly(rotatedPoly(mid, arrowVerts, (machine.pos - input.machine.pos).angle))
 
   for knob in mitems(knobs):
-    if knob.param != nil and knob.machine != nil:
+    if knob.paramId > -1 and knob.machine != nil:
       setColor(4)
       line(knob.pos, knob.machine.pos)
 
@@ -260,7 +261,7 @@ method update*(self: LayoutView, dt: float) =
 
       self.menu.items.add(newMenuItem("knob", proc() =
         var knob = new(Knob)
-        knob = Knob(pos: mv, param: nil)
+        knob = Knob(pos: mv, paramId: -1)
         knobs.add(knob)
       ))
 
@@ -278,12 +279,13 @@ method update*(self: LayoutView, dt: float) =
         self.menu.pos = mv
         var knob = currentKnob
         var targetMachine = machine
-        for i in 0..targetMachine.globalParams.high:
+        for i in 0..targetMachine.getParameterCount()-1:
           (proc =
-            var param = targetMachine.globalParams[i]
+            var paramId = i
+            var (voice,param) = targetMachine.getParameter(i)
             var item = newMenuItem(param.name, proc() =
               knob.machine = targetMachine
-              knob.param = addr(param)
+              knob.paramId = paramId
             )
             self.menu.items.add(item)
           )()
@@ -306,10 +308,11 @@ method update*(self: LayoutView, dt: float) =
     connecting = false
 
   if dragging and currentKnob != nil:
-    if currentKnob.param != nil:
-      currentKnob.param.value -= (mv.y - lastmv.y) * 0.01 * (currentKnob.param.max - currentKnob.param.min)
-      currentKnob.param.value = clamp(currentKnob.param.value, currentKnob.param.min, currentKnob.param.max)
-      currentKnob.param.onchange(currentKnob.param.value)
+    if currentKnob.paramId > -1:
+      var (voice,param) = currentKnob.machine.getParameter(currentKnob.paramId)
+      param.value -= (mv.y - lastmv.y) * 0.01 * (param.max - param.min)
+      param.value = clamp(param.value, param.min, param.max)
+      param.onchange(param.value)
   elif dragging and currentMachine != nil:
     currentMachine.pos += (mv - lastmv)
 

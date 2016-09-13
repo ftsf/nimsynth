@@ -53,7 +53,7 @@ type
   Knob* = ref object of RootObj
     pos*: Point2d
     machine*: Machine
-    param*: ptr Parameter
+    paramId*: int
 
 var machines*: seq[Machine]
 var knobs*: seq[Knob]
