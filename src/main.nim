@@ -6,6 +6,8 @@ import machineview
 import layoutview
 
 import master
+import sequencer
+import synth
 
 
 proc audioCallback(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.} =

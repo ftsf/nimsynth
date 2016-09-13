@@ -5,6 +5,7 @@ import pico
 import common
 import sdl2
 import util
+import master
 
 const colsPerPattern = 8
 
@@ -27,13 +28,21 @@ proc newPattern*(): Pattern =
   result = new(Pattern)
   result.rows = newSeq[array[colsPerPattern, int]](16)
 
-proc newSequencer*(): Sequencer =
-  result = new(Sequencer)
-  result.patterns = newSeq[Pattern]()
-  result.patterns.add(newPattern())
-  result.ticksPerBeat = 4
-  result.subTick = 0.0
-  result.bindings[0][0] = 0
+method init*(self: Sequencer) =
+  patterns = newSeq[Pattern]()
+  patterns.add(newPattern())
+  ticksPerBeat = 4
+  subTick = 0.0
+  bindings[0][0] = 0
+  name = "seq"
+  nOutputs = 0
+  nInputs = 0
+
+proc newSequencer*(): Machine =
+  var sequencer = new(Sequencer)
+  return sequencer
+
+registerMachine("sequencer", newSequencer)
 
 method draw*(self: Sequencer) =
   cls()
@@ -51,7 +60,7 @@ method draw*(self: Sequencer) =
       setColor(if i == currentStep and j == currentColumn: 8 elif i %% ticksPerBeat == 0: 6 else: 13)
       print(if col == 0: "..." else: noteToNoteName(col.int), j * 16 + 12, y + 8)
   setColor(7)
-  printr("bpm: " & $beatsPerMinute, screenWidth, 0)
+  printr("bpm: " & $Master(masterMachine).beatsPerMinute, screenWidth, 0)
   printr("tick: " & $step & "/" & $pattern.rows.high, screenWidth, 8)
   printr("pattern: " & $currentPattern & "/" & $patterns.high, screenWidth, 16)
   printr((if playing: "playing" else: "stopped") & ": " & $playingPattern, screenWidth, 24)
@@ -64,7 +73,7 @@ method updateUI*(self: Sequencer, dt: float) =
 method update*(self: Sequencer) =
   let pattern = patterns[playingPattern]
   if playing:
-    subTick += invSampleRate * (beatsPerMinute.float / 60.0 * ticksPerBeat.float).float
+    subTick += invSampleRate * (Master(masterMachine).beatsPerMinute.float / 60.0 * ticksPerBeat.float).float
     if subTick > 1.0:
       subTick -= 1.0
       step += 1
@@ -160,13 +169,6 @@ method key*(self: Sequencer, key: KeyboardEventPtr, down: bool): bool =
       playing = true
     return true
 
-  if key.keysym.scancode == SDL_SCANCODE_KP_PLUS and down:
-    beatsPerMinute += 1
-    return true
-  if key.keysym.scancode == SDL_SCANCODE_KP_MINUS and down:
-    beatsPerMinute -= 1
-    return true
-
   if key.keysym.scancode == SDL_SCANCODE_HOME and down:
     if ctrl:
       step = 0
@@ -177,6 +179,5 @@ method key*(self: Sequencer, key: KeyboardEventPtr, down: bool): bool =
   if key.keysym.scancode == SDL_SCANCODE_END and down:
     currentStep = pattern.rows.high
     return true
-
 
   return false
