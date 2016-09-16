@@ -3,10 +3,17 @@ import ringbuffer
 import common
 import math
 import util
+import osc
+import pico
 
 {.this:self.}
 
+const maxDelay = 1000
+
 type
+  SimpleDelay* = object of RootObj
+    buffer: RingBuffer[float32]
+    feedback*: float
   Delay* = object of RootObj
     buffer: RingBuffer[float32]
     wet*,dry*: float
@@ -14,14 +21,28 @@ type
     cutoff*: float
     filter: OnePoleFilter
 
+proc setLen*(self: var SimpleDelay, newLength: int) =
+  # FIXME: expand or contract the existing buffer
+  if self.buffer.length == 0:
+    self.buffer = newRingBuffer[float32](abs(newLength))
+  else:
+    self.buffer.setLen(abs(newLength))
+
 proc setLen*(self: var Delay, newLength: int) =
   # FIXME: expand or contract the existing buffer
   if self.buffer.length == 0:
-    self.buffer = newRingBuffer[float32](newLength)
+    self.buffer = newRingBuffer[float32](abs(newLength))
   else:
-    self.buffer.setLen(newLength)
+    self.buffer.setLen(abs(newLength))
 
-proc process*(self: var Delay, sample: float32): float32 =
+proc process*(self: var SimpleDelay, sample: float32): float32 {.inline.} =
+  if self.buffer.length == 0:
+    return sample
+  let fromDelay = self.buffer[0]
+  self.buffer.add([(sample + fromDelay * feedback).float32])
+  return fromDelay
+
+proc process*(self: var Delay, sample: float32): float32 {.inline.} =
   if self.buffer.length == 0:
     return sample * wet + sample * dry
   var fromDelay = self.buffer[0]
@@ -31,15 +52,52 @@ proc process*(self: var Delay, sample: float32): float32 =
   self.buffer.add([(sample + fromDelay * feedback).float32])
   return fromDelay * wet + sample * dry
 
+proc processPingPong*(self: var Delay, other: var Delay, sample: float32): float32 =
+  if self.buffer.length == 0:
+    return sample * wet + sample * dry
+  var fromDelay = self.buffer[0]
+  filter.setCutoff(cutoff)
+  filter.calc()
+  fromDelay = filter.process(fromDelay)
+  self.buffer.add([(sample + fromDelay * feedback).float32])
+  # add wet output to other's delays's buffer
+  other.buffer[0] = other.buffer[0] + fromDelay * wet
+  return fromDelay * wet + sample * dry
+
 type
   DelayMachine = ref object of Machine
     delay: Delay
+  SDelayMachine = ref object of Machine
+    delayL: Delay
+    delayR: Delay
+  PingPongDelayMachine = ref object of Machine
+    delayL: Delay
+    delayR: Delay
+  Flanger = ref object of Machine
+    delayL: SimpleDelay
+    delayR: SimpleDelay
+    delaySamples: int
+    lfoL: Osc
+    lfoR: Osc
+    lfoAmount: float
+    lfoPhaseOffset: float
+    wet, dry: float
+  Chorus = ref object of Machine
+    delayLs: array[10, SimpleDelay]
+    delayRs: array[10, SimpleDelay]
+    delaySamples: int
+    chorusVoices: int
+    variance: int
+    dry: float
+    wet: float
+
 
 method init(self: DelayMachine) =
   procCall init(Machine(self))
   name = "delay"
   nInputs = 1
   nOutputs = 1
+  stereo = true
   delay.filter.init()
 
   self.globalParams.add([
@@ -49,13 +107,13 @@ method init(self: DelayMachine) =
     Parameter(name: "wet", kind: Float, min: -1.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
       self.delay.wet = newValue
     ),
-    Parameter(name: "dry", kind: Float, min: -1.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "dry", kind: Float, min: -1.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
       self.delay.dry = newValue
     ),
-    Parameter(name: "feedback", kind: Float, min: -1.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "feedback", kind: Float, min: -1.0, max: 1.0, default: 0.75, onchange: proc(newValue: float, voice: int) =
       self.delay.feedback = newValue
     ),
-    Parameter(name: "cutoff", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "cutoff", kind: Float, min: 0.0, max: 1.0, default: 0.75, onchange: proc(newValue: float, voice: int) =
       self.delay.cutoff = exp(lerp(-8.0, -0.8, newValue))
     ),
   ])
@@ -65,15 +123,253 @@ method init(self: DelayMachine) =
     if param.onchange != nil:
       param.onchange(param.value)
 
-  echo "DelayMachine: init"
-
-method process(self: DelayMachine): float32 {.inline.} =
+method process(self: DelayMachine) {.inline.} =
+  cachedOutputSample = 0.0
   for input in mitems(self.inputs):
-    result += input.machine.outputSample * input.gain
-  result = self.delay.process(result)
+    cachedOutputSample += input.machine.outputSample * input.gain
+  cachedOutputSample = self.delay.process(cachedOutputSample)
 
 proc newDelayMachine(): Machine =
   result = new(DelayMachine)
   result.init()
 
 registerMachine("delay", newDelayMachine)
+
+method init(self: SDelayMachine) =
+  procCall init(Machine(self))
+  name = "sdelay"
+  nInputs = 1
+  nOutputs = 1
+  stereo = true
+  delayL.filter.init()
+  delayR.filter.init()
+
+  self.globalParams.add([
+    Parameter(name: "length - l", kind: Float, min: 0.0, max: 10.0, default: 0.33, onchange: proc(newValue: float, voice: int) =
+      self.delayL.setLen((newValue * sampleRate).int)
+    ),
+    Parameter(name: "length - r", kind: Float, min: 0.0, max: 10.0, default: 0.34, onchange: proc(newValue: float, voice: int) =
+      self.delayR.setLen((newValue * sampleRate).int)
+    ),
+    Parameter(name: "wet", kind: Float, min: -1.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+      self.delayL.wet = newValue
+      self.delayR.wet = newValue
+    ),
+    Parameter(name: "dry", kind: Float, min: -1.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+      self.delayL.dry = newValue
+      self.delayR.dry = newValue
+    ),
+    Parameter(name: "feedback", kind: Float, min: -1.0, max: 1.0, default: 0.75, onchange: proc(newValue: float, voice: int) =
+      self.delayL.feedback = newValue
+      self.delayR.feedback = newValue
+    ),
+    Parameter(name: "cutoff", kind: Float, min: 0.0, max: 1.0, default: 0.75, onchange: proc(newValue: float, voice: int) =
+      self.delayL.cutoff = exp(lerp(-8.0, -0.8, newValue))
+      self.delayR.cutoff = exp(lerp(-8.0, -0.8, newValue))
+    ),
+  ])
+
+  for param in mitems(self.globalParams):
+    param.value = param.default
+    if param.onchange != nil:
+      param.onchange(param.value)
+
+method process(self: SDelayMachine) {.inline.} =
+  cachedOutputSample = 0.0
+  for input in mitems(self.inputs):
+    cachedOutputSample += input.machine.outputSample * input.gain
+  if cachedOutputSampleId mod 2 == 0:
+    cachedOutputSample = self.delayL.process(cachedOutputSample)
+  else:
+    cachedOutputSample = self.delayR.process(cachedOutputSample)
+
+proc newSDelayMachine(): Machine =
+  result = new(SDelayMachine)
+  result.init()
+
+registerMachine("sdelay", newSDelayMachine)
+
+method init(self: PingPongDelayMachine) =
+  procCall init(Machine(self))
+  name = "ppdelay"
+  nInputs = 1
+  nOutputs = 1
+  stereo = true
+  delayL.filter.init()
+  delayR.filter.init()
+
+  self.globalParams.add([
+    Parameter(name: "ping", kind: Float, min: 0.0, max: 10.0, default: 0.33, onchange: proc(newValue: float, voice: int) =
+      self.delayL.setLen((newValue * sampleRate).int)
+    ),
+    Parameter(name: "pong", kind: Float, min: 0.0, max: 10.0, default: 0.33, onchange: proc(newValue: float, voice: int) =
+      self.delayR.setLen((newValue * sampleRate).int)
+    ),
+    Parameter(name: "wet", kind: Float, min: -1.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+      self.delayL.wet = newValue
+      self.delayR.wet = newValue
+    ),
+    Parameter(name: "dry", kind: Float, min: -1.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+      self.delayL.dry = newValue
+      self.delayR.dry = newValue
+    ),
+    Parameter(name: "feedback", kind: Float, min: -1.0, max: 1.0, default: 0.75, onchange: proc(newValue: float, voice: int) =
+      self.delayL.feedback = newValue
+      self.delayR.feedback = newValue
+    ),
+    Parameter(name: "cutoff", kind: Float, min: 0.0, max: 1.0, default: 0.75, onchange: proc(newValue: float, voice: int) =
+      self.delayL.cutoff = exp(lerp(-8.0, -0.8, newValue))
+      self.delayR.cutoff = exp(lerp(-8.0, -0.8, newValue))
+    ),
+  ])
+
+  for param in mitems(self.globalParams):
+    param.value = param.default
+    if param.onchange != nil:
+      param.onchange(param.value)
+
+method process(self: PingPongDelayMachine) {.inline.} =
+  cachedOutputSample = 0.0
+  for input in mitems(self.inputs):
+    cachedOutputSample += input.machine.outputSample * input.gain
+
+  if cachedOutputSampleId mod 2 == 0:
+    cachedOutputSample = self.delayL.processPingPong(self.delayR, cachedOutputSample)
+  else:
+    cachedOutputSample = self.delayR.processPingPong(self.delayL, cachedOutputSample)
+
+proc newPingPongDelayMachine(): Machine =
+  result = new(PingPongDelayMachine)
+  result.init()
+
+registerMachine("ppdelay", newPingPongDelayMachine)
+
+method init(self: Flanger) =
+  procCall init(Machine(self))
+  name = "flanger"
+  nInputs = 1
+  nOutputs = 1
+  stereo = true
+  lfoL.kind = Sin
+  lfoR.kind = Sin
+  delaySamples = 0
+
+  self.globalParams.add([
+    Parameter(name: "delay", kind: Float, min: 8.0, max: 1000.0, default: 200, onchange: proc(newValue: float, voice: int) =
+      self.delaySamples = newValue.int
+    ),
+    Parameter(name: "wet", kind: Float, min: -1.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+      self.wet = newValue
+    ),
+    Parameter(name: "dry", kind: Float, min: -1.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+      self.dry = newValue
+    ),
+    Parameter(name: "feedback", kind: Float, min: -1.0, max: 1.0, default: 0.75, onchange: proc(newValue: float, voice: int) =
+      self.delayL.feedback = newValue
+      self.delayR.feedback = newValue
+    ),
+    Parameter(name: "lfo freq", kind: Float, min: 0.0001, max: 60.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
+      self.lfoL.freq = newValue
+      self.lfoR.freq = newValue
+      self.lfoR.phase = self.lfoL.phase + self.lfoPhaseOffset
+    ),
+    Parameter(name: "lfo amp", kind: Float, min: 0.0, max: 100.00, default: 1.0, onchange: proc(newValue: float, voice: int) =
+      self.lfoAmount = newValue
+    ),
+    Parameter(name: "lfo phase", kind: Float, min: -PI, max: PI, default: PI/2.0, onchange: proc(newValue: float, voice: int) =
+      self.lfoPhaseOffset = newValue
+      self.lfoR.phase = self.lfoL.phase + self.lfoPhaseOffset
+    ),
+  ])
+
+  for param in mitems(self.globalParams):
+    param.value = param.default
+    if param.onchange != nil:
+      param.onchange(param.value)
+
+method process(self: Flanger) {.inline.} =
+  var dry = 0.0
+  var wet = 0.0
+  for input in mitems(self.inputs):
+    dry += input.machine.outputSample * input.gain
+
+  if cachedOutputSampleId mod 2 == 0:
+    self.delayL.setLen(delaySamples + (lfoL.process() * lfoAmount).int)
+    wet = self.delayL.process(dry)
+  else:
+    self.delayR.setLen(delaySamples + (lfoR.process() * lfoAmount).int)
+    wet = self.delayR.process(dry)
+
+  cachedOutputSample = wet * self.wet + dry * self.dry
+
+proc newFlanger(): Machine =
+  result = new(Flanger)
+  result.init()
+
+registerMachine("flanger", newFlanger)
+
+proc reset(self: Chorus) =
+  for i,delay in mpairs(delayLs):
+    delay.setLen(delaySamples + (variance.float / chorusVoices.float) * i)
+  for i,delay in mpairs(delayRs):
+    delay.setLen(delaySamples + (variance.float / chorusVoices.float) * i)
+
+
+method init(self: Chorus) =
+  procCall init(Machine(self))
+  name = "chorus"
+  nInputs = 1
+  nOutputs = 1
+  stereo = true
+  delaySamples = 0
+  variance = 10
+  chorusVoices = 5
+
+  self.globalParams.add([
+    Parameter(name: "delay", kind: Float, min: 0.0001, max: 1.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
+      self.delaySamples = (newValue * sampleRate).int
+      self.reset()
+    ),
+    Parameter(name: "variance", kind: Float, min: 10.0, max: 200.0, default: 10.0, onchange: proc(newValue: float, voice: int) =
+      self.variance = newValue.int
+      self.reset()
+    ),
+    Parameter(name: "voices", kind: Int, min: 1.0, max: 10.0, default: 5.0, onchange: proc(newValue: float, voice: int) =
+      self.chorusVoices = newValue.int
+      self.reset()
+    ),
+    Parameter(name: "wet", kind: Float, min: -1.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+      self.wet = newValue
+    ),
+    Parameter(name: "dry", kind: Float, min: -1.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+      self.dry = newValue
+    ),
+  ])
+
+  for param in mitems(self.globalParams):
+    param.value = param.default
+    if param.onchange != nil:
+      param.onchange(param.value)
+
+method process(self: Chorus) {.inline.} =
+  var dry = 0.0
+  var wet = 0.0
+
+  for input in mitems(self.inputs):
+    dry += input.machine.outputSample * input.gain
+
+  if cachedOutputSampleId mod 2 == 0:
+    for delay in mitems(delayLs):
+      wet += delay.process(dry)
+  else:
+    for delay in mitems(delayLs):
+      wet += delay.process(dry)
+
+  cachedOutputSample = (wet / chorusVoices.float) * self.wet + dry * self.dry
+
+
+proc newChorus(): Machine =
+  result = new(Chorus)
+  result.init()
+
+registerMachine("chorus", newChorus)

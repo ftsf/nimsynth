@@ -46,7 +46,9 @@ type
     outputs*: seq[Machine]
     nOutputs*: int
     nInputs*: int
-    cachedOutputSampleId: int
+    stereo*: bool
+    cachedOutputSampleId*: int
+    # TODO: this should be a sequence with one for each nOutputs
     cachedOutputSample*: float32
   View* = ref object of RootObj
     discard
@@ -60,7 +62,6 @@ var knobs*: seq[Knob]
 
 var currentView*: View
 var vLayoutView*: View
-var vMachineView*: View
 var masterMachine*: Machine
 var recordMachine*: Machine
 
@@ -82,9 +83,11 @@ method rename*(self: Machine, newName: string) {.base.} =
   self.name = newName
 
 method addVoice*(self: Machine) {.base.} =
+  pauseAudio(1)
   var voice = new(Voice)
   voice.init(self)
   self.voices.add(voice)
+  pauseAudio(0)
 
 proc getAdjacent(self: Machine): seq[Machine] =
   result = newSeq[Machine]()
@@ -195,7 +198,9 @@ method release*(self: Machine, note: int) {.base.} =
   discard
 
 method popVoice*(self: Machine) {.base.} =
+  pauseAudio(1)
   discard self.voices.pop()
+  pauseAudio(0)
 
 method getParameterCount*(self: Machine): int {.base.} =
   # TODO: add support for input gain params
@@ -212,14 +217,13 @@ method getParameter*(self: Machine, paramId: int): (int, ptr Parameter) {.base.}
     let voiceParam = (paramId - globalParams.len) mod voiceParams.len
     return (voice, addr(self.voices[voice].parameters[voiceParam]))
 
-method process*(self: Machine): float32 {.base.} =
-  return 0.0
+method process*(self: Machine) {.base.} =
+  discard
 
 proc outputSample*(self: Machine): float32 =
   if self.cachedOutputSampleId == sampleId:
     return self.cachedOutputSample
   else:
-    self.cachedOutputSample = self.process()
     self.cachedOutputSampleId = sampleId
     return self.cachedOutputSample
 

@@ -165,7 +165,10 @@ method init*(self: Synth) =
       voice.env4.trigger()
     , getValueString: proc(value: float, voice: int): string =
       var voice: SynthVoice = SynthVoice(self.voices[voice])
-      return hzToNoteName(voice.pitch)
+      if voice.pitch > 0.0:
+        return hzToNoteName(voice.pitch)
+      else:
+        return ""
     )
   )
   for param in mitems(self.globalParams):
@@ -211,7 +214,8 @@ proc newSynth*(): Machine =
 
 registerMachine("synth", newSynth)
 
-method process*(self: Synth): float32 {.inline.} =
+method process*(self: Synth) {.inline.} =
+  cachedOutputSample = 0
   for voice in mitems(self.voices):
     var v = SynthVoice(voice)
     v.env1.a = env[0].a
@@ -246,4 +250,4 @@ method process*(self: Synth): float32 {.inline.} =
     v.filter.resonance = resonance
     v.filter.calc()
     vs = v.filter.process(vs)
-    result += vs
+    cachedOutputSample += vs

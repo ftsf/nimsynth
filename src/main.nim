@@ -16,10 +16,13 @@ proc audioCallback(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.} =
   var nSamples = len div sizeof(float32)
   for i in 0..<nSamples:
     sampleId += 1
-    # for all machines attached to master
+    # update all machines
+    for machine in mitems(machines):
+      if machine.stereo or sampleId mod 2 == 0:
+        machine.process()
     samples[i] = masterMachine.outputSample
-    if i < 1024:
-      sampleBuffer[i] = samples[i]
+    if i mod 2 == 0 and i < 2048:
+      sampleBuffer[i div 2] = samples[i]
 
 proc keyFunc(key: KeyboardEventPtr, down: bool): bool =
   # handle global keys
@@ -29,15 +32,17 @@ proc keyFunc(key: KeyboardEventPtr, down: bool): bool =
     of SDL_SCANCODE_F1:
       currentView = vLayoutView
       return true
-    of SDL_SCANCODE_F2:
-      currentView = vMachineView
-      return true
     of SDL_SCANCODE_SLASH:
       baseOctave -= 1
       return true
     of SDL_SCANCODE_APOSTROPHE:
       baseOctave += 1
       return true
+    of SDL_SCANCODE_Q:
+      let ctrl = (getModState() and KMOD_CTRL) != 0
+      if ctrl:
+        shutdown()
+        return true
     else:
       discard
 
@@ -57,7 +62,7 @@ proc keyFunc(key: KeyboardEventPtr, down: bool): bool =
 
 proc init() =
   loadSpriteSheet("spritesheet.png")
-  setAudioCallback(audioCallback)
+  setAudioCallback(2, audioCallback)
   setKeyFunc(keyFunc)
 
   machines = newSeq[Machine]()
@@ -67,7 +72,6 @@ proc init() =
   machines.add(masterMachine)
 
   vLayoutView = newLayoutView()
-  vMachineView = newMachineView(masterMachine)
   currentView = vLayoutView
   recordMachine = nil
 

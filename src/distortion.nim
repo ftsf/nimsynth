@@ -35,6 +35,7 @@ method init(self: DistortionMachine) =
   name = "dist"
   nInputs = 1
   nOutputs = 1
+  stereo = true
 
   self.globalParams.add([
     Parameter(name: "dist", kind: Int, min: DistortionKind.low.float, max: DistortionKind.high.float, default: HardClip.float, onchange: proc(newValue: float, voice: int) =
@@ -59,10 +60,11 @@ method init(self: DistortionMachine) =
       param.onchange(param.value)
 
 
-method process(self: DistortionMachine): float32 {.inline.} =
+method process(self: DistortionMachine) {.inline.} =
+  cachedOutputSample = 0.0
   for input in mitems(self.inputs):
-    result += input.machine.outputSample * input.gain
-  result = self.distortion.process(result)
+    cachedOutputSample += input.machine.outputSample * input.gain
+  cachedOutputSample = self.distortion.process(cachedOutputSample)
 
 proc newDistortionMachine(): Machine =
   result = new(DistortionMachine)

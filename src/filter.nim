@@ -62,6 +62,7 @@ method setCutoff*(self: var BiquadFilter, cutoff: float) =
   self.cutoff = clamp(cutoff, 0.0001, 0.5)
 
 method calc*(self: var BiquadFilter) =
+  self.cutoff = clamp(cutoff, 0.0001, 0.499)
   var norm: float
   let V = pow(10.0, abs(peakGain) / 20.0)
   let K = tan(PI * cutoff)
@@ -230,30 +231,53 @@ import osc
 
 type
   FilterMachine = ref object of Machine
-    filter: BiquadFilter
-    lfo: Osc
+    filterL: BiquadFilter
+    filterR: BiquadFilter
+    lfoL: Osc
+    lfoR: Osc
+    lfoAmount: float
+    lfoPhaseOffset: float
 
 method init(self: FilterMachine) =
   procCall init(Machine(self))
   name = "filter"
   nInputs = 1
   nOutputs = 1
-  filter.init()
+  stereo = true
+  filterL.init()
+  filterR.init()
+  lfoL.kind = Sin
+  lfoR.kind = Sin
 
   self.globalParams.add([
     Parameter(name: "filter", kind: Int, min: FilterKind.low.float, max: FilterKind.high.float, default: Lowpass.float, onchange: proc(newValue: float, voice: int) =
-      self.filter.kind = newValue.FilterKind
+      self.filterL.kind = newValue.FilterKind
+      self.filterR.kind = newValue.FilterKind
     , getValueString: proc(value: float, voice: int): string =
       return $value.FilterKind
     ),
     Parameter(name: "cutoff", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
-      self.filter.cutoff = exp(lerp(-8.0, -0.8, newValue))
+      self.filterL.cutoff = exp(lerp(-8.0, -0.8, newValue))
+      self.filterR.cutoff = exp(lerp(-8.0, -0.8, newValue))
     , getValueString: proc(value: float, voice: int): string =
       return $(value * sampleRate).int
     ),
     Parameter(name: "resonance", kind: Float, min: 0.0, max: 5.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
-      self.filter.resonance = newValue
-    )
+      self.filterL.resonance = newValue
+      self.filterR.resonance = newValue
+    ),
+    Parameter(name: "lfo freq", kind: Float, min: 0.0001, max: 60.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
+      self.lfoL.freq = newValue
+      self.lfoR.freq = newValue
+      self.lfoR.phase = self.lfoL.phase + self.lfoPhaseOffset
+    ),
+    Parameter(name: "lfo amp", kind: Float, min: 0.0, max: 1.0, default: 0.01, onchange: proc(newValue: float, voice: int) =
+      self.lfoAmount = newValue
+    ),
+    Parameter(name: "lfo phase", kind: Float, min: -PI, max: PI, default: PI / 2.0, onchange: proc(newValue: float, voice: int) =
+      self.lfoPhaseOffset = newValue
+      self.lfoR.phase = self.lfoL.phase + self.lfoPhaseOffset
+    ),
   ])
 
   for param in mitems(self.globalParams):
@@ -262,15 +286,25 @@ method init(self: FilterMachine) =
       param.onchange(param.value)
 
 
-method process(self: FilterMachine): float32 {.inline.} =
+method process(self: FilterMachine) {.inline.} =
+  cachedOutputSample = 0.0
   for input in mitems(self.inputs):
-    result += input.machine.outputSample
-  self.filter.calc()
-  result = self.filter.process(result)
+    cachedOutputSample += input.machine.outputSample
+  if cachedOutputSampleId mod 2 == 0:
+    let oc = self.filterR.cutoff
+    self.filterL.cutoff += lfoL.process() * lfoAmount
+    self.filterL.calc()
+    cachedOutputSample = self.filterL.process(cachedOutputSample)
+    self.filterL.cutoff = oc
+  else:
+    let oc = self.filterR.cutoff
+    self.filterR.cutoff += lfoR.process() * lfoAmount
+    self.filterR.calc()
+    cachedOutputSample = self.filterR.process(cachedOutputSample)
+    self.filterR.cutoff = oc
 
 proc newFilterMachine(): Machine =
   result = new(FilterMachine)
   result.init()
-
 
 registerMachine("filter", newFilterMachine)

@@ -950,6 +950,12 @@ proc copy*(x1,y1,x2,y2,x3,y3,x4,y4: int) =
   var dst: Rect = (x:cint(x3),y:cint(y3),w:cint(x4-x3),h:cint(y4-y3))
   blit(swCanvas, swCanvas, src, dst, false, false, true)
 
+proc relmouse*(on: bool) =
+  discard sdl2.setRelativeMouseMode(on)
+
+proc warpmouse*(x,y: int) =
+  sdl2.warpMouseInWindow(window, x div screenScale, y div screenScale)
+
 proc mouse*(): Point2d =
   var x,y, w,h: cint
   sdl2.getMouseState(addr(x),addr(y))
@@ -1263,7 +1269,7 @@ when not defined(emscripten):
   proc sfxVol*(): int =
     return mixer.volume(-1, -1)
 
-  proc setAudioCallback*(newAudioCallback: proc(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.}) =
+  proc setAudioCallback*(channels: uint8, newAudioCallback: proc(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.}) =
     audioCallback = newAudioCallback
     if audioCallback != nil:
       # initialise audio
@@ -1271,8 +1277,8 @@ when not defined(emscripten):
       var obtained: AudioSpec
       audioSpec.freq = 48000
       audioSpec.format = AUDIO_F32
-      audioSpec.channels = 1
-      audioSpec.samples = 1024
+      audioSpec.channels = channels
+      audioSpec.samples = 2048
       audioSpec.padding = 0
       audioSpec.callback = audioCallback
       audioSpec.userdata = nil

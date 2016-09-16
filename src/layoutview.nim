@@ -5,21 +5,16 @@ import util
 import basic2d
 import math
 import synth
+import sdl2.audio
 
+import basemachine
 import machineview
+import menu
 
 ### Layout View
 # Draw a graph of the machine connections
 
 {.this:self.}
-
-type
-  MenuItem* = ref object of RootObj
-    label: string
-    action: proc()
-  Menu* = ref object of RootObj
-    pos: Point2d
-    items: seq[MenuItem]
 
 proc draw(self: Knob) =
   let x = self.pos.x.int
@@ -36,7 +31,14 @@ proc draw(self: Knob) =
     let angle = lerp(degToRad(-180 - 45), degToRad(45), ((param.value - param.min) / range))
     line(x,y, x + cos(angle) * 4, y + sin(angle) * 4)
     printShadowC(param.name, x, y + 8)
-    printShadowC(if param.getValueString != nil: param.getValueString(param.value, voice) else: param.value.formatFloat(ffDecimal, 2), x, y + 16)
+    printShadowC(
+      if param.getValueString != nil:
+        param.getValueString(param.value, voice)
+      elif param.kind == Int:
+        $param.value.int
+      else:
+        param.value.formatFloat(ffDecimal, 2)
+      , x, y + 16)
   else:
     printShadowC("?", x, y + 8)
 
@@ -52,39 +54,12 @@ proc getHandleAABB(self: Knob): AABB =
   result.min.y = self.pos.y + 6.0
   result.max.y = self.pos.y + 12.0
 
-proc newMenu(): Menu =
-  result = new(Menu)
-  result.items = newSeq[MenuItem]()
-
-proc newMenuItem(label: string, action: proc() = nil): MenuItem =
-  result = new(MenuItem)
-  result.label = label
-  result.action = action
-
-proc getAABB(self: Menu): AABB =
-  result.min.x = pos.x - 2
-  result.min.y = pos.y - 2
-  result.max.x = pos.x + 64 + 1
-  result.max.y = pos.y + items.len.float * 9.0 + 1.0
-
-proc draw(self: Menu) =
-  setColor(1)
-  let aabb = self.getAABB()
-  rectfill(aabb.min.x, aabb.min.y, aabb.max.x, aabb.max.y)
-  var y = pos.y.int
-  for i,item in items:
-    setColor(6)
-    print(item.label, pos.x.int + 1, y)
-    y += 9
-
-  setColor(6)
-  rect(aabb.min.x.int, aabb.min.y.int, aabb.max.x.int, aabb.max.y.int)
-
 type LayoutView* = ref object of View
   currentMachine*: Machine
   currentKnob*: Knob
   dragging*: bool
   tweaking*: bool
+  adjustingInput*: ptr Input
   connecting*: bool
   lastmv*: Point2d
   menu*: Menu
@@ -104,7 +79,7 @@ method draw*(self: LayoutView) =
 
   setColor(1)
   line(0, screenHeight div 2, screenWidth, screenHeight div 2)
-  setColor(6)
+  setColor(1)
   for x in 1..<sampleBuffer.len:
     if x > screenWidth:
       break
@@ -125,7 +100,7 @@ method draw*(self: LayoutView) =
 
   # draw connections
   for machine in mitems(machines):
-    for input in machine.inputs:
+    for input in mitems(machine.inputs):
       # TODO: find nearest points on AABBs
       # TODO: use nice bezier splines for connections
       setColor(1)
@@ -135,6 +110,9 @@ method draw*(self: LayoutView) =
       trifill(rotatedPoly(mid, arrowVerts, (machine.pos - input.machine.pos).angle))
       setColor(1)
       poly(rotatedPoly(mid, arrowVerts, (machine.pos - input.machine.pos).angle))
+      if adjustingInput == addr(input):
+        setColor(7)
+        printShadowC(adjustingInput[].gain.formatFloat(ffDecimal, 2), mid.x.int, mid.y.int + 4)
 
   for knob in mitems(knobs):
     if knob.paramId > -1 and knob.machine != nil:
@@ -143,11 +121,7 @@ method draw*(self: LayoutView) =
 
   # draw boxes
   for machine in mitems(machines):
-    setColor(if recordMachine == machine: 8 elif currentMachine == machine: 4 else: 1)
-    rectfill(machine.pos.x - 16, machine.pos.y - 4, machine.pos.x + 16, machine.pos.y + 4)
-    setColor(6)
-    rect(machine.pos.x.int - 16, machine.pos.y.int - 4, machine.pos.x.int + 16, machine.pos.y.int + 4)
-    printc(machine.name, machine.pos.x, machine.pos.y - 2)
+    machine.drawBox()
 
   for knob in knobs:
     knob.draw()
@@ -161,21 +135,16 @@ method draw*(self: LayoutView) =
   setColor(1)
   printr("layout", screenWidth - 1, 1)
 
-
-proc getAABB(self: Machine): AABB =
-  result.min.x = pos.x - 16
-  result.min.y = pos.y - 4
-  result.max.x = pos.x + 16
-  result.max.y = pos.y + 4
-
 method key*(self: LayoutView, key: KeyboardEventPtr, down: bool): bool =
+  if menu != nil:
+    if menu.key(key, down):
+      return true
   let scancode = key.keysym.scancode
   if down:
     case scancode:
-    of SDL_SCANCODE_RETURN:
+    of SDL_SCANCODE_F2:
       if currentMachine != nil:
-        MachineView(vMachineView).machine = currentMachine
-        currentView = vMachineView
+        currentView = currentMachine.getMachineView()
         return true
     of SDL_SCANCODE_INSERT:
       if currentMachine != nil:
@@ -203,10 +172,9 @@ method update*(self: LayoutView, dt: float) =
     if mousebtnp(0):
       if pointInAABB(mv,menu.getAABB()):
         # check which item they clicked on
-        let item = (mv.y - menu.pos.y).int div 8
+        let item = (mv.y - menu.pos.y).int div 9
         if item >= 0 and item < menu.items.len:
           menu.items[item].action()
-          menu = nil
       else:
         # clicked outside of menu, close it
         menu = nil
@@ -218,6 +186,7 @@ method update*(self: LayoutView, dt: float) =
         currentKnob = knob
         currentMachine = nil
         tweaking = true
+        relmouse(true)
         break
       elif pointInAABB(mv, knob.getHandleAABB()):
         currentKnob = knob
@@ -229,10 +198,20 @@ method update*(self: LayoutView, dt: float) =
         currentKnob = nil
         dragging = true
         break
+    # check for adjusting input gain
+    for machine in mitems(machines):
+      for input in mitems(machine.inputs):
+        let mid = (input.machine.pos + machine.pos) / 2.0
+        if pointInAABB(mv, mid.getAABB(4.0)):
+          adjustingInput = addr(input)
+          relmouse(true)
+          break
 
   if not mousebtn(0):
     dragging = false
     tweaking = false
+    adjustingInput = nil
+    relmouse(false)
 
   # right click drag to create connections, or delete them
   if mousebtnp(1):
@@ -266,7 +245,10 @@ method update*(self: LayoutView, dt: float) =
           var item = newMenuItem(mtype.name, proc() =
             var m = mtype.factory()
             m.pos = mv
+            pauseAudio(1)
             machines.add(m)
+            pauseAudio(0)
+            self.menu = nil
           )
           self.menu.items.add(item)
         )()
@@ -330,6 +312,11 @@ method update*(self: LayoutView, dt: float) =
       param.onchange(param.value)
   elif dragging and currentKnob != nil:
     currentKnob.pos += (mv - lastmv)
+  elif adjustingInput != nil:
+    let shift = (getModState() and KMOD_SHIFT) != 0
+    let ctrl = (getModState() and KMOD_CTRL) != 0
+    let move = if ctrl: 0.1 elif shift: 0.001 else: 0.01
+    adjustingInput[].gain = clamp(adjustingInput[].gain + (lastmv.y - mv.y) * move, 0.0, 10.0)
   elif dragging and currentMachine != nil:
     currentMachine.pos += (mv - lastmv)
   elif dragging and currentMachine != nil:
