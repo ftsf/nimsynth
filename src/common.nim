@@ -8,6 +8,8 @@ import basic2d
 
 export sdl2
 
+export pauseAudio
+
 var baseOctave* = 4
 var beatsPerMinute* = 128
 
@@ -101,6 +103,10 @@ method createBinding*(self: Machine, slot: int, target: Machine, paramId: int) {
   bindings[slot].machine = target
   bindings[slot].param = paramId
 
+method removeBinding*(self: Machine, slot: int) {.base.} =
+  bindings[slot].machine = nil
+  bindings[slot].param = 0
+
 method handleClick*(self: Machine, mouse: Point2d): bool {.base.} =
   return false
 
@@ -181,6 +187,14 @@ proc delete*(self: Machine) =
   machines.del(machines.find(self))
   if recordMachine == self:
     recordMachine = nil
+
+  # remove all bindings to this machine
+  for machine in mitems(machines):
+    if machine != self:
+      if machine.bindings != nil:
+        for i, binding in mpairs(machine.bindings):
+          if binding.machine == self:
+            removeBinding(machine, i)
   pauseAudio(0)
 
 var machineTypes* = newSeq[tuple[name: string, factory: proc(): Machine]]()

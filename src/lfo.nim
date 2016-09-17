@@ -1,6 +1,7 @@
 import common
 import osc
 import util
+import strutils
 
 type
   LFO = ref object of Machine
@@ -26,12 +27,12 @@ method init(self: LFO) =
   bindings.setLen(1)
 
   globalParams.add([
-    Parameter(name: "freq", kind: Float, min: 0.0001, max: 100.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "freq", kind: Float, min: 0.0001, max: 10.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
       self.freq = newValue
       self.setFreq()
     , getValueString: proc(value: float, voice: int): string =
-      if self.bpmSync:
-        return $(self.freq).int & " hZ"
+      if not self.bpmSync:
+        return $(self.freq).formatFloat(ffDecimal, 2) & " hZ"
       else:
         return $(self.freq * (beatsPerMinute.float / 60.0)).int & " beats"
     ),
@@ -56,7 +57,7 @@ method process(self: LFO) {.inline.} =
   for binding in bindings:
     if binding.machine != nil:
       var (voice, param) = binding.machine.getParameter(binding.param)
-      param.value = lerp(param.min, param.max, lerp((osc.process() + 1.0) / 2.0, min, max))
+      param.value = lerp(param.min, param.max, lerp(min, max, (osc.process() + 1.0) / 2.0))
       param.onchange(param.value, voice)
 
 proc newLFO(): Machine =

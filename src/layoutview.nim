@@ -112,6 +112,8 @@ method key*(self: LayoutView, key: KeyboardEventPtr, down: bool): bool =
     of SDL_SCANCODE_INSERT:
       if currentMachine != nil:
         recordMachine = currentMachine
+      else:
+        recordMachine = nil
     of SDL_SCANCODE_DELETE:
       if currentMachine != nil and currentMachine != masterMachine:
         currentMachine.delete()

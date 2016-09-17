@@ -38,6 +38,7 @@ type
     osc3Amount: float
     osc4Amount: float
     glissando: float
+    filterKind: FilterKind
     cutoff: float
     resonance: float
     env: array[4, tuple[a,d,s,r: float]]
@@ -46,7 +47,6 @@ type
     keytracking: float
 
 method init*(self: SynthVoice, machine: Synth) =
-  echo "synth voice init"
   procCall init(Voice(self), machine)
   osc1.kind = Saw
   osc2.kind = Saw
@@ -77,15 +77,10 @@ method init*(self: Synth) =
   nOutputs = 1
 
   self.globalParams.add([
-    Parameter(name: "cutoff", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
-      self.cutoff = exp(lerp(-8.0, -0.8, newValue)), getValueString: proc(value: float, voice: int): string =
-      return $(self.cutoff * sampleRate).int & " hZ"
-    ),
-    Parameter(name: "resonance", kind: Float, min: 0.0001, max: 5.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
-      self.resonance = newValue
-    ),
     Parameter(name: "osc1", kind: Int, min: 0.0, max: OscKind.high.int.float, default: Saw.int.float, onchange: proc(newValue: float, voice: int) =
       self.osc1Kind = newValue.OscKind
+    , getValueString: proc(value: float, voice: int): string =
+        return $(value.OscKind)
     ),
     Parameter(name: "pw", kind: Float, min: 0.01, max: 0.99, default: 0.5, onchange: proc(newValue: float, voice: int) =
       self.osc1Pw = newValue
@@ -95,6 +90,8 @@ method init*(self: Synth) =
     ),
     Parameter(name: "osc2", kind: Int, min: 0.0, max: OscKind.high.int.float, default: Saw.int.float, onchange: proc(newValue: float, voice: int) =
       self.osc2Kind = newValue.OscKind
+    , getValueString: proc(value: float, voice: int): string =
+        return $(value.OscKind)
     ),
     Parameter(name: "pw", kind: Float, min: 0.01, max: 0.99, default: 0.5, onchange: proc(newValue: float, voice: int) =
       self.osc2Pw = newValue
@@ -113,6 +110,18 @@ method init*(self: Synth) =
     ),
     Parameter(name: "noise", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.osc4Amount = newValue
+    ),
+    Parameter(name: "filt", kind: Int, min: FilterKind.low.float, max: FilterKind.high.float, default: Lowpass.float, onchange: proc(newValue: float, voice: int) =
+      self.filterKind = newValue.FilterKind
+    , getValueString: proc(value: float, voice: int): string =
+        return $(value.FilterKind)
+    ),
+    Parameter(name: "cutoff", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+      self.cutoff = exp(lerp(-8.0, -0.8, newValue)), getValueString: proc(value: float, voice: int): string =
+      return $(self.cutoff * sampleRate).int & " hZ"
+    ),
+    Parameter(name: "res", kind: Float, min: 0.0001, max: 5.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+      self.resonance = newValue
     ),
     Parameter(name: "env1 a", kind: Float, min: 0.0, max: 1.0, default: 0.001, onchange: proc(newValue: float, voice: int) =
       self.env[0].a = newValue
@@ -166,17 +175,22 @@ method init*(self: Synth) =
   self.voiceParams.add(
     Parameter(name: "note", kind: Note, min: 0.0, max: 255.0, onchange: proc(newValue: float, voice: int) =
       var voice: SynthVoice = SynthVoice(self.voices[voice])
-      voice.pitch = noteToHz(newValue)
-      voice.env1.trigger()
-      voice.env2.trigger()
-      voice.env3.trigger()
-      voice.env4.trigger()
-    , getValueString: proc(value: float, voice: int): string =
-      var voice: SynthVoice = SynthVoice(self.voices[voice])
-      if voice.pitch > 0.0:
-        return hzToNoteName(voice.pitch)
+      if newValue == OffNote:
+        voice.env1.release()
+        voice.env2.release()
+        voice.env3.release()
+        voice.env4.release()
       else:
-        return ""
+        voice.pitch = noteToHz(newValue)
+        voice.env1.trigger()
+        voice.env2.trigger()
+        voice.env3.trigger()
+        voice.env4.trigger()
+    , getValueString: proc(value: float, voice: int): string =
+      if value == OffNote:
+        return "Off"
+      else:
+        return noteToNoteName(value.int)
     )
   )
 
@@ -254,6 +268,7 @@ method process*(self: Synth) {.inline.} =
     v.osc3.pulseWidth = osc1Pw
     v.osc3.freq = v.osc1.freq * 0.5
     var vs = (v.osc1.process() * osc1Amount + v.osc2.process() * osc2Amount + v.osc3.process() * osc3Amount + v.osc4.process() * osc4Amount) * v.env1.process()
+    v.filter.kind = filterKind
     v.filter.cutoff = clamp(cutoff + v.env2.process() * env2CutoffMod + (hzToNote(v.pitch) - 69.0) * keytracking, 0.001, 0.499)
     v.filter.resonance = resonance
     v.filter.calc()

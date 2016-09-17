@@ -8,9 +8,12 @@ import layoutview
 import master
 import sequencer
 import synth
+import gbsynth
 import kit
+import noise
 import lfo
 import knob
+import flanger
 
 
 proc audioCallback(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.} =
