@@ -34,3 +34,4 @@ proc process*(self: var Osc): float32 {.inline.} =
   phase += (freq * invSampleRate)
   if phase > TAU:
     phase -= TAU
+

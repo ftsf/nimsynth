@@ -12,7 +12,7 @@ type
     Decay
     Sustain
     Release
-  Envelope* = object of Modulator
+  Envelope* = object of RootObj
     a*,d*,s*,r*: float
     state*: EnvState
     time: float

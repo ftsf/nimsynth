@@ -10,13 +10,16 @@ type
     label*: string
     action*: proc()
   Menu* = ref object of RootObj
+    label*: string
     pos*: Point2d
     items*: seq[MenuItem]
     selected*: int
     back*: proc()
 
-proc newMenu*(): Menu =
+proc newMenu*(pos: Point2d, label: string = nil): Menu =
   result = new(Menu)
+  result.pos = pos
+  result.label = label
   result.items = newSeq[MenuItem]()
   result.selected = -1
 
@@ -29,20 +32,51 @@ proc getAABB*(self: Menu): AABB =
   result.min.x = pos.x - 2
   result.min.y = pos.y - 2
   result.max.x = pos.x + 64 + 1
-  result.max.y = pos.y + items.len.float * 9.0 + 1.0
+  result.max.y = pos.y + items.len.float * 9.0 + 10.0
 
 proc draw*(self: Menu) =
-  setColor(1)
+  let camera = getCamera()
   let aabb = self.getAABB()
-  rectfill(aabb.min.x, aabb.min.y, aabb.max.x, aabb.max.y)
-  var y = pos.y.int
+  let w = (aabb.max.x - aabb.min.x).int
+  let h = (aabb.max.y - aabb.min.y).int
+  if aabb.max.x > screenWidth + camera.x:
+    pos.x = (screenWidth + camera.x - w).float
+  if aabb.max.y > screenHeight + camera.y:
+    pos.y = (screenHeight + camera.y - h).float
+
+  let x = pos.x.int
+  let y = pos.y.int
+
+  setColor(1)
+  rectfill(x,y,x+w,y+h)
+  var yv = y + 2
+  if label != nil:
+    setColor(13)
+    print(label, x + 2, yv)
+    yv += 9
   for i,item in items:
+    if selected == i:
+      setColor(13)
+      rectfill(x, yv-1, x+w, yv + 5)
     setColor(if selected == i: 7 else: 6)
-    print(item.label, pos.x.int + 1, y)
-    y += 9
+    print(item.label, x + 2, yv)
+    yv += 9
 
   setColor(6)
-  rect(aabb.min.x.int, aabb.min.y.int, aabb.max.x.int, aabb.max.y.int)
+  rect(x,y,x+w,y+h)
+
+proc handleMouse*(self: Menu, mv: Point2d) =
+  if pointInAABB(mv, self.getAABB()):
+    # figure out which item is under cursor
+    let item = (mv.y - pos.y).int div 9 - (if label != nil: 1 else: 0)
+    if item >= 0 and item < items.len:
+      selected = item
+    if mousebtnp(0) and selected >= 0:
+      if items[selected].action != nil:
+        items[selected].action()
+  elif mousebtnp(0):
+    if back != nil:
+      back()
 
 proc key*(self: Menu, key: KeyboardEventPtr, down: bool): bool =
   if down:

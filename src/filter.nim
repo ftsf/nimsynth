@@ -5,6 +5,8 @@ import common
 
 {.this:self.}
 
+# publically cutoff is always given in hz
+
 type
   FilterKind* = enum
     Lowpass

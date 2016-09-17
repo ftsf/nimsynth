@@ -5,6 +5,7 @@ import util
 import basic2d
 import strutils
 import ringbuffer
+import sdl2.audio
 
 import osc
 import filter
@@ -42,6 +43,7 @@ type
     env: array[4, tuple[a,d,s,r: float]]
     env2CutoffMod: float
     env3PitchMod: float
+    keytracking: float
 
 method init*(self: SynthVoice, machine: Synth) =
   echo "synth voice init"
@@ -55,15 +57,18 @@ method init*(self: SynthVoice, machine: Synth) =
   env1.s = 0.75
   env1.r = 0.01
   filter.kind = Lowpass
-  filter.cutoff = 0.25
+  filter.setCutoff(440.0)
   filter.resonance = 1.0
   filter.init()
   glissando.init()
+  pitch = 0.0
 
 method addVoice*(self: Synth) =
+  pauseAudio(1)
   var voice = new(SynthVoice)
   voice.init(self)
   voices.add(voice)
+  pauseAudio(0)
 
 method init*(self: Synth) =
   procCall init(Machine(self))
@@ -133,7 +138,7 @@ method init*(self: Synth) =
     Parameter(name: "env2 r", kind: Float, min: 0.0, max: 1.0, default: 0.001, onchange: proc(newValue: float, voice: int) =
       self.env[1].r = newValue
     ),
-    Parameter(name: "env2 cutoff", kind: Float, min: -1.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env2 cutoff", kind: Float, min: -0.1, max: 0.1, default: 0.01, onchange: proc(newValue: float, voice: int) =
       self.env2CutoffMod = newValue
     ),
     Parameter(name: "env3 a", kind: Float, min: 0.0, max: 1.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
@@ -154,6 +159,9 @@ method init*(self: Synth) =
     Parameter(name: "glissando", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.glissando = exp(lerp(-12.0, 0.0, 1.0-newValue))
     ),
+    Parameter(name: "ktrk", kind: Float, min: -0.1, max: 0.1, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.keytracking = newValue
+    ),
   ])
   self.voiceParams.add(
     Parameter(name: "note", kind: Note, min: 0.0, max: 255.0, onchange: proc(newValue: float, voice: int) =
@@ -171,9 +179,9 @@ method init*(self: Synth) =
         return ""
     )
   )
-  for param in mitems(self.globalParams):
-    param.value = param.default
-    param.onchange(param.value, -1)
+
+  setDefaults()
+
   self.addVoice()
 
 method trigger(self: Synth, note: int) =
@@ -246,7 +254,7 @@ method process*(self: Synth) {.inline.} =
     v.osc3.pulseWidth = osc1Pw
     v.osc3.freq = v.osc1.freq * 0.5
     var vs = (v.osc1.process() * osc1Amount + v.osc2.process() * osc2Amount + v.osc3.process() * osc3Amount + v.osc4.process() * osc4Amount) * v.env1.process()
-    v.filter.cutoff = clamp(cutoff + v.env2.process() * env2CutoffMod, 0.001, 0.499)
+    v.filter.cutoff = clamp(cutoff + v.env2.process() * env2CutoffMod + (hzToNote(v.pitch) - 69.0) * keytracking, 0.001, 0.499)
     v.filter.resonance = resonance
     v.filter.calc()
     vs = v.filter.process(vs)

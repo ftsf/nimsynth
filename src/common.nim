@@ -15,16 +15,16 @@ var sampleId*: int
 var sampleBuffer*: array[1024, float32]
 
 type
-  Modulator* = object of RootObj
-    amplitude: float
+  # used for connecting a machine to another machine's parameter
+  Binding* = tuple[machine: Machine, param: int]
   ParameterKind* = enum
     Float
     Int
     Note
+    Trigger
   Parameter* = object of RootObj
     kind*: ParameterKind
     name*: string
-    modulators*: seq[Modulator]
     min*,max*: float
     value*: float
     default*: float
@@ -46,6 +46,8 @@ type
     outputs*: seq[Machine]
     nOutputs*: int
     nInputs*: int
+    bindings*: seq[Binding]
+    nBindings*: int
     stereo*: bool
     cachedOutputSampleId*: int
     # TODO: this should be a sequence with one for each nOutputs
@@ -73,6 +75,7 @@ method init*(self: Machine) {.base.} =
   voices = newSeq[Voice]()
   inputs = newSeq[Input]()
   outputs = newSeq[Machine]()
+  bindings = newSeq[Binding]()
 
 method init*(self: Voice, machine: Machine) {.base.} =
   parameters = newSeq[Parameter]()
@@ -88,6 +91,18 @@ method addVoice*(self: Machine) {.base.} =
   voice.init(self)
   self.voices.add(voice)
   pauseAudio(0)
+
+method setDefaults*(self: Machine) {.base.} =
+  for param in mitems(self.globalParams):
+    param.value = param.default
+    param.onchange(param.value, -1)
+
+method createBinding*(self: Machine, slot: int, target: Machine, paramId: int) {.base.} =
+  bindings[slot].machine = target
+  bindings[slot].param = paramId
+
+method handleClick*(self: Machine, mouse: Point2d): bool {.base.} =
+  return false
 
 proc getAdjacent(self: Machine): seq[Machine] =
   result = newSeq[Machine]()
@@ -207,11 +222,10 @@ method getParameterCount*(self: Machine): int {.base.} =
   return self.globalParams.len + self.voiceParams.len * self.voices.len
 
 method getParameter*(self: Machine, paramId: int): (int, ptr Parameter) {.base.} =
-  # TODO: add support for input gain params
-  let voice = if paramId < globalParams.len: -1 else: (paramId - globalParams.len) div voiceParams.len
+  let voice = if paramId <= globalParams.high: -1 else: (paramId - globalParams.len) div voiceParams.len
   if voice == -1:
     return (voice, addr(self.globalParams[paramId]))
-  elif voice > self.voices.len:
+  elif voice > self.voices.high or voice < -1:
     return (-1, nil)
   else:
     let voiceParam = (paramId - globalParams.len) mod voiceParams.len
@@ -235,6 +249,9 @@ method draw*(self: View) {.base.} =
 
 method key*(self: View, key: KeyboardEventPtr, down: bool): bool {.base.} =
   return false
+
+const OffNote* = -2
+const Blank* = -1
 
 proc keyToNote*(key: KeyboardEventPtr): int =
   baseOctave = clamp(baseOctave, 0, 8)
@@ -294,21 +311,26 @@ proc keyToNote*(key: KeyboardEventPtr): int =
   of SDL_SCANCODE_I:
     return baseOctave * 12 + 12 + 12
   of SDL_SCANCODE_1:
-    # off note
-    return -2
+    return OffNote
   of SDL_SCANCODE_PERIOD:
-    # blank
-    return -1
+    return Blank
   else:
     return -3
 
 proc noteToHz*(note: float): float =
   return pow(2.0,((note - 69.0) / 12.0)) * 440.0
 
-proc hzToNote*(hz: float): int =
-  return (12.0 * log2(hz / 440.0) + 69.0).int
+proc hzToNote*(hz: float): float =
+  if hz == 0.0:
+    return 0
+  return (12.0 * log2(hz / 440.0) + 69.0)
 
 proc noteToNoteName*(note: int): string =
+  if note == OffNote:
+    return "OFF"
+  elif note == Blank:
+    return "..."
+
   let oct = note div 12 - 1
   case note mod 12:
   of 0:
@@ -335,10 +357,8 @@ proc noteToNoteName*(note: int): string =
     return "A#" & $oct
   of 11:
     return "B-" & $oct
-  of -2:
-    return "OFF"
   else:
     return "???"
 
 proc hzToNoteName*(hz: float): string =
-  return noteToNoteName(hzToNote(hz))
+  return noteToNoteName(hzToNote(hz).int)

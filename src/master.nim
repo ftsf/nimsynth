@@ -17,10 +17,10 @@ method init*(self: Master) =
   beatsPerMinute = 128.0
   globalParams.add([
     Parameter(kind: Float, name: "volume", min: 0.0, max: 10.0, default: 1.0, value: 1.0, onchange: proc(newValue: float, voice: int) =
-      self.gain = newValue
+      self.gain = clamp(newValue, 0.0, 10.0)
     ),
     Parameter(kind: Int, name: "bpm", min: 1.0, max: 300.0, default: 128.0, value: 128.0, onchange: proc(newValue: float, voice: int) =
-      self.beatsPerMinute = newValue
+      self.beatsPerMinute = clamp(newValue, 1.0, 300.0)
     ),
   ])
 
