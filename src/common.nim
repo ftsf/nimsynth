@@ -250,6 +250,7 @@ type
     parameters: seq[ParamMarshal]
     bindings: seq[BindMarshal]
     inputs: seq[InputMarshal]
+    voices: int
   LayoutMarhsal = object of RootObj
     name: string
     machines: seq[MachineMarshal]
@@ -309,13 +310,16 @@ proc savePatch*(machine: Machine, name: string) =
   fp.close()
 
 proc loadMarshaledParams(self: Machine, parameters: seq[ParamMarshal]) =
-  let nRealParams = getParameterCount()
+  var nRealParams = getParameterCount()
   for i,p in parameters:
-    if i > nRealParams:
-      break
+    while i > nRealParams-1:
+      self.addVoice()
+      nRealParams = getParameterCount()
     var (voice,param) = getParameter(i)
     if param.name == p.name:
       param.value = p.value
+      if param.kind == Note or param.kind == Trigger:
+        continue
       param.onchange(param.value, voice)
 
 proc loadMarshaledBindings(self: Machine, bindings: seq[BindMarshal]) =
@@ -357,6 +361,7 @@ proc saveLayout*(name: string) =
     m.parameters = machine.getMarshaledParams()
     m.bindings = machine.getMarshaledBindings()
     m.inputs = machine.getMarshaledInputs()
+    m.voices = machine.voices.len
     # TODO: store machine specific data
     l.machines.add(m)
 
@@ -368,6 +373,14 @@ proc saveLayout*(name: string) =
     return
   fp.write($$l)
   fp.close()
+
+  echo "saved layout to ", name
+
+proc getLayouts*(): seq[string] =
+  result = newSeq[string]()
+  let prefix = "layouts/"
+  for file in walkFiles("layouts/*.json"):
+    result.add(file[prefix.len..file.high-5])
 
 proc loadLayout*(name: string) =
   var l: LayoutMarhsal
@@ -386,6 +399,8 @@ proc loadLayout*(name: string) =
         var m = mt.factory()
         m.pos = machine.pos
         m.name = machine.name
+        while m.voices.len < machine.voices:
+          m.addVoice()
         machines.add(m)
         m.loadMarshaledParams(machine.parameters)
         machineMap.add(m)
@@ -398,6 +413,7 @@ proc loadLayout*(name: string) =
     m.loadMarshaledBindings(machine.bindings)
     m.loadMarshaledInputs(machine.inputs)
 
+  echo "loaded layout: ", name
 
 proc getPatches*(machine: Machine): seq[string] =
   result = newSeq[string]()

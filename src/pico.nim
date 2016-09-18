@@ -278,6 +278,7 @@ var initFunc: proc()
 var updateFunc: proc(dt:float)
 var drawFunc: proc()
 var keyFunc: proc(key: KeyboardEventPtr, down: bool): bool
+var textFunc: proc(text: string): bool
 
 type
   Font* = ref object
@@ -1077,6 +1078,10 @@ proc appHandleEvent(evt: Event) =
     render.setRenderTarget(nil)
     render.setDrawColor(0,0,0,255)
     render.clear()
+  elif evt.kind == TextInput:
+    if textFunc != nil:
+      if textFunc($evt.text.text):
+        return
   elif evt.kind == KeyDown or evt.kind == KeyUp:
     let sym = evt.key.keysym.sym
     let scancode = evt.key.keysym.scancode
@@ -1212,7 +1217,6 @@ proc rnd*(x: int): int =
 
 proc rnd*(x: float): float =
   return random(x)
-
 
 type
   MusicId = range[-1..63]
@@ -1370,6 +1374,16 @@ proc setUpdateFunc*(update: (proc(dt:float))) =
 
 proc setKeyFunc*(key: (proc(key: KeyboardEventPtr, down: bool): bool)) =
   keyFunc = key
+
+proc setTextFunc*(text: (proc(text: string): bool)) =
+  if text == nil:
+    stopTextInput()
+  else:
+    startTextInput()
+  textFunc = text
+
+proc hasTextFunc*(): bool =
+  return textFunc != nil
 
 proc setDrawFunc*(draw: (proc())) =
   drawFunc = draw

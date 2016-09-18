@@ -17,6 +17,7 @@ import menu
 {.this:self.}
 
 type LayoutView* = ref object of View
+  name*: string
   currentMachine*: Machine
   dragging*: bool
   adjustingInput*: ptr Input
@@ -96,6 +97,8 @@ method draw*(self: LayoutView) =
 
   setCamera()
   setColor(1)
+  if self.name != nil:
+    print(self.name, 1, 1)
   printr("layout", screenWidth - 1, 1)
 
 method key*(self: LayoutView, key: KeyboardEventPtr, down: bool): bool =
@@ -111,10 +114,46 @@ method key*(self: LayoutView, key: KeyboardEventPtr, down: bool): bool =
     case scancode:
     of SDL_SCANCODE_S:
       if down and ctrl:
-        saveLayout("test")
+        # TODO: ask for filename
+        self.menu = newMenu(point2d(0,0), "save layout")
+        self.menu.back = proc() =
+          self.menu = nil
+        var te = newMenuItemText("name", if self.name == nil: "" else: self.name)
+        self.menu.items.add(te)
+        self.menu.items.add(newMenuItem("save") do():
+          self.name = te.value
+          if self.name in getLayouts():
+            self.menu = newMenu(point2d(0,0), "overwrite '" & self.name & "'?")
+            self.menu.back = proc() =
+              self.menu = nil
+            self.menu.items.add(newMenuItem("no") do():
+              self.menu = nil
+            )
+            self.menu.items.add(newMenuItem("yes") do():
+              saveLayout(self.name)
+              self.menu = nil
+            )
+          else:
+            saveLayout(self.name)
+            self.menu = nil
+        )
     of SDL_SCANCODE_O:
       if down and ctrl:
-        loadLayout("test")
+        # TODO: show list of layout files
+        self.menu = newMenu(point2d(0,0), "select file to load")
+        self.menu.back = proc() =
+          self.menu = nil
+
+        for i,layout in getLayouts():
+          (proc() =
+            let layout = layout
+            self.menu.items.add(newMenuItem(layout) do():
+              loadLayout(layout)
+              if self.name == nil:
+                self.name = layout
+              self.menu = nil
+            )
+          )()
     of SDL_SCANCODE_F2:
       if currentMachine != nil:
         currentView = currentMachine.getMachineView()

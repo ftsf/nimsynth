@@ -404,7 +404,7 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
           maxSubCol = 0
         else:
           var (voice, targetParam) = targetMachine.getParameter(s.bindings[s.currentColumn].param)
-          maxSubCol = if targetParam.kind == Note: 1 else: 2
+          maxSubCol = if targetParam.kind == Note: 1 elif targetParam.kind == Trigger: 0 else: 2
         s.subColumn = maxSubCol
       if s.currentColumn < 0:
         s.currentColumn = colsPerPattern - 1
@@ -423,7 +423,7 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
         maxSubCol = 0
       else:
         var (voice, targetParam) = targetMachine.getParameter(s.bindings[s.currentColumn].param)
-        maxSubCol = if targetParam.kind == Note: 1 else: 2
+        maxSubCol = if targetParam.kind == Note: 1 elif targetParam.kind == Trigger: 0 else: 2
 
       s.subColumn += 1
       if s.subColumn > maxSubCol:

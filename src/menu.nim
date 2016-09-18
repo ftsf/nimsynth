@@ -9,6 +9,9 @@ type
   MenuItem* = ref object of RootObj
     label*: string
     action*: proc()
+  MenuItemText* = ref object of MenuItem
+    default*: string
+    value*: string
   Menu* = ref object of RootObj
     label*: string
     pos*: Point2d
@@ -28,11 +31,44 @@ proc newMenuItem*(label: string, action: proc() = nil): MenuItem =
   result.label = label
   result.action = action
 
+proc newMenuItemText*(label: string, default: string = ""): MenuItemText =
+  var mi = new(MenuItemText)
+  mi.label = label
+  mi.default = default
+  mi.value = default
+  return mi
+
+proc inputText(self: MenuItemText, text: string): bool =
+  value &= text
+  return true
+
 proc getAABB*(self: Menu): AABB =
   result.min.x = pos.x - 2
   result.min.y = pos.y - 2
-  result.max.x = pos.x + 64 + 1
+
+  var maxLength = label.len
+  for i in items:
+    if i.label.len > maxLength:
+      maxLength = i.label.len
+
+  result.max.x = pos.x + max(maxLength * 4, 64).float + 1.0
   result.max.y = pos.y + items.len.float * 9.0 + 10.0
+
+method draw*(self: MenuItem, x,y,w: int, selected: bool): int =
+  if selected:
+    setColor(13)
+    rectfill(x, y-1, x+w, y + 5)
+  setColor(if selected: 7 else: 6)
+  print(label, x + 2, y)
+  return 9
+
+method draw*(self: MenuItemText, x,y,w: int, selected: bool): int =
+  if selected:
+    setColor(13)
+    rectfill(x, y-1, x+w, y + 5)
+  setColor(if selected: 7 else: 6)
+  print(label & ": " & value, x + 2, y)
+  return 9
 
 proc draw*(self: Menu) =
   let camera = getCamera()
@@ -55,12 +91,7 @@ proc draw*(self: Menu) =
     print(label, x + 2, yv)
     yv += 9
   for i,item in items:
-    if selected == i:
-      setColor(13)
-      rectfill(x, yv-1, x+w, yv + 5)
-    setColor(if selected == i: 7 else: 6)
-    print(item.label, x + 2, yv)
-    yv += 9
+    yv += item.draw(x, yv, w, selected == i)
 
   setColor(6)
   rect(x,y,x+w,y+h)
@@ -80,6 +111,18 @@ proc handleMouse*(self: Menu, mv: Point2d) =
 
 proc key*(self: Menu, key: KeyboardEventPtr, down: bool): bool =
   if down:
+    if selected >= 0 and selected < items.len and items[selected] of MenuItemText:
+      var te = MenuItemText(items[selected])
+      if not hasTextFunc():
+        setTextFunc(proc(text: string): bool =
+          return te.inputText(text)
+        )
+      if key.keysym.scancode == SDL_SCANCODE_BACKSPACE and down and te.value.len > 0:
+        te.value = te.value[0..te.value.high-1]
+        return true
+    else:
+      setTextFunc(nil)
+
     case key.keysym.scancode:
     of SDL_SCANCODE_UP:
       selected -= 1
