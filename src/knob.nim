@@ -15,7 +15,7 @@ method init(self: Knob) =
   procCall init(Machine(self))
   nBindings = 1
   bindings.setLen(1)
-  name = "?"
+  name = "knob"
 
 method drawBox(self: Knob) =
   let x = self.pos.x.int

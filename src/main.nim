@@ -8,6 +8,7 @@ import layoutview
 import master
 import sequencer
 import synth
+import tb303
 import gbsynth
 import kit
 import noise

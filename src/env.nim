@@ -2,6 +2,7 @@ import util
 
 import common
 import filter
+import math
 
 {.this:self.}
 
@@ -12,8 +13,13 @@ type
     Decay
     Sustain
     Release
+  DecayKind* = enum
+    Linear
+    Exponential
   Envelope* = object of RootObj
     a*,d*,s*,r*: float
+    decayKind*: DecayKind
+    decayExp*: float
     state*: EnvState
     time: float
     released: bool
@@ -40,7 +46,12 @@ proc process*(self: var Envelope): float32 =
       targetLevel = s
       time = 0.0
     else:
-      targetLevel = lerp(1.0, s, time / d)
+      case decayKind:
+      of Linear:
+        targetLevel = lerp(1.0, s, time / d)
+      of Exponential:
+        let x = time / d
+        targetLevel = lerp(s, 1.0, pow(decayExp, -x))
       time += invSampleRate
       if time > d:
         state = Sustain
