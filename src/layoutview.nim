@@ -258,6 +258,18 @@ method update*(self: LayoutView, dt: float) =
           self.menu = newMenu(mv, "machine")
           self.menu.back = proc() =
             self.menu = nil
+          var machine = machine
+          self.menu.items.add(newMenuItem("rename", proc() =
+            self.menu = newMenu(mv, "rename")
+            self.menu.back = proc() =
+              self.menu = nil
+            var te = newMenuItemText("name", machine.name)
+            self.menu.items.add(te)
+            self.menu.items.add(newMenuItem("rename") do():
+              machine.name = te.value
+              self.menu = nil
+            )
+          ))
           self.menu.items.add(newMenuItem("delete", proc() =
             self.currentMachine.delete()
             self.menu = nil

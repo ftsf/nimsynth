@@ -27,7 +27,6 @@ type
     ciCubic
   Sequencer* = ref object of Machine
     patterns*: seq[Pattern]
-    #bindings*: array[colsPerPattern, tuple[machine: Machine, param: int]]
     columnDetails*: array[colsPerPattern, tuple[mode: ColumnMode, interpolation: ColumnInterpolation]]
     currentPattern*: int
     currentStep*: int
@@ -41,9 +40,9 @@ type
   SequencerView* = ref object of MachineView
     menu: Menu
 
-proc newPattern*(): Pattern =
+proc newPattern*(length: int = 16): Pattern =
   result = new(Pattern)
-  result.rows = newSeq[array[colsPerPattern, int]](16)
+  result.rows = newSeq[array[colsPerPattern, int]](length)
   for row in mitems(result.rows):
     for col in mitems(row):
       col = Blank
@@ -480,10 +479,16 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
     return true
 
   if key.keysym.scancode == SDL_SCANCODE_MINUS and down:
+    var (voice, param) = s.getParameter(1)
     s.ticksPerBeat -= 1
+    param.value = s.ticksPerBeat.float
+    param.onchange(param.value, voice)
     return true
   if key.keysym.scancode == SDL_SCANCODE_EQUALS and down:
+    var (voice, param) = s.getParameter(1)
     s.ticksPerBeat += 1
+    param.value = s.ticksPerBeat.float
+    param.onchange(param.value, voice)
     return true
 
   if key.keysym.scancode == SDL_SCANCODE_BACKSPACE and down:
@@ -523,3 +528,44 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
 
 
   return false
+
+proc `$`(self: Pattern): string =
+  result = ""
+  for row in rows:
+    for i in 0..colsPerPattern-1:
+      result &= $row[i]
+      if i < colsPerPattern-1:
+        result &= ","
+    result &= "\n"
+
+method saveExtraData(self: Sequencer): string =
+  # export pattern data
+  result = "PATTERNS\n"
+  for pattern in patterns:
+    result &= $pattern
+    result &= "END\n"
+
+import strutils
+
+method loadExtraData(self: Sequencer, data: string) =
+  echo "loading extra Sequencer data"
+  var pattern: Pattern
+  var patId = 0
+  for line in data.splitLines:
+    let sline = line.strip()
+    echo sline
+    if sline == "PATTERNS":
+      pattern = newPattern(0)
+      continue
+    if pattern != nil:
+      if sline == "END":
+        if patId > patterns.high:
+          patterns.add(pattern)
+        else:
+          patterns[patId] = pattern
+        pattern = newPattern(0)
+        patId += 1
+      else:
+        pattern.rows.setLen(pattern.rows.len+1)
+        for i,col in pairs(sline.split(",")):
+          pattern.rows[pattern.rows.high][i] = parseInt(col)

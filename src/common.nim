@@ -251,6 +251,7 @@ type
     bindings: seq[BindMarshal]
     inputs: seq[InputMarshal]
     voices: int
+    extraData: string
   LayoutMarhsal = object of RootObj
     name: string
     machines: seq[MachineMarshal]
@@ -321,6 +322,8 @@ proc loadMarshaledParams(self: Machine, parameters: seq[ParamMarshal]) =
       if param.kind == Note or param.kind == Trigger:
         continue
       param.onchange(param.value, voice)
+    else:
+      echo "parameter name does not match: " & param.name & " vs " & p.name
 
 proc loadMarshaledBindings(self: Machine, bindings: seq[BindMarshal]) =
   for i,binding in bindings:
@@ -349,6 +352,12 @@ proc loadPatch*(machine: Machine, name: string) =
 
   machine.loadMarshaledParams(p.parameters)
 
+method saveExtraData*(self: Machine): string {.base.} =
+  return nil
+
+method loadExtraData*(self: Machine, data: string) {.base.} =
+  discard
+
 proc saveLayout*(name: string) =
   var l: LayoutMarhsal
   l.name = name
@@ -362,7 +371,7 @@ proc saveLayout*(name: string) =
     m.bindings = machine.getMarshaledBindings()
     m.inputs = machine.getMarshaledInputs()
     m.voices = machine.voices.len
-    # TODO: store machine specific data
+    m.extraData = machine.saveExtraData()
     l.machines.add(m)
 
   createDir("layouts")
@@ -404,7 +413,6 @@ proc loadLayout*(name: string) =
         machines.add(m)
         m.loadMarshaledParams(machine.parameters)
         machineMap.add(m)
-        # TODO: load extra data
         break
     # TODO: throw warning if couldn't find machineType
 
@@ -412,14 +420,15 @@ proc loadLayout*(name: string) =
     var m = machineMap[i]
     m.loadMarshaledBindings(machine.bindings)
     m.loadMarshaledInputs(machine.inputs)
+    m.loadExtraData(machine.extraData)
 
   echo "loaded layout: ", name
 
-proc getPatches*(machine: Machine): seq[string] =
+proc getPatches*(self: Machine): seq[string] =
   result = newSeq[string]()
-  # scan directory for json files
-  # each machine gets its own directory
-  # each patch has its own json file
+  let prefix = "patches/" & name
+  for file in walkFiles(prefix & "*.json"):
+    result.add(file[prefix.len..file.high-5])
 
 method popVoice*(self: Machine) {.base.} =
   pauseAudio(1)
