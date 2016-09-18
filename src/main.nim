@@ -10,6 +10,8 @@ import sequencer
 import synth
 import tb303
 import gbsynth
+import fmsynth
+import basicfm
 import kit
 import noise
 import lfo

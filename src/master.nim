@@ -10,6 +10,7 @@ type
 method init*(self: Master) =
   procCall init(Machine(self))
   name = "master"
+  className = "master"
   nInputs = 1
   nOutputs = 0
   gain = 1.0

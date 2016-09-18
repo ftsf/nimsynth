@@ -102,9 +102,19 @@ method key*(self: LayoutView, key: KeyboardEventPtr, down: bool): bool =
   if menu != nil:
     if menu.key(key, down):
       return true
+
   let scancode = key.keysym.scancode
+  let shift = (getModState() and KMOD_SHIFT) != 0
+  let ctrl = (getModState() and KMOD_CTRL) != 0
+
   if down:
     case scancode:
+    of SDL_SCANCODE_S:
+      if down and ctrl:
+        saveLayout("test")
+    of SDL_SCANCODE_O:
+      if down and ctrl:
+        loadLayout("test")
     of SDL_SCANCODE_F2:
       if currentMachine != nil:
         currentView = currentMachine.getMachineView()

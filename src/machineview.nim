@@ -11,6 +11,11 @@ import util
 type MachineView* = ref object of View
   machine*: Machine
   currentParam*: int
+  scroll: int
+  patchSlot: int
+
+const paramsOnScreen = (screenHeight div 8)
+const maxPatchSlots = 64
 
 proc newMachineView*(machine: Machine): MachineView =
   result = new(MachineView)
@@ -20,14 +25,18 @@ method draw*(self: MachineView) =
   cls()
   setColor(1)
   printr(machine.name, screenWidth - 1, 1)
+  printr("patch: " & $patchSlot, screenWidth - 1, 9)
   var nParams = machine.getParameterCount()
   var y = 1
-  for i in 0..nParams-1:
+  let startParam = scroll
+  for i in startParam..(min(nParams-1, startParam+paramsOnScreen)):
     setColor(if i == currentParam: 8 else: 7)
     var (voice, param) = machine.getParameter(i)
     print((if voice > -1: $(voice+1) & ": " else: "") & param.name, 1, y)
     printr(if param.getValueString != nil: param.getValueString(param.value, voice) else: param.value.formatFloat(ffDecimal, 2), 64, y)
-    let range = param.max - param.min
+    var range = param.max - param.min
+    if range == 0:
+      range = 1
     setColor(1)
     rectfill(64, y, 64 + (screenWidth - 64 - 64), y+4)
     setColor(if i == currentParam: 8 else: 7)
@@ -41,24 +50,39 @@ method update*(self: MachineView, dt: float) =
   let nParams = machine.getParameterCount()
   currentParam = clamp(currentParam, 0, nParams-1)
 
+  if currentParam >= paramsOnScreen - scroll:
+    scroll = currentParam
+  elif currentParam < scroll:
+    scroll = currentParam
+
 method key*(self: MachineView, key: KeyboardEventPtr, down: bool): bool =
   let scancode = key.keysym.scancode
   let ctrl = (int16(key.keysym.modstate) and int16(KMOD_CTRL)) != 0
   let shift = (int16(key.keysym.modstate) and int16(KMOD_SHIFT)) != 0
-  let move = if shift: 0.001 else: 0.01
+  let move = if shift: 0.001 elif ctrl: 0.1 else: 0.01
 
   var globalParams = addr(machine.globalParams)
   var voiceParams =  addr(machine.voiceParams)
   var nParams = globalParams[].len + voiceParams[].len * machine.voices.len
   if down:
     case scancode:
+    of SDL_SCANCODE_S:
+      if ctrl and down:
+        savePatch(machine, $patchSlot)
+        return true
+    of SDL_SCANCODE_O:
+      if ctrl and down:
+        loadPatch(machine, $patchSlot)
+        return true
     of SDL_SCANCODE_UP:
       currentParam -= 1
-      currentParam = clamp(currentParam, 0, nParams-1)
+      if currentParam < 0:
+        currentParam = nParams - 1
       return true
     of SDL_SCANCODE_DOWN:
       currentParam += 1
-      currentParam = clamp(currentParam, 0, nParams-1)
+      if currentParam > nParams - 1:
+        currentParam = 0
       return true
     of SDL_SCANCODE_LEFT:
       var (voice, param) = machine.getParameter(currentParam)
@@ -86,6 +110,17 @@ method key*(self: MachineView, key: KeyboardEventPtr, down: bool): bool =
     of SDL_SCANCODE_KP_MINUS:
       machine.popVoice()
       return true
+    of SDL_SCANCODE_PAGEUP:
+      patchSlot -= 1
+      if patchSlot < 0:
+        patchSlot = maxPatchSlots - 1
+      return true
+    of SDL_SCANCODE_PAGEDOWN:
+      patchSlot += 1
+      if patchSlot > maxPatchSlots - 1:
+        patchSlot = 0
+      return true
+
     else:
       discard
 

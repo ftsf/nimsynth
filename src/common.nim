@@ -40,6 +40,7 @@ type
     parameters*: seq[Parameter]
   Machine* = ref object of RootObj
     name*: string
+    className*: string
     pos*: Point2d
     globalParams*: seq[Parameter]
     voiceParams*: seq[Parameter]
@@ -200,36 +201,18 @@ proc delete*(self: Machine) =
 var machineTypes* = newSeq[tuple[name: string, factory: proc(): Machine]]()
 
 proc registerMachine*(name: string, factory: proc(): Machine) =
-  machineTypes.add((name: name, factory: factory))
+  machineTypes.add((name: name, factory: proc(): Machine =
+    var m = factory()
+    m.className = name
+    return m
+  ))
 
-proc savePatch*(machine: Machine, name: string) =
-  # TODO add patch saving code
-  # save each parameter
-  # as json
-  discard
-
-proc loadPatch*(machine: Machine, name: string) =
-  # TODO add patch loading code
-  # load each parameter value
-  # from json
-  discard
-
-proc getPatches*(machine: Machine): seq[string] =
-  result = newSeq[string]()
-  # scan directory for json files
-  # each machine gets its own directory
-  # each patch has its own json file
 
 method trigger*(self: Machine, note: int) {.base.} =
   discard
 
 method release*(self: Machine, note: int) {.base.} =
   discard
-
-method popVoice*(self: Machine) {.base.} =
-  pauseAudio(1)
-  discard self.voices.pop()
-  pauseAudio(0)
 
 method getParameterCount*(self: Machine): int {.base.} =
   # TODO: add support for input gain params
@@ -244,6 +227,199 @@ method getParameter*(self: Machine, paramId: int): (int, ptr Parameter) {.base.}
   else:
     let voiceParam = (paramId - globalParams.len) mod voiceParams.len
     return (voice, addr(self.voices[voice].parameters[voiceParam]))
+
+type
+  ParamMarshal = object of RootObj
+    name: string
+    voice: int
+    value: float
+  PatchMarshal = object of RootObj
+    name: string
+    parameters: seq[ParamMarshal]
+  BindMarshal = object of RootObj
+    targetMachineId: int
+    paramId: int
+  InputMarshal = object of RootObj
+    targetMachineId: int
+    outputId: int
+    gain: float
+  MachineMarshal = object of RootObj
+    name: string
+    className: string # needs to match the name used to create it
+    pos: Point2d
+    parameters: seq[ParamMarshal]
+    bindings: seq[BindMarshal]
+    inputs: seq[InputMarshal]
+  LayoutMarhsal = object of RootObj
+    name: string
+    machines: seq[MachineMarshal]
+
+import marshal
+import streams
+import os
+
+proc getMarshaledParams(self: Machine): seq[ParamMarshal] =
+  result = newSeq[ParamMarshal]()
+  for i in 0..getParameterCount()-1:
+    var (voice, param) = getParameter(i)
+    var pp: ParamMarshal
+    pp.name = param.name
+    pp.voice = voice
+    pp.value = param.value
+    result.add(pp)
+
+proc getMarshaledBindings(self: Machine): seq[BindMarshal] =
+  result = newSeq[BindMarshal]()
+  if bindings != nil:
+    for i in 0..nBindings-1:
+      var bm: BindMarshal
+      var binding = bindings[i]
+      if binding.machine != nil:
+        bm.targetMachineId = machines.find(binding.machine)
+        bm.paramId = binding.param
+        result.add(bm)
+      else:
+        bm.targetMachineId = -1
+        bm.paramId = -1
+        result.add(bm)
+
+proc getMarshaledInputs(self: Machine): seq[InputMarshal] =
+  result = newSeq[InputMarshal]()
+  for i in 0..inputs.high:
+    var im: InputMarshal
+    var input = inputs[i]
+    im.targetMachineId = machines.find(input.machine)
+    im.outputId = input.output
+    im.gain = input.gain
+    result.add(im)
+
+proc savePatch*(machine: Machine, name: string) =
+  var p: PatchMarshal
+  p.name = name
+  p.parameters = machine.getMarshaledParams()
+
+  createDir("patches")
+  createDir("patches/" & machine.name)
+
+  var fp = newFileStream("patches/" & machine.name & "/" & name & ".json", fmWrite)
+  if fp == nil:
+    echo "error opening file for saving"
+    return
+  fp.write($$p)
+  fp.close()
+
+proc loadMarshaledParams(self: Machine, parameters: seq[ParamMarshal]) =
+  let nRealParams = getParameterCount()
+  for i,p in parameters:
+    if i > nRealParams:
+      break
+    var (voice,param) = getParameter(i)
+    if param.name == p.name:
+      param.value = p.value
+      param.onchange(param.value, voice)
+
+proc loadMarshaledBindings(self: Machine, bindings: seq[BindMarshal]) =
+  for i,binding in bindings:
+    self.bindings[i].machine = if binding.targetMachineId != -1: machines[binding.targetMachineId] else: nil
+    self.bindings[i].param = binding.paramId
+
+proc loadMarshaledInputs(self: Machine, inputs: seq[InputMarshal]) =
+  for i,input in inputs:
+    if input.targetMachineId > machines.high or input.targetMachineId < 0:
+      echo "invalid targetMachineId: ", input.targetMachineId
+    else:
+      var ip: Input
+      ip.machine = machines[input.targetMachineId]
+      ip.output = input.outputId
+      ip.gain = input.gain
+      self.inputs.add(ip)
+
+proc loadPatch*(machine: Machine, name: string) =
+  var fp = newFileStream("patches/" & machine.name & "/" & name & ".json", fmRead)
+  if fp == nil:
+    echo "error opening file for reading"
+    return
+  var p: PatchMarshal
+  fp.load(p)
+  fp.close()
+
+  machine.loadMarshaledParams(p.parameters)
+
+proc saveLayout*(name: string) =
+  var l: LayoutMarhsal
+  l.name = name
+  l.machines = newSeq[MachineMarshal]()
+  for i, machine in machines:
+    var m: MachineMarshal
+    m.name = machine.name
+    m.className = machine.className
+    m.pos = machine.pos
+    m.parameters = machine.getMarshaledParams()
+    m.bindings = machine.getMarshaledBindings()
+    m.inputs = machine.getMarshaledInputs()
+    # TODO: store machine specific data
+    l.machines.add(m)
+
+  createDir("layouts")
+
+  var fp = newFileStream("layouts/" & name & ".json", fmWrite)
+  if fp == nil:
+    echo "error opening file for saving"
+    return
+  fp.write($$l)
+  fp.close()
+
+proc loadLayout*(name: string) =
+  var l: LayoutMarhsal
+  var fp = newFileStream("layouts/" & name & ".json", fmRead)
+  fp.load(l)
+  fp.close()
+
+  var machineMap = newSeq[Machine]()
+
+  for i, machine in l.machines:
+    if machine.className == "master":
+      machineMap.add(masterMachine)
+      continue
+    for mt in machineTypes:
+      if mt.name == machine.className:
+        var m = mt.factory()
+        m.pos = machine.pos
+        m.name = machine.name
+        machines.add(m)
+        m.loadMarshaledParams(machine.parameters)
+        machineMap.add(m)
+        # TODO: load extra data
+        break
+    # TODO: throw warning if couldn't find machineType
+
+  for i, machine in l.machines:
+    var m = machineMap[i]
+    m.loadMarshaledBindings(machine.bindings)
+    m.loadMarshaledInputs(machine.inputs)
+
+
+proc getPatches*(machine: Machine): seq[string] =
+  result = newSeq[string]()
+  # scan directory for json files
+  # each machine gets its own directory
+  # each patch has its own json file
+
+method popVoice*(self: Machine) {.base.} =
+  pauseAudio(1)
+  # find anything bound to this voice
+  for machine in mitems(machines):
+    if machine != self:
+      if machine.bindings != nil:
+        for i,binding in mpairs(machine.bindings):
+          if binding.machine == self:
+            var (voice,param) = machine.getParameter(binding.param)
+            if voice == self.voices.high:
+              removeBinding(machine, i)
+  discard self.voices.pop()
+  pauseAudio(0)
+
+
 
 method process*(self: Machine) {.base.} =
   discard

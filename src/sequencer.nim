@@ -452,6 +452,10 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
     if ctrl:
       let length = s.patterns[s.currentPattern].rows.len
       s.patterns[s.currentPattern].rows.setLen(length * 2)
+      # fill the new spaces with Blank
+      for i in length..(length*2)-1:
+        for c in 0..colsPerPattern-1:
+          s.patterns[s.currentPattern].rows[i][c] = Blank
       return true
 
   if key.keysym.scancode == SDL_SCANCODE_RETURN and down:
