@@ -41,9 +41,29 @@ method init(self: LFO) =
     ),
     Parameter(name: "min", kind: Float, min: 0.0, max: 1.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
       self.min = newValue
+    , getValueString: proc(value: float, voice: int): string =
+      var binding = self.bindings[0]
+      if binding.machine != nil:
+        var (voice, param) = binding.machine.getParameter(binding.param)
+        if param.getValueString != nil:
+          return param.getValueString(value, voice)
+        else:
+          return value.formatFloat(ffDecimal, 2)
+      else:
+        return value.formatFloat(ffDecimal, 2)
     ),
     Parameter(name: "max", kind: Float, min: 0.0, max: 1.0, default: 0.9, onchange: proc(newValue: float, voice: int) =
       self.max = newValue
+    , getValueString: proc(value: float, voice: int): string =
+      var binding = self.bindings[0]
+      if binding.machine != nil:
+        var (voice, param) = binding.machine.getParameter(binding.param)
+        if param.getValueString != nil:
+          return param.getValueString(value, voice)
+        else:
+          return value.formatFloat(ffDecimal, 2)
+      else:
+        return value.formatFloat(ffDecimal, 2)
     ),
     Parameter(name: "sync", kind: Int, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.bpmSync = newValue.bool

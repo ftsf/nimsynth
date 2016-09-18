@@ -145,11 +145,14 @@ method draw*(self: SequencerView) =
   let startStep = clamp(sequencer.currentStep-7,0,pattern.rows.high)
 
   print("editing pattern: " & $(sequencer.currentPattern+1) & "/" & $sequencer.patterns.len, 1, 1)
-
   # draw bindings
-
-
   setColor(4)
+  if sequencer.bindings[sequencer.currentColumn].machine != nil:
+    var binding = sequencer.bindings[sequencer.currentColumn]
+    var (voice, param) = binding.machine.getParameter(binding.param)
+    print(binding.machine.name & ": " & (if voice != -1: $voice & ": " else: "") & param.name, 1, 9+8)
+  else:
+    print("unbound", 1, 9+8)
   for i in 0..colsPerPattern-1:
     if sequencer.bindings[i].machine == nil:
       rect(i * 16 + 16, 8, i * 16 + 14 + 16, 15)
@@ -174,7 +177,11 @@ method draw*(self: SequencerView) =
         var targetMachine = sequencer.bindings[col].machine
         var (voice, targetParam) = targetMachine.getParameter(sequencer.bindings[col].param)
         if targetParam.kind == Note:
-          print(if val == Blank: "..." else: noteToNoteName(val.int), col * 16 + 12, y + 8)
+          var str = if val == Blank: "..." else: noteToNoteName(val.int)
+          setColor(if i == sequencer.currentStep and col == sequencer.currentColumn and sequencer.subColumn == 0: 8 elif sequencer.ticksPerBeat > 0 and i %% sequencer.ticksPerBeat == 0: 6 else: 13)
+          print(str[0..1], col * 16 + 12, y + 8)
+          setColor(if i == sequencer.currentStep and col == sequencer.currentColumn and sequencer.subColumn == 1: 8 elif sequencer.ticksPerBeat > 0 and i %% sequencer.ticksPerBeat == 0: 6 else: 13)
+          print(str[2..2], col * 16 + 12 + 8, y + 8)
         elif targetParam.kind == Int or targetParam.kind == Float:
           # we want to split this into 3 columns, one for each char
           var str = if val == Blank: "..." else: align($val, 3, '0')
@@ -247,8 +254,18 @@ proc setValue(self: Sequencer, newValue: int) =
       let k = if subColumn == 0: 2 elif subColumn == 1: 1 else: 0
       let d = (value/(10^k)) mod 10
       value = value + (newValue - d) * (10^k)
+
   elif param.kind == Note:
-    value = newValue
+    if newValue == Blank:
+      value = Blank
+    else:
+      if subColumn == 0:
+        value = newValue
+      elif subColumn == 1:
+        if value != Blank:
+          # just change octave
+          let note = value mod 12
+          value = ((newValue + 1) * 12) + note
   elif param.kind == Trigger:
     value = if newValue == 1: 1 else: 0
 
@@ -276,16 +293,55 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
     var (voice, targetParam) = targetMachine.getParameter(s.bindings[s.currentColumn].param)
     case targetParam.kind:
     of Note:
-      let note = keyToNote(key)
-      if note >= 0 and down:
-        s.setValue(note)
-        return true
-      if note == OffNote and down:
-        s.setValue(OffNote)
-        return true
-      if note == Blank and down:
-        s.setValue(Blank)
-        return true
+      if s.subColumn == 0:
+        let note = keyToNote(key)
+        if note >= 0 and down:
+          s.setValue(note)
+          return true
+        if note == OffNote and down:
+          s.setValue(OffNote)
+          return true
+        if note == Blank and down:
+          s.setValue(Blank)
+          return true
+      elif s.subColumn == 1:
+        if down:
+          case scancode:
+          of SDL_SCANCODE_0:
+            s.setValue(0)
+            return true
+          of SDL_SCANCODE_1:
+            s.setValue(1)
+            return true
+          of SDL_SCANCODE_2:
+            s.setValue(2)
+            return true
+          of SDL_SCANCODE_3:
+            s.setValue(3)
+            return true
+          of SDL_SCANCODE_4:
+            s.setValue(4)
+            return true
+          of SDL_SCANCODE_5:
+            s.setValue(5)
+            return true
+          of SDL_SCANCODE_6:
+            s.setValue(6)
+            return true
+          of SDL_SCANCODE_7:
+            s.setValue(7)
+            return true
+          of SDL_SCANCODE_8:
+            s.setValue(8)
+            return true
+          of SDL_SCANCODE_9:
+            s.setValue(9)
+            return true
+          of SDL_SCANCODE_PERIOD:
+            s.setValue(Blank)
+            return true
+          else:
+            discard
     of Int, Float, Trigger:
       if down:
         case scancode:
@@ -338,7 +394,18 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
       s.subColumn -= 1
       if s.subColumn < 0:
         s.currentColumn -= 1
-        s.subColumn = 2
+
+        if s.currentColumn < 0:
+          s.currentColumn = colsPerPattern-1
+
+        var maxSubCol = 0
+        var targetMachine = s.bindings[s.currentColumn].machine
+        if targetMachine == nil:
+          maxSubCol = 0
+        else:
+          var (voice, targetParam) = targetMachine.getParameter(s.bindings[s.currentColumn].param)
+          maxSubCol = if targetParam.kind == Note: 1 else: 2
+        s.subColumn = maxSubCol
       if s.currentColumn < 0:
         s.currentColumn = colsPerPattern - 1
       return true
@@ -350,8 +417,16 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
         s.patterns.add(newPattern())
       return true
     else:
+      var maxSubCol = 0
+      var targetMachine = s.bindings[s.currentColumn].machine
+      if targetMachine == nil:
+        maxSubCol = 0
+      else:
+        var (voice, targetParam) = targetMachine.getParameter(s.bindings[s.currentColumn].param)
+        maxSubCol = if targetParam.kind == Note: 1 else: 2
+
       s.subColumn += 1
-      if s.subColumn > 2:
+      if s.subColumn > maxSubCol:
         s.subColumn = 0
         s.currentColumn += 1
         if s.currentColumn > colsPerPattern - 1:

@@ -118,7 +118,7 @@ method init*(self: Synth) =
     ),
     Parameter(name: "cutoff", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
       self.cutoff = exp(lerp(-8.0, -0.8, newValue)), getValueString: proc(value: float, voice: int): string =
-      return $(self.cutoff * sampleRate).int & " hZ"
+      return $(exp(lerp(-8.0, -0.8, value)) * sampleRate).int & " hZ"
     ),
     Parameter(name: "res", kind: Float, min: 0.0001, max: 5.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
       self.resonance = newValue
