@@ -89,6 +89,9 @@ method draw*(self: LayoutView) =
   # draw boxes
   for machine in mitems(machines):
     machine.drawBox()
+    if machine == currentMachine:
+      setColor(6)
+      rect(machine.getAABB().expandAABB(2.0))
 
   if menu != nil:
     menu.draw()
@@ -194,7 +197,8 @@ method update*(self: LayoutView, dt: float) =
         else:
           currentMachine = machine
           dragging = true
-        break
+          return
+        return
     # check for adjusting input gain
     for machine in mitems(machines):
       for input in mitems(machine.inputs):
@@ -202,7 +206,10 @@ method update*(self: LayoutView, dt: float) =
         if pointInAABB(mv, mid.getAABB(4.0)):
           adjustingInput = addr(input)
           relmouse(true)
-          break
+          return
+    # clicked on nothing
+    currentMachine = nil
+
 
   if not mousebtn(0):
     dragging = false
@@ -218,9 +225,11 @@ method update*(self: LayoutView, dt: float) =
         if currentMachine.nOutputs > 0:
           connecting = true
           binding = false
+          return
         if currentMachine.nBindings > 0:
           binding = true
           connecting = false
+          return
         break
     if currentMachine == nil:
       # they didn't right click on a machine, check other stuff
@@ -285,13 +294,14 @@ method update*(self: LayoutView, dt: float) =
                 self.menu = nil
               for i in 0..currentMachine.nBindings-1:
                 var machine = machine
+                var sourceMachine = currentMachine
                 (proc() =
                   let slotId = i
                   var binding = addr(self.currentMachine.bindings[slotId])
                   self.menu.items.add(
                     newMenuItem($(slotId+1) & ": " & (if binding.machine == nil: " - " else: binding.machine.name)) do():
                       self.menu = machine.getParameterMenu(mv, "select param") do(paramId: int):
-                        self.currentMachine.createBinding(slotId, machine, paramId)
+                        sourceMachine.createBinding(slotId, machine, paramId)
                         self.menu = nil
                   )
                 )()

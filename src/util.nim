@@ -147,6 +147,13 @@ proc expandAABB*(aabb: AABB, vel: Vector2d): AABB =
   result.min.y = aabb.min.y - abs(vel.y)
   result.max.y = aabb.max.y + abs(vel.y)
 
+proc expandAABB*(aabb: AABB, expand: float): AABB =
+  result.min.x = aabb.min.x - expand
+  result.max.x = aabb.max.x + expand
+  result.min.y = aabb.min.y - expand
+  result.max.y = aabb.max.y + expand
+
+
 proc shuffle*[T](x: var seq[T]) =
   for i in countdown(x.high, 0):
     let j = rnd(i+1)
