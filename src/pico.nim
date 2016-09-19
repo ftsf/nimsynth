@@ -385,22 +385,22 @@ for i in 0..15:
   paletteTransparent[i] = if i == 0: true else: false
 
 
-proc convertToRGBA(indexPixels, rgbaPixels: pointer, w,h: cint) =
+proc convertToRGBA(indexPixels, rgbaPixels: pointer, spitch, dpitch, w,h: cint) =
   var indexPixels = cast[ptr array[int.high, uint8]](indexPixels)
   var rgbaPixels = cast[ptr array[int.high, uint8]](rgbaPixels)
   for y in 0..h-1:
     for x in 0..w-1:
-      let c = colors[paletteMapDisplay[indexPixels[y*w+x]]]
-      rgbaPixels[y*(w*4)+(x*4)+3] = c.r
-      rgbaPixels[y*(w*4)+(x*4)+2] = c.g
-      rgbaPixels[y*(w*4)+(x*4)+1] = c.b
-      rgbaPixels[y*(w*4)+(x*4)] = c.a
+      let c = colors[paletteMapDisplay[indexPixels[y*spitch+x]]]
+      rgbaPixels[y*dpitch+(x*4)+3] = c.r
+      rgbaPixels[y*dpitch+(x*4)+2] = c.g
+      rgbaPixels[y*dpitch+(x*4)+1] = c.b
+      rgbaPixels[y*dpitch+(x*4)] = c.a
 
 proc flipQuick() =
   render.setRenderTarget(nil)
   # copy swCanvas to hwCanvas
 
-  convertToRGBA(swCanvas.pixels, swCanvas32.pixels, screenWidth, screenHeight)
+  convertToRGBA(swCanvas.pixels, swCanvas32.pixels, swCanvas.pitch, swCanvas32.pitch, screenWidth, screenHeight)
   updateTexture(hwCanvas, nil, swCanvas32.pixels, swCanvas32.pitch)
 
   # copy hwCanvas to screen
@@ -480,7 +480,7 @@ proc pget*(x,y: cint): ColorId =
   if x > swCanvas.w-1 or x < 0 or y > swCanvas.h-1 or y < 0:
     return 0
   var pixels = swCanvas.getPixels()
-  return pixels[y*swCanvas.w+x]
+  return pixels[y*swCanvas.pitch+x]
 
 proc pset*(p: Point2d) =
   pset(p.x.int,p.y.int)
