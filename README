@@ -60,3 +60,17 @@ A sequencer can control multiple different instruments
 Sequencer1 -> Sequencer2 -> MonoSynth1
                          -> Sampler1
            -> Sequencer3 -> PolySynth1
+
+Notes from snowglobe:
+ - count ticks from 0
+ - space for transport control rather than return
+ - shift and left drag for connections (for buzz natives)
+ - delay length of 0 crashes
+ - mouse in pattern view
+ - remove bindings
+ - knob dragging more obvious
+ - save and load buttons
+ - preset naming, save and load buttons
+ - preset menu
+ - clone patterns
+ - double click on box to show machine view
