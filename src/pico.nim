@@ -293,8 +293,8 @@ var hwCanvas: TexturePtr
 var swCanvas: SurfacePtr
 var swCanvas32: SurfacePtr
 
-const screenWidth* = 480
-const screenHeight* = 272
+var screenWidth* = 480
+var screenHeight* = 272
 const screenPaddingX = 0
 const screenPaddingY = 0
 
@@ -371,7 +371,7 @@ proc setBtn*(b: range[0..4+buttonsPerPlayer-1], player: range[0..maxPlayers-1], 
   elif not down and buttons[player][b] != -1:
     buttons[player][b] = -1
 
-type Frame = ref array[screenWidth*screenHeight*4, uint8]
+#type Frame = ref array[screenWidth*screenHeight*4, uint8]
 
 var cameraX = 0
 var cameraY = 0
@@ -994,6 +994,25 @@ var mute = false
 proc shutdown*() =
   keepRunning = false
 
+proc resize(w,h: int) =
+  echo "resize event: ", w, " x ", h
+  screenWidth = w div screenScale
+  screenHeight = h div screenScale
+  # resize the buffers
+  srcRect = sdl2.rect(0,0,screenWidth,screenHeight)
+  dstRect = sdl2.rect(screenPaddingX,screenPaddingY,screenWidth,screenHeight)
+
+  hwCanvas = render.createTexture(SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, screenWidth, screenHeight)
+  swCanvas = createRGBSurface(0, screenWidth, screenHeight, 8, 0, 0, 0, 0)
+  swCanvas.format.palette.setPaletteColors(addr(colors[0]), 0, 16)
+  swCanvas32 = createRGBSurface(0, screenWidth, screenHeight, 32, 0x000000ff'u32, 0x0000ff00'u32, 0x00ff0000'u32, 0xff000000'u32)
+  discard render.setLogicalSize(screenWidth+screenPaddingX*2, screenHeight+screenPaddingY*2)
+
+  clip()
+
+  render.setRenderTarget(hwCanvas)
+
+
 proc appHandleEvent(evt: Event) =
   if evt.kind == QuitEvent:
     keepRunning = false
@@ -1076,6 +1095,9 @@ proc appHandleEvent(evt: Event) =
                 setBtn(i, pid, down)
 
   elif evt.kind == WindowEvent:
+    if evt.window.event == WindowEvent_Resized:
+      resize(evt.window.data1, evt.window.data2)
+
     render.setRenderTarget(nil)
     render.setDrawColor(0,0,0,255)
     render.clear()
@@ -1179,7 +1201,7 @@ proc loadSpriteSheet*(filename: string) =
     quit(1)
   var pixels = cast[ptr array[uint32.high, uint8]](raw_pixels)
 
-  spriteSheet = createRGBSurface(screenWidth, screenHeight, 8)
+  spriteSheet = createRGBSurface(128, 128, 8)
   spriteSheet.format.palette.setPaletteColors(addr(colors[0]), 0, 16)
   if spriteSheet == nil:
     echo getError()
@@ -1345,24 +1367,19 @@ proc init*(audio = true) =
 
   randomize()
 
-  window = createWindow("PicoNim", 0, 0, (screenWidth+screenPaddingX*2)*screenScale, (screenHeight+screenPaddingY*2)*screenScale, SDL_WINDOW_SHOWN)
+  window = createWindow("PicoNim", 0, 0, (screenWidth+screenPaddingX*2)*screenScale, (screenHeight+screenPaddingY*2)*screenScale, SDL_WINDOW_SHOWN or SDL_WINDOW_RESIZABLE)
   render = createRenderer(window, -1, Renderer_Accelerated or Renderer_PresentVsync or Renderer_TargetTexture)
 
-  swCanvas = createRGBSurface(0, screenWidth, screenHeight, 8, 0, 0, 0, 0)
-  swCanvas.format.palette.setPaletteColors(addr(colors[0]), 0, 16)
-  swCanvas32 = createRGBSurface(0, screenWidth, screenHeight, 32, 0x000000ff'u32, 0x0000ff00'u32, 0x00ff0000'u32, 0xff000000'u32)
+  discard sdl2.setHint("SDL_HINT_RENDER_VSYNC", "1")
+  discard sdl2.setHint("SDL_RENDER_SCALE_QUALITY", "0")
 
-  hwCanvas = render.createTexture(SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, screenWidth, screenHeight)
+  resize((screenWidth+screenPaddingX*2)*screenScale, (screenHeight+screenPaddingY*2)*screenScale)
 
-  spriteSheet = createRGBSurface(0, screenWidth, screenHeight, 8, 0, 0, 0, 0)
+  spriteSheet = createRGBSurface(0, 128, 128, 8, 0, 0, 0, 0)
   spriteSheet.format.palette.setPaletteColors(addr(colors[0]), 0, 16)
 
   font = setFont("assets/font.png", " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{:}~")
-  discard sdl2.setHint("SDL_HINT_RENDER_VSYNC", "1")
-  discard render.setLogicalSize(screenWidth+screenPaddingX*2, screenHeight+screenPaddingY*2)
-  discard sdl2.setHint("SDL_RENDER_SCALE_QUALITY", "0")
   sdl2.showCursor(false)
-  render.setRenderTarget(hwCanvas)
 
   when not defined(emscripten):
     if audio:

@@ -14,7 +14,6 @@ type MachineView* = ref object of View
   scroll: int
   patchSlot: int
 
-const paramsOnScreen = (screenHeight div 8)
 const maxPatchSlots = 64
 
 proc newMachineView*(machine: Machine): MachineView =
@@ -22,6 +21,7 @@ proc newMachineView*(machine: Machine): MachineView =
   result.machine = machine
 
 method draw*(self: MachineView) =
+  let paramsOnScreen = (screenHeight div 8)
   cls()
   setColor(1)
   printr(machine.name, screenWidth - 1, 1)
@@ -47,6 +47,7 @@ method draw*(self: MachineView) =
     y += 8
 
 method update*(self: MachineView, dt: float) =
+  let paramsOnScreen = (screenHeight div 8)
   let nParams = machine.getParameterCount()
   currentParam = clamp(currentParam, 0, nParams-1)
 
@@ -60,6 +61,8 @@ method key*(self: MachineView, key: KeyboardEventPtr, down: bool): bool =
   let ctrl = (int16(key.keysym.modstate) and int16(KMOD_CTRL)) != 0
   let shift = (int16(key.keysym.modstate) and int16(KMOD_SHIFT)) != 0
   let move = if shift: 0.001 elif ctrl: 0.1 else: 0.01
+
+  let paramsOnScreen = (screenHeight div 8)
 
   var globalParams = addr(machine.globalParams)
   var voiceParams =  addr(machine.voiceParams)

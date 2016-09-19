@@ -26,6 +26,7 @@ type LayoutView* = ref object of View
   lastmv*: Point2d
   menu*: Menu
   stolenInput*: Machine
+  camera*: Point2d
 
 const arrowVerts = [
   point2d(-5,-3),
@@ -35,6 +36,7 @@ const arrowVerts = [
 
 proc newLayoutView*(): LayoutView =
   result = new(LayoutView)
+  result.camera = point2d(-screenWidth.float / 2.0, -screenHeight.float / 2.0)
   result.currentMachine = nil
 
 method draw*(self: LayoutView) =
@@ -47,13 +49,13 @@ method draw*(self: LayoutView) =
     for x in 1..<sampleBuffer.len:
       if x > screenWidth:
         break
-      let y0 = (sampleBuffer[x-1] * (screenHeight.float / 2.0)).int + screenHeight div 2
-      let y1 = (sampleBuffer[x] * (screenHeight.float / 2.0)).int + screenHeight div 2
+      let y0 = (sampleBuffer[x-1] * 64).int + screenHeight div 2
+      let y1 = (sampleBuffer[x] * 64).int + screenHeight div 2
       line(x-1,y0,x,y1)
 
-  setCamera(-screenWidth div 2, -screenHeight div 2)
+  setCamera(camera)
 
-  var mv = mouse() + vector2d(-screenWidth div 2, -screenHeight div 2)
+  var mv = mouse() + camera
 
   if connecting and currentMachine != nil:
     setColor(1)
@@ -161,6 +163,9 @@ method key*(self: LayoutView, key: KeyboardEventPtr, down: bool): bool =
       if currentMachine != nil:
         currentView = currentMachine.getMachineView()
         return true
+    of SDL_SCANCODE_HOME:
+        camera = point2d(-screenWidth.float / 2.0, -screenHeight.float / 2.0)
+        return true
     of SDL_SCANCODE_INSERT:
       if currentMachine != nil:
         recordMachine = currentMachine
@@ -186,6 +191,9 @@ method update*(self: LayoutView, dt: float) =
 
   if stolenInput != nil:
     stolenInput.layoutUpdate(self, dt)
+
+  if mousebtn(2):
+    camera -= mv - lastmv
 
   # left click to select and move machines
   if mousebtnp(0):
