@@ -182,9 +182,7 @@ method key*(self: LayoutView, key: KeyboardEventPtr, down: bool): bool =
   return false
 
 method update*(self: LayoutView, dt: float) =
-  var mv = mouse()
-  mv.x += (-screenWidth div 2).float
-  mv.y += (-screenHeight div 2).float
+  var mv = mouse() + camera
 
   if menu != nil:
     menu.handleMouse(mv)
@@ -194,6 +192,7 @@ method update*(self: LayoutView, dt: float) =
 
   if mousebtn(2):
     camera -= mv - lastmv
+    return
 
   # left click to select and move machines
   if mousebtnp(0):
