@@ -168,7 +168,7 @@ method draw*(self: SequencerView) =
     let row = pattern.rows[i]
 
     setColor(if i == sequencer.currentStep: 8 elif sequencer.ticksPerBeat > 0 and i %% sequencer.ticksPerBeat == 0: 6 else: 13)
-    print($(i+1), 1, y + 8)
+    print($i, 1, y + 8)
 
     for col,val in row:
       setColor(if i == sequencer.currentStep and col == sequencer.currentColumn: 8 elif sequencer.ticksPerBeat > 0 and i %% sequencer.ticksPerBeat == 0: 6 else: 13)
