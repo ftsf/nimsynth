@@ -1095,7 +1095,7 @@ proc appHandleEvent(evt: Event) =
                 setBtn(i, pid, down)
 
   elif evt.kind == WindowEvent:
-    if evt.window.event == WindowEvent_Resized:
+    if evt.window.event == WindowEvent_Resized or evt.window.event == WindowEvent_Size_Changed:
       resize(evt.window.data1, evt.window.data2)
 
     render.setRenderTarget(nil)
@@ -1367,7 +1367,7 @@ proc init*(audio = true) =
 
   randomize()
 
-  window = createWindow("PicoNim", 0, 0, (screenWidth+screenPaddingX*2)*screenScale, (screenHeight+screenPaddingY*2)*screenScale, SDL_WINDOW_SHOWN or SDL_WINDOW_RESIZABLE)
+  window = createWindow("NimSynth", 0, 0, (screenWidth+screenPaddingX*2)*screenScale, (screenHeight+screenPaddingY*2)*screenScale, SDL_WINDOW_SHOWN or SDL_WINDOW_RESIZABLE)
   render = createRenderer(window, -1, Renderer_Accelerated or Renderer_PresentVsync or Renderer_TargetTexture)
 
   discard sdl2.setHint("SDL_HINT_RENDER_VSYNC", "1")
