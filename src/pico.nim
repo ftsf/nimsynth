@@ -264,7 +264,8 @@ when defined(opengl):
 
 when not defined(emscripten):
   import sdl2.audio
-  import sdl2.mixer
+  when defined(useMixer):
+    import sdl2.mixer
 
 import math
 import stb_image
@@ -1113,18 +1114,19 @@ proc appHandleEvent(evt: Event) =
       when not defined(emscripten):
         if (int16(evt.key.keysym.modstate) and int16(KMOD_CTRL)) != 0:
           mute = not mute
-          if mute:
-            discard mixer.volume(0, 0)
-            discard mixer.volume(1, 0)
-            discard mixer.volume(2, 0)
-            discard mixer.volume(3, 0)
-            discard mixer.volumeMusic(0)
-          else:
-            discard mixer.volume(0, 255)
-            discard mixer.volume(1, 255)
-            discard mixer.volume(2, 255)
-            discard mixer.volume(3, 255)
-            discard mixer.volumeMusic(255)
+          when defined(useMixer):
+            if mute:
+              discard mixer.volume(0, 0)
+              discard mixer.volume(1, 0)
+              discard mixer.volume(2, 0)
+              discard mixer.volume(3, 0)
+              discard mixer.volumeMusic(0)
+            else:
+              discard mixer.volume(0, 255)
+              discard mixer.volume(1, 255)
+              discard mixer.volume(2, 255)
+              discard mixer.volume(3, 255)
+              discard mixer.volumeMusic(255)
 
 var current_time = sdl2.getTicks()
 var acc = 0.0
@@ -1226,52 +1228,60 @@ var currentMusicId: int = -1
 var audioCallback: proc(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.} = nil
 
 when not defined(emscripten):
-  var musicLibrary: array[64,ptr Music]
-  var sfxLibrary: array[64,ptr Chunk]
+  when defined(useMixer):
+    var musicLibrary: array[64,ptr Music]
+    var sfxLibrary: array[64,ptr Chunk]
 
-  proc loadMusic*(musicId: MusicId, filename: string) =
-    var music = mixer.loadMUS("assets/" & filename)
-    if music != nil:
-      musicLibrary[musicId] = music
-    else:
-      echo "Warning: error loading ", filename
+    proc loadMusic*(musicId: MusicId, filename: string) =
+      when defined(useMixer):
+        var music = mixer.loadMUS("assets/" & filename)
+        if music != nil:
+          musicLibrary[musicId] = music
+        else:
+          echo "Warning: error loading ", filename
 
 
-  proc music*(musicId: MusicId) =
-    var music = musicLibrary[musicId]
-    if music != nil:
-      currentMusicId = musicId
-      discard mixer.playMusic(music, -1)
+    proc music*(musicId: MusicId) =
+      when defined(useMixer):
+        var music = musicLibrary[musicId]
+        if music != nil:
+          currentMusicId = musicId
+          discard mixer.playMusic(music, -1)
 
-  proc getMusic*(): MusicId =
-    return currentMusicId
+    proc getMusic*(): MusicId =
+      return currentMusicId
 
-  proc loadSfx*(sfxId: SfxId, filename: string) =
-    var sfx = mixer.loadWAV("assets/" & filename)
-    if sfx != nil:
-      sfxLibrary[sfxId] = sfx
-    else:
-      echo "Warning: error loading ", filename
+    proc loadSfx*(sfxId: SfxId, filename: string) =
+      when defined(useMixer):
+        var sfx = mixer.loadWAV("assets/" & filename)
+        if sfx != nil:
+          sfxLibrary[sfxId] = sfx
+        else:
+          echo "Warning: error loading ", filename
 
-  proc sfx*(sfxId: SfxId, channel: range[-1..15] = -1, loop = 0) =
-    if sfxId == -1:
-      discard haltChannel(channel)
-    else:
-      var sfx = sfxLibrary[sfxId]
-      if sfx != nil:
-        discard playChannel(channel, sfx, loop)
+    proc sfx*(sfxId: SfxId, channel: range[-1..15] = -1, loop = 0) =
+      if sfxId == -1:
+        discard haltChannel(channel)
+      else:
+        var sfx = sfxLibrary[sfxId]
+        if sfx != nil:
+          discard playChannel(channel, sfx, loop)
 
-  proc musicVol*(value: int) =
-    discard mixer.volumeMusic(value)
+    proc musicVol*(value: int) =
+      when defined(useMixer):
+        discard mixer.volumeMusic(value)
 
-  proc musicVol*(): int =
-    return mixer.volumeMusic(-1)
+    proc musicVol*(): int =
+      when defined(useMixer):
+        return mixer.volumeMusic(-1)
 
-  proc sfxVol*(value: int) =
-    discard mixer.volume(-1, value)
+    proc sfxVol*(value: int) =
+      when defined(useMixer):
+        discard mixer.volume(-1, value)
 
-  proc sfxVol*(): int =
-    return mixer.volume(-1, -1)
+    proc sfxVol*(): int =
+      when defined(useMixer):
+        return mixer.volume(-1, -1)
 
   proc setAudioCallback*(channels: uint8, newAudioCallback: proc(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.}) =
     audioCallback = newAudioCallback
@@ -1356,15 +1366,16 @@ proc init*(audio = true) =
 
   when not defined(emscripten):
     if audio:
-      if mixer.init(MIX_INIT_OGG) == -1:
-        echo getError()
-      if mixer.openAudio(44100, AUDIO_S16, MIX_DEFAULT_CHANNELS, 1024) == -1:
-        echo "Error initialising audio: " & $sdl2.getError()
-      else:
-        addQuitProc(proc() {.noconv.} =
-          echo "closing audio"
-          discard mixer.closeAudio
-        )
+      when defined(useMixer):
+        if mixer.init(MIX_INIT_OGG) == -1:
+          echo getError()
+        if mixer.openAudio(44100, AUDIO_S16, MIX_DEFAULT_CHANNELS, 1024) == -1:
+          echo "Error initialising audio: " & $sdl2.getError()
+        else:
+          addQuitProc(proc() {.noconv.} =
+            echo "closing audio"
+            discard mixer.closeAudio
+          )
 
 proc setInitFunc*(init: (proc())) =
   initFunc = init

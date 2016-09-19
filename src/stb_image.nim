@@ -15,7 +15,7 @@ type
     skip*: proc(user: pointer, n: cint)
     user*: proc(user: pointer): cint
 
-proc load*(filename: cstring, x: ptr cint, y: ptr cint, comp: ptr Components, req_comp: Components): ptr cuchar {.importc: "stbi_load".}
+proc load*(filename: cstring, x: ptr cint, y: ptr cint, comp: ptr Components, req_comp: Components): ptr cuchar {.importc: "stbi_load",cdecl.}
 proc load_from_memory*(buffer: ptr cuchar, len: cint, x: ptr cint, y: ptr cint, comp: ptr Components, req_comp: Components): ptr cuchar {.importc: "stbi_load_from_memory".}
 proc load_from_callbacks*(clbk: ptr IoCallbacks, user: pointer, x: ptr cint, y: ptr cint, comp: ptr Components, req_comp: Components): ptr cuchar {.importc: "stbi_load_from_callbacks".}
 proc load_from_file*(f: ptr FileHandle, x: ptr cint, y: ptr cint, comp: ptr Components, req_comp: Components): ptr cuchar {.importc: "stbi_load_from_file".}
