@@ -311,7 +311,7 @@ proc savePatch*(machine: Machine, name: string) =
   fp.write($$p)
   fp.close()
 
-proc loadMarshaledParams(self: Machine, parameters: seq[ParamMarshal]) =
+proc loadMarshaledParams(self: Machine, parameters: seq[ParamMarshal], setDefaults = false) =
   var nRealParams = getParameterCount()
   for i,p in parameters:
     while i > nRealParams-1:
@@ -320,6 +320,8 @@ proc loadMarshaledParams(self: Machine, parameters: seq[ParamMarshal]) =
     var (voice,param) = getParameter(i)
     if param.name == p.name:
       param.value = p.value
+      if setDefaults:
+        param.default = p.value
       if param.kind == Note or param.kind == Trigger:
         continue
       param.onchange(param.value, voice)
@@ -351,7 +353,7 @@ proc loadPatch*(machine: Machine, name: string) =
   fp.load(p)
   fp.close()
 
-  machine.loadMarshaledParams(p.parameters)
+  machine.loadMarshaledParams(p.parameters, true)
 
 method saveExtraData*(self: Machine): string {.base.} =
   return nil
