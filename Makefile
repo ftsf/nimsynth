@@ -13,8 +13,13 @@ windows: $(SOURCES)
 synth-debug: $(SOURCES)
 	nim c -d:debug --lineTrace:on --stackTrace:on -x:on --debugger:native -o:$@ --threads:on src/main.nim
 
+web: $(SOURCES)
+	nim c -d:release -o:web/nimsynth.html --threads:on -d:emscripten src/main.nim
+
 run: synth
 	./synth
 
 rund: synth-debug
 	./synth-debug
+
+.PHONY: web

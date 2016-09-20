@@ -101,6 +101,7 @@ method setDefaults*(self: Machine) {.base.} =
     param.onchange(param.value, -1)
 
 method createBinding*(self: Machine, slot: int, target: Machine, paramId: int) {.base.} =
+  assert(target != nil)
   bindings[slot].machine = target
   bindings[slot].param = paramId
 

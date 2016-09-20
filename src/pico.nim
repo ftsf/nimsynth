@@ -270,7 +270,7 @@ when not defined(emscripten):
 import math
 import stb_image
 
-const screenScale = 3
+const screenScale = 2
 
 var window: WindowPtr
 var spriteSheet: SurfacePtr
@@ -995,9 +995,9 @@ proc shutdown*() =
   keepRunning = false
 
 proc resize(w,h: int) =
-  echo "resize event: ", w, " x ", h
   screenWidth = w div screenScale
   screenHeight = h div screenScale
+  echo "resize event: ", w, " x ", h, " ( ", screenWidth, " x ", screenHeight, " )"
   # resize the buffers
   srcRect = sdl2.rect(0,0,screenWidth,screenHeight)
   dstRect = sdl2.rect(screenPaddingX,screenPaddingY,screenWidth,screenHeight)
@@ -1007,10 +1007,10 @@ proc resize(w,h: int) =
   swCanvas.format.palette.setPaletteColors(addr(colors[0]), 0, 16)
   swCanvas32 = createRGBSurface(0, screenWidth, screenHeight, 32, 0x000000ff'u32, 0x0000ff00'u32, 0x00ff0000'u32, 0xff000000'u32)
   discard render.setLogicalSize(screenWidth+screenPaddingX*2, screenHeight+screenPaddingY*2)
-
-  clip()
-
   render.setRenderTarget(hwCanvas)
+  clip()
+  cls()
+  flipQuick()
 
 
 proc appHandleEvent(evt: Event) =
@@ -1305,27 +1305,6 @@ when not defined(emscripten):
       when defined(useMixer):
         return mixer.volume(-1, -1)
 
-  proc setAudioCallback*(channels: uint8, newAudioCallback: proc(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.}) =
-    audioCallback = newAudioCallback
-    if audioCallback != nil:
-      # initialise audio
-      var audioSpec: AudioSpec
-      var obtained: AudioSpec
-      audioSpec.freq = 48000
-      audioSpec.format = AUDIO_F32
-      audioSpec.channels = channels
-      audioSpec.samples = 2048
-      audioSpec.padding = 0
-      audioSpec.callback = audioCallback
-      audioSpec.userdata = nil
-      if openAudio(addr(audioSpec), addr(obtained)) != 0:
-        echo "Unable to open audio device." & $getError()
-        quit(1)
-      echo "Opened Audio device"
-      echo $audioSpec
-      echo $obtained
-      pauseAudio(0)
-
 else:
   proc loadMusic*(musicId: MusicId, filename: string) =
     discard
@@ -1345,6 +1324,29 @@ else:
     discard
   proc musicVol*(): int =
     return 0
+
+
+
+proc setAudioCallback*(channels: uint8, newAudioCallback: proc(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.}) =
+  audioCallback = newAudioCallback
+  if audioCallback != nil:
+    # initialise audio
+    var audioSpec: AudioSpec
+    var obtained: AudioSpec
+    audioSpec.freq = 48000
+    audioSpec.format = AUDIO_F32
+    audioSpec.channels = channels
+    audioSpec.samples = 2048
+    audioSpec.padding = 0
+    audioSpec.callback = audioCallback
+    audioSpec.userdata = nil
+    if openAudio(addr(audioSpec), addr(obtained)) != 0:
+      echo "Unable to open audio device." & $getError()
+      quit(1)
+    echo "Opened Audio device"
+    echo $audioSpec
+    echo $obtained
+    pauseAudio(0)
 
 var context: GlContextPtr
 

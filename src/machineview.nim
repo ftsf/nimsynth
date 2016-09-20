@@ -34,14 +34,14 @@ method draw*(self: MachineView) =
     var (voice, param) = machine.getParameter(i)
     print((if voice > -1: $(voice+1) & ": " else: "") & param.name, 1, y)
     printr(if param.getValueString != nil: param.getValueString(param.value, voice) else: param.value.formatFloat(ffDecimal, 2), 64, y)
-    var range = param.max - param.min
-    if range == 0:
-      range = 1
+    var range = (param.max - param.min)
+    if range == 0.0:
+      range = 1.0
     setColor(1)
     rectfill(64, y, 64 + (screenWidth - 64 - 64), y+4)
     setColor(if i == currentParam: 8 else: 7)
     let zero = if param.max > 0.0 and param.min < 0.0: invLerp(param.min, param.max, 0.0) else: param.min
-    rectfill(64 + (screenWidth - 64 - 64) * zero, y, 64 + (screenWidth - 64 - 64) * ((param.value - param.min) / range), y+4)
+    rectfill(64 + (screenWidth - 64 - 64) * zero, y, 64 + (screenWidth - 64 - 64).float * ((param.value - param.min) / range).float, y+4)
     setColor(7)
     line(64 + (screenWidth - 64 - 64) * ((param.default - param.min) / range), y, 64 + (screenWidth - 64 - 64) * ((param.default - param.min) / range),y+4)
     y += 8
