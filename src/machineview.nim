@@ -2,6 +2,8 @@ import common
 import pico
 import strutils
 import util
+import menu
+import basic2d
 
 ### Machine View
 # Draw a single machine's settings
@@ -13,6 +15,7 @@ type MachineView* = ref object of View
   currentParam*: int
   scroll: int
   patchSlot: int
+  menu*: Menu
 
 const maxPatchSlots = 64
 
@@ -29,6 +32,7 @@ method draw*(self: MachineView) =
   var nParams = machine.getParameterCount()
   var y = 1
   let startParam = scroll
+  let sliderWidth = (screenWidth - 64) div 3
   for i in startParam..(min(nParams-1, startParam+paramsOnScreen)):
     setColor(if i == currentParam: 8 else: 7)
     var (voice, param) = machine.getParameter(i)
@@ -38,12 +42,16 @@ method draw*(self: MachineView) =
     if range == 0.0:
       range = 1.0
     setColor(1)
-    rectfill(64, y, 64 + (screenWidth - 64 - 64), y+4)
-    setColor(if i == currentParam: 8 else: 7)
-    let zero = if param.max > 0.0 and param.min < 0.0: invLerp(param.min, param.max, 0.0) else: param.min
-    rectfill(64 + (screenWidth - 64 - 64) * zero, y, 64 + (screenWidth - 64 - 64).float * ((param.value - param.min) / range).float, y+4)
+    # draw slider background
+    rectfill(64, y, 64 + sliderWidth, y+4)
+
+    # draw slider fill
+    setColor(if i == currentParam: 8 else: 6)
+    let zero = invLerp(param.min, param.max, 0.0)
+    rectfill(64 + sliderWidth * ((zero - param.min) / range).float, y, 64 + sliderWidth.float * ((param.value - param.min) / range).float, y+4)
+    # draw default bar
     setColor(7)
-    line(64 + (screenWidth - 64 - 64) * ((param.default - param.min) / range), y, 64 + (screenWidth - 64 - 64) * ((param.default - param.min) / range),y+4)
+    line(64 + sliderWidth * ((param.default - param.min) / range), y, 64 + sliderWidth * ((param.default - param.min) / range),y+4)
     y += 8
 
 method update*(self: MachineView, dt: float) =
@@ -71,7 +79,16 @@ method key*(self: MachineView, key: KeyboardEventPtr, down: bool): bool =
     case scancode:
     of SDL_SCANCODE_S:
       if ctrl and down:
-        savePatch(machine, $patchSlot)
+        var patchName: string = ""
+        self.menu = newMenu(point2d(0,0), "save patch")
+        self.menu.back = proc() =
+          self.menu = nil
+        var te = newMenuItemText("name", if patchName == nil: "" else: patchName)
+        self.menu.items.add(te)
+        self.menu.items.add(newMenuItem("save") do():
+          savePatch(self.machine, patchName)
+          self.menu = nil
+        )
         return true
     of SDL_SCANCODE_O:
       if ctrl and down:

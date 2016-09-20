@@ -38,7 +38,6 @@ type
     playing: bool
     subTick: float
   SequencerView* = ref object of MachineView
-    menu: Menu
 
 proc newPattern*(length: int = 16): Pattern =
   result = new(Pattern)
