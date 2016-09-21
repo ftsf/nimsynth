@@ -10,8 +10,7 @@ type
     samples: array[16, Sample]
   KitVoice = ref object of Voice
     playing: bool
-    sample: int
-    samplePos: int
+    osc: SampleOsc
     env: Envelope
     gain: float
 
@@ -22,7 +21,9 @@ method addVoice*(self: Kit) =
   var voice = new(KitVoice)
   voice.init(self)
   voices.add(voice)
-  voice.env.d = 1.0
+
+  voice.osc.sample = addr(self.samples[voices.high])
+  voice.env.d = voice.osc.sample[].data.len.float * invSampleRate.float * 1.0
 
   for param in mitems(voice.parameters):
     param.value = param.default
@@ -36,6 +37,7 @@ method init(self: Kit) =
   self.samples[1] = loadSample("samples/Snare4.wav")
   self.samples[2] = loadSample("samples/HatClosed1.wav")
   self.samples[3] = loadSample("samples/HatOpen.wav")
+
   nOutputs = 1
   nInputs = 0
   stereo = true
@@ -45,8 +47,6 @@ method init(self: Kit) =
       if newValue == 1.0:
         var v = KitVoice(self.voices[voice])
         v.playing = true
-        v.samplePos = 0
-        v.sample = voice
         v.env.trigger()
     ),
     Parameter(name: "gain", kind: Float, min: 0.0, max: 2.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
@@ -55,7 +55,7 @@ method init(self: Kit) =
     ),
     Parameter(name: "decay", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
       var v = KitVoice(self.voices[voice])
-      v.env.d = self.samples[v.sample].len.float * invSampleRate.float * newValue
+      v.env.d = v.osc.sample[].data.len.float * invSampleRate.float * newValue
     ),
   ])
 
@@ -68,34 +68,28 @@ method process*(self: Kit) {.inline.} =
   for i in 0..7:
     var v = KitVoice(voices[i])
     if v.playing:
-      if v.samplePos > samples[v.sample].high:
+      outputSamples[0] += v.osc.process() * v.env.process() * v.gain
+      if v.osc.finished:
         v.playing = false
-      else:
-        outputSamples[0] += (samples[v.sample][v.samplePos] * v.env.process() * v.gain)
-        v.samplePos += 1
 
 method trigger(self: Kit, note: int) =
   echo note, " ", noteToNoteName(note)
   if note == 48:
     var v = KitVoice(voices[0])
-    v.sample = 0
     v.playing = true
-    v.samplePos = 0
+    v.osc.reset()
   if note == 50:
     var v = KitVoice(voices[1])
-    v.sample = 1
     v.playing = true
-    v.samplePos = 0
+    v.osc.reset()
   if note == 52:
     var v = KitVoice(voices[2])
-    v.sample = 2
     v.playing = true
-    v.samplePos = 0
+    v.osc.reset()
   if note == 53:
     var v = KitVoice(voices[3])
-    v.sample = 3
     v.playing = true
-    v.samplePos = 0
+    v.osc.reset()
 
 proc newKit(): Machine =
   var kit = new(Kit)
