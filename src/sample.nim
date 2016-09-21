@@ -34,30 +34,24 @@ proc loadSample*(filename: string): Sample =
 
 type SampleOsc* = object of RootObj
   sample*: ptr Sample
-  samplePos*: float
-  freq*: float
+  samplePos*: int
 
 proc finished*(self: var SampleOsc): bool =
-  if samplePos > sample.data.len.float:
+  if samplePos > sample.data.high:
     return true
   return false
 
 proc reset*(self: var SampleOsc) =
-  samplePos = 0.0
+  samplePos = 0
 
 proc process*(self: var SampleOsc): float32 =
-  samplePos += freq * invSampleRate
-  let x = samplePos.floor.int
-  if x > sample.data.high:
+  if samplePos > sample.data.high:
     if sample.loop:
-      samplePos -= sample.data.len.float
+      samplePos = 0
     else:
       return 0.0
-
-  let alpha = samplePos mod 1.0
-  let y0 = sample.data[x]
-  let y1 = if sample.loop or x < sample.data.high: sample.data[(x + 1) mod sample.data.len] else: 0.0
-  result = lerp(y0, y1, alpha)
+  result = sample.data[samplePos]
+  samplePos += 1
 
 # TODO: need reusable sample loading interface code
 #
