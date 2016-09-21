@@ -46,9 +46,11 @@ method init(self: Kit) =
 
   voiceParams.add([
     Parameter(name: "trigger", kind: Trigger, min: 0.0, max: 1.0, onchange: proc(newValue: float, voice: int) =
-      if newValue == 1.0:
+      if newValue != 0.0:
         var v = KitVoice(self.voices[voice])
         v.playing = true
+        v.osc.sample = addr(self.samples[voice])
+        v.osc.reset()
         v.env.trigger()
     ),
     Parameter(name: "gain", kind: Float, min: 0.0, max: 2.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
@@ -80,25 +82,6 @@ method process*(self: Kit) {.inline.} =
       outputSamples[0] += v.osc.process() * v.env.process() * v.gain
       if v.osc.finished:
         v.playing = false
-
-method trigger(self: Kit, note: int) =
-  echo note, " ", noteToNoteName(note)
-  if note == 48:
-    var v = KitVoice(voices[0])
-    v.playing = true
-    v.osc.reset()
-  if note == 50:
-    var v = KitVoice(voices[1])
-    v.playing = true
-    v.osc.reset()
-  if note == 52:
-    var v = KitVoice(voices[2])
-    v.playing = true
-    v.osc.reset()
-  if note == 53:
-    var v = KitVoice(voices[3])
-    v.playing = true
-    v.osc.reset()
 
 method drawExtraInfo(self: Kit, x,y,w,h: int) =
   var yv = y

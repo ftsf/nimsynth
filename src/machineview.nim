@@ -82,7 +82,7 @@ method update*(self: MachineView, dt: float) =
   if mousebtn(0):
     var (voice, param) = machine.getParameter(currentParam)
     param.value = lerp(param.min, param.max, clamp(invLerp(64.0, 64.0 + sliderWidth.float, mv.x), 0.0, 1.0))
-    if param.kind == Int:
+    if param.kind == Int or param.kind == Trigger:
       param.value = param.value.int.float
     param.onchange(param.value, voice)
 
@@ -132,8 +132,8 @@ method key*(self: MachineView, key: KeyboardEventPtr, down: bool): bool =
     of SDL_SCANCODE_LEFT:
       var (voice, param) = machine.getParameter(currentParam)
       let range = param.max - param.min
-      if param.kind == Int:
-        param.value = clamp(param.value - 1, param.min, param.max)
+      if param.kind == Int or param.kind == Trigger:
+        param.value = clamp(param.value.int.float - 1.0, param.min, param.max)
       else:
         param.value = clamp(param.value - range * move, param.min, param.max)
       if param.onchange != nil:
@@ -142,8 +142,8 @@ method key*(self: MachineView, key: KeyboardEventPtr, down: bool): bool =
     of SDL_SCANCODE_RIGHT:
       var (voice, param) = machine.getParameter(currentParam)
       let range = param.max - param.min
-      if param.kind == Int:
-        param.value = clamp(param.value + 1, param.min, param.max)
+      if param.kind == Int or param.kind == Trigger:
+        param.value = clamp(param.value.int.float + 1.0, param.min, param.max)
       else:
         param.value = clamp(param.value + range * move, param.min, param.max)
       if param.onchange != nil:
