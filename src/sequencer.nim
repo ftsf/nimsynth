@@ -37,6 +37,7 @@ type
     ticksPerBeat*: int
     playing: bool
     subTick: float
+    looping: bool
   SequencerView* = ref object of MachineView
 
 proc newPattern*(length: int = 16): Pattern =
@@ -78,11 +79,14 @@ method init*(self: Sequencer) =
     , getValueString: proc(value: float, voice: int): string =
       return (if self.ticksPerBeat < 0: "1/" & $(-self.ticksPerBeat) else: $self.ticksPerBeat)
     ),
+    Parameter(kind: Int, name: "loop", min: 0.0, max: 1.0, default: 1.0, value: 1.0, onchange: proc(newValue: float, voice: int) =
+      self.looping = newValue.bool
+    , getValueString: proc(value: float, voice: int): string =
+      return (if value == 1.0: "on" else: "off")
+    ),
   ])
 
-  for param in mitems(self.globalParams):
-    param.value = param.default
-    param.onchange(param.value, -1)
+  setDefaults()
 
 proc newSequencerView(machine: Machine): View =
   var v = new(SequencerView)
@@ -229,9 +233,11 @@ method process*(self: Sequencer) =
     subTick += invSampleRate * (Master(masterMachine).beatsPerMinute.float / 60.0 * ticksPerBeat).float
     if subTick >= 1.0:
       step += 1
+      subTick = 0.0
       if step > pattern.rows.high:
         step = 0
-      subTick = 0.0
+        if not looping:
+          playing = false
 
 proc setValue(self: Sequencer, newValue: int) =
   var pattern = patterns[currentPattern]

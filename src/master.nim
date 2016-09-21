@@ -26,10 +26,10 @@ method init*(self: Master) =
   ])
 
 method process*(self: Master) =
-  cachedOutputSample = 0.0
+  outputSamples[0] = 0.0
   for input in inputs:
-    cachedOutputSample += input.machine.outputSample * input.gain
-  cachedOutputSample *= gain
+    outputSamples[0] += input.getSample()
+  outputSamples[0] *= gain
 
 proc newMaster*(): Master =
   result = new(Master)

@@ -115,10 +115,10 @@ method init(self: DelayMachine) =
       param.onchange(param.value)
 
 method process(self: DelayMachine) {.inline.} =
-  cachedOutputSample = 0.0
+  outputSamples[0] = 0.0
   for input in mitems(self.inputs):
-    cachedOutputSample += input.machine.outputSample * input.gain
-  cachedOutputSample = self.delay.process(cachedOutputSample)
+    outputSamples[0] += input.getSample()
+  outputSamples[0] = self.delay.process(outputSamples[0])
 
 proc newDelayMachine(): Machine =
   result = new(DelayMachine)
@@ -166,13 +166,13 @@ method init(self: SDelayMachine) =
       param.onchange(param.value)
 
 method process(self: SDelayMachine) {.inline.} =
-  cachedOutputSample = 0.0
+  outputSamples[0] = 0.0
   for input in mitems(self.inputs):
-    cachedOutputSample += input.machine.outputSample * input.gain
-  if cachedOutputSampleId mod 2 == 0:
-    cachedOutputSample = self.delayL.process(cachedOutputSample)
+    outputSamples[0] += input.getSample()
+  if outputSampleId mod 2 == 0:
+    outputSamples[0] = self.delayL.process(outputSamples[0])
   else:
-    cachedOutputSample = self.delayR.process(cachedOutputSample)
+    outputSamples[0] = self.delayR.process(outputSamples[0])
 
 proc newSDelayMachine(): Machine =
   result = new(SDelayMachine)
@@ -220,14 +220,14 @@ method init(self: PingPongDelayMachine) =
       param.onchange(param.value)
 
 method process(self: PingPongDelayMachine) {.inline.} =
-  cachedOutputSample = 0.0
+  outputSamples[0] = 0.0
   for input in mitems(self.inputs):
-    cachedOutputSample += input.machine.outputSample * input.gain
+    outputSamples[0] += input.getSample()
 
-  if cachedOutputSampleId mod 2 == 0:
-    cachedOutputSample = self.delayL.processPingPong(self.delayR, cachedOutputSample)
+  if outputSampleId mod 2 == 0:
+    outputSamples[0] = self.delayL.processPingPong(self.delayR, outputSamples[0])
   else:
-    cachedOutputSample = self.delayR.processPingPong(self.delayL, cachedOutputSample)
+    outputSamples[0] = self.delayR.processPingPong(self.delayL, outputSamples[0])
 
 proc newPingPongDelayMachine(): Machine =
   result = new(PingPongDelayMachine)
@@ -283,16 +283,16 @@ method process(self: Chorus) {.inline.} =
   var wet = 0.0
 
   for input in mitems(self.inputs):
-    dry += input.machine.outputSample * input.gain
+    dry += input.getSample()
 
-  if cachedOutputSampleId mod 2 == 0:
+  if outputSampleId mod 2 == 0:
     for delay in mitems(delayLs):
       wet += delay.process(dry)
   else:
     for delay in mitems(delayLs):
       wet += delay.process(dry)
 
-  cachedOutputSample = (wet / chorusVoices.float) * self.wet + dry * self.dry
+  outputSamples[0] = (wet / chorusVoices.float) * self.wet + dry * self.dry
 
 
 proc newChorus(): Machine =

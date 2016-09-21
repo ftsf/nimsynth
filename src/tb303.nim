@@ -107,7 +107,7 @@ method process(self: TB303) =
   filter.cutoff = cutoff + (envFlt.process() * envMod * 0.1)
   filter.resonance = resonance
   filter.calc()
-  cachedOutputSample = filter.process(osc.process()) * amp
+  outputSamples[0] = filter.process(osc.process()) * amp
 
 proc newTB303(): Machine =
   var my303 = new(TB303)

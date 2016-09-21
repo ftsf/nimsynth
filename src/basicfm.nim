@@ -176,7 +176,7 @@ method init(self: BasicFMSynth) =
   addVoice()
 
 method process(self: BasicFMSynth) {.inline.} =
-  cachedOutputSample = 0
+  outputSamples[0] = 0
   for voice in mitems(self.voices):
     var v = BasicFMSynthVoice(voice)
     for i,operator in mpairs(v.operators):
@@ -186,7 +186,7 @@ method process(self: BasicFMSynth) {.inline.} =
       for map in algorithms[algorithm]:
         if map[0] == opId:
           if map[1] == 0:
-            cachedOutputSample += operator.output
+            outputSamples[0] += operator.output
           else:
             let phaseOffset = operator.output
             v.operators[map[1]-1].osc.phase += (phaseOffset * PI)

@@ -19,7 +19,7 @@ method init(self: NoiseMachine) =
 
 
 method process(self: NoiseMachine) {.inline.} =
-  cachedOutputSample = osc.process()
+  outputSamples[0] = osc.process()
 
 proc newNoiseMachine(): Machine =
   result = new(NoiseMachine)

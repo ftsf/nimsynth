@@ -289,20 +289,21 @@ method init(self: FilterMachine) =
 
 
 method process(self: FilterMachine) {.inline.} =
-  cachedOutputSample = 0.0
+  outputSamples[0] = 0.0
   for input in mitems(self.inputs):
-    cachedOutputSample += input.machine.outputSample
-  if cachedOutputSampleId mod 2 == 0:
+    outputSamples[0] += input.getSample()
+
+  if outputSampleId mod 2 == 0:
     let oc = self.filterR.cutoff
     self.filterL.cutoff += lfoL.process() * lfoAmount
     self.filterL.calc()
-    cachedOutputSample = self.filterL.process(cachedOutputSample)
+    outputSamples[0] = self.filterL.process(outputSamples[0])
     self.filterL.cutoff = oc
   else:
     let oc = self.filterR.cutoff
     self.filterR.cutoff += lfoR.process() * lfoAmount
     self.filterR.calc()
-    cachedOutputSample = self.filterR.process(cachedOutputSample)
+    outputSamples[0] = self.filterR.process(outputSamples[0])
     self.filterR.cutoff = oc
 
 proc newFilterMachine(): Machine =

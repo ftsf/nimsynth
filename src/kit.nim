@@ -82,14 +82,14 @@ method init(self: Kit) =
     self.addVoice()
 
 method process*(self: Kit) {.inline.} =
-  cachedOutputSample = 0.0
+  outputSamples[0] = 0.0
   for i in 0..7:
     var v = KitVoice(voices[i])
     if v.playing:
       if v.samplePos > samples[v.sample].high:
         v.playing = false
       else:
-        cachedOutputSample += (samples[v.sample][v.samplePos] * v.env.process() * v.gain)
+        outputSamples[0] += (samples[v.sample][v.samplePos] * v.env.process() * v.gain)
         v.samplePos += 1
 
 method trigger(self: Kit, note: int) =

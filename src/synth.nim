@@ -237,7 +237,7 @@ proc newSynth*(): Machine =
 registerMachine("synth", newSynth)
 
 method process*(self: Synth) {.inline.} =
-  cachedOutputSample = 0
+  outputSamples[0] = 0
   for voice in mitems(self.voices):
     var v = SynthVoice(voice)
     v.env1.a = env[0].a
@@ -273,4 +273,4 @@ method process*(self: Synth) {.inline.} =
     v.filter.resonance = resonance
     v.filter.calc()
     vs = v.filter.process(vs)
-    cachedOutputSample += vs
+    outputSamples[0] += vs

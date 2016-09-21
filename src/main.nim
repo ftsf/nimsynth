@@ -29,7 +29,7 @@ proc audioCallback(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.} =
     for machine in mitems(machines):
       if machine.stereo or sampleId mod 2 == 0:
         machine.process()
-    samples[i] = masterMachine.outputSample
+    samples[i] = masterMachine.outputSamples[0]
     if i mod 2 == 0 and i < 2048:
       sampleBuffer[i div 2] = samples[i]
 

@@ -34,7 +34,7 @@ type
     getValueString*: proc(value: float, voice: int = -1): string
   Input* = object of RootObj
     machine*: Machine
-    output*: int
+    output*: int  # which output to read
     gain*: float
   Voice* = ref object of RootObj
     parameters*: seq[Parameter]
@@ -52,9 +52,8 @@ type
     bindings*: seq[Binding]
     nBindings*: int
     stereo*: bool
-    cachedOutputSampleId*: int
-    # TODO: this should be a sequence with one for each nOutputs
-    cachedOutputSample*: float32
+    outputSampleId*: int  # updated externally each sample, maybe this could be a global
+    outputSamples*: seq[float32]
   View* = ref object of RootObj
     discard
   Knob* = ref object of RootObj
@@ -79,6 +78,7 @@ method init*(self: Machine) {.base.} =
   inputs = newSeq[Input]()
   outputs = newSeq[Machine]()
   bindings = newSeq[Binding]()
+  outputSamples = newSeq[float32]()
 
 method init*(self: Voice, machine: Machine) {.base.} =
   parameters = newSeq[Parameter]()
@@ -99,6 +99,8 @@ method setDefaults*(self: Machine) {.base.} =
   for param in mitems(self.globalParams):
     param.value = param.default
     param.onchange(param.value, -1)
+
+  outputSamples.setLen(nOutputs)
 
 method createBinding*(self: Machine, slot: int, target: Machine, paramId: int) {.base.} =
   assert(target != nil)
@@ -208,6 +210,8 @@ proc registerMachine*(name: string, factory: proc(): Machine) =
     return m
   ))
 
+proc getSample*(self: Input): float32 =
+  return machine.outputSamples[output] * gain
 
 method trigger*(self: Machine, note: int) {.base.} =
   discard
@@ -451,13 +455,6 @@ method popVoice*(self: Machine) {.base.} =
 
 method process*(self: Machine) {.base.} =
   discard
-
-proc outputSample*(self: Machine): float32 =
-  if self.cachedOutputSampleId == sampleId:
-    return self.cachedOutputSample
-  else:
-    self.cachedOutputSampleId = sampleId
-    return self.cachedOutputSample
 
 method update*(self: View, dt: float) {.base.} =
   discard

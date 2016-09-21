@@ -61,10 +61,10 @@ method init(self: DistortionMachine) =
 
 
 method process(self: DistortionMachine) {.inline.} =
-  cachedOutputSample = 0.0
+  outputSamples[0] = 0.0
   for input in mitems(self.inputs):
-    cachedOutputSample += input.machine.outputSample * input.gain
-  cachedOutputSample = self.distortion.process(cachedOutputSample)
+    outputSamples[0] += input.getSample()
+  outputSamples[0] = self.distortion.process(outputSamples[0])
 
 proc newDistortionMachine(): Machine =
   result = new(DistortionMachine)

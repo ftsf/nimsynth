@@ -219,8 +219,8 @@ proc to4bit(input: float32): float32 =
   result = floor(input * 8.0) / 8.0
 
 method process*(self: GBSynth) {.inline.} =
-  cachedOutputSample = 0.0
-  if cachedOutputSampleId mod 2 == 0:
+  outputSamples[0] = 0.0
+  if outputSampleId mod 2 == 0:
     for i in 0..3:
       var v = addr(gbVoices[i])
       if v.enabled:
@@ -262,14 +262,14 @@ method process*(self: GBSynth) {.inline.} =
         v.output = 0.0
 
       if v.left:
-        cachedOutputSample += v.output
+        outputSamples[0] += v.output
   else:
     for i in 0..3:
       var v = addr(gbVoices[i])
       if v.right:
-        cachedOutputSample += v.output
+        outputSamples[0] += v.output
   # convert to 4 bit audio
-  cachedOutputSample = to4bit(cachedOutputSample)
+  outputSamples[0] = to4bit(outputSamples[0])
 
 proc newGBSynth(): Machine =
   var gbs = new(GBSynth)

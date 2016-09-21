@@ -63,16 +63,16 @@ method process(self: Flanger) {.inline.} =
   var dry = 0.0
   var wet = 0.0
   for input in mitems(self.inputs):
-    dry += input.machine.outputSample * input.gain
+    dry += input.getSample()
 
-  if cachedOutputSampleId mod 2 == 0:
+  if outputSampleId mod 2 == 0:
     self.delayL.delayTime = delayTime + (lfoL.process() * lfoAmount)
     wet = self.delayL.process(dry)
   else:
     self.delayR.delayTime = delayTime + (lfoR.process() * lfoAmount)
     wet = self.delayR.process(dry)
 
-  cachedOutputSample = wet * self.wet + dry * self.dry
+  outputSamples[0] = wet * self.wet + dry * self.dry
 
 proc newFlanger(): Machine =
   result = new(Flanger)
