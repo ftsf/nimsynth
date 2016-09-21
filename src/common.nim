@@ -241,6 +241,7 @@ type
   PatchMarshal = object of RootObj
     name: string
     parameters: seq[ParamMarshal]
+    extraData: string
   BindMarshal = object of RootObj
     targetMachineId: int
     paramId: int
@@ -304,6 +305,7 @@ proc savePatch*(machine: Machine, name: string) =
   var p: PatchMarshal
   p.name = name
   p.parameters = machine.getMarshaledParams()
+  p.extraData = machine.saveExtraData()
 
   createDir("patches")
   createDir("patches/" & machine.name)
@@ -358,6 +360,7 @@ proc loadPatch*(machine: Machine, name: string) =
   fp.close()
 
   machine.loadMarshaledParams(p.parameters, true)
+  machine.loadExtraData(p.extraData)
 
 method saveExtraData*(self: Machine): string {.base.} =
   return nil
