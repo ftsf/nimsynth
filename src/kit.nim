@@ -3,11 +3,9 @@ import sdl2.audio
 import common
 import math
 import env
-
-import sndfile
+import sample
 
 type
-  Sample = seq[float32]
   Kit = ref object of Machine
     samples: array[16, Sample]
   KitVoice = ref object of Voice
@@ -30,22 +28,6 @@ method addVoice*(self: Kit) =
     param.value = param.default
     param.onchange(param.value, voices.high)
   pauseAudio(0)
-
-proc loadSample(filename: string): Sample =
-  var info: Tinfo
-  var fp = sndfile.open(filename.cstring, READ, addr(info))
-  if fp == nil:
-    echo "error loading sample"
-    return
-
-  echo "frames: ", info.frames
-
-  result = newSeq[float32](info.frames)
-
-  let count = fp.read_float(addr(result[0]), info.frames)
-  if count != info.frames:
-    echo "only read ", count, " not ", info.frames
-
 
 method init(self: Kit) =
   procCall init(Machine(self))
