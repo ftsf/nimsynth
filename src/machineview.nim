@@ -54,6 +54,13 @@ method draw*(self: MachineView) =
     line(64 + sliderWidth * ((param.default - param.min) / range), y, 64 + sliderWidth * ((param.default - param.min) / range),y+4)
     y += 8
 
+  machine.drawExtraInfo(64 + sliderWidth + 4, 16, screenWidth - (64 + sliderWidth), screenHeight - 16)
+
+  # mouse cursor
+  let mv = mouse()
+  spr(20, mv.x, mv.y)
+
+
 method update*(self: MachineView, dt: float) =
   let paramsOnScreen = (screenHeight div 8)
   let nParams = machine.getParameterCount()
@@ -63,6 +70,24 @@ method update*(self: MachineView, dt: float) =
     scroll = currentParam
   elif currentParam < scroll:
     scroll = currentParam
+
+  # mouse cursor
+  let sliderWidth = (screenWidth - 64) div 3
+  let mv = mouse()
+  if mousebtnp(0):
+    let paramUnderCursor = mv.y.int div 8 - scroll
+    echo paramUnderCursor
+    if paramUnderCursor > -1 and paramUnderCursor < nParams:
+      currentParam = paramUnderCursor
+  if mousebtn(0):
+    var (voice, param) = machine.getParameter(currentParam)
+    param.value = lerp(param.min, param.max, clamp(invLerp(64.0, 64.0 + sliderWidth.float, mv.x), 0.0, 1.0))
+    if param.kind == Int:
+      param.value = param.value.int.float
+    param.onchange(param.value, voice)
+
+  # TODO: handle mouse cursor in extradata section
+
 
 method key*(self: MachineView, key: KeyboardEventPtr, down: bool): bool =
   let scancode = key.keysym.scancode
@@ -143,5 +168,7 @@ method key*(self: MachineView, key: KeyboardEventPtr, down: bool): bool =
 
     else:
       discard
+
+  # TODO: handle extra keys for the machine
 
   return false

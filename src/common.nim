@@ -98,6 +98,8 @@ method addVoice*(self: Machine) {.base.} =
 method setDefaults*(self: Machine) {.base.} =
   for param in mitems(self.globalParams):
     param.value = param.default
+    if param.kind == Note or param.kind == Trigger:
+      continue
     param.onchange(param.value, -1)
 
   outputSamples.setLen(nOutputs)
@@ -463,6 +465,9 @@ method update*(self: View, dt: float) {.base.} =
   discard
 
 method draw*(self: View) {.base.} =
+  discard
+
+method drawExtraInfo*(self: Machine, x,y,w,h: int) {.base.} =
   discard
 
 method key*(self: View, key: KeyboardEventPtr, down: bool): bool {.base.} =

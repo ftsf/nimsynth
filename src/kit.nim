@@ -4,6 +4,7 @@ import common
 import math
 import env
 import sample
+import pico
 
 type
   Kit = ref object of Machine
@@ -13,6 +14,7 @@ type
     osc: SampleOsc
     env: Envelope
     gain: float
+    pitch: float
 
 {.this:self.}
 
@@ -53,6 +55,10 @@ method init(self: Kit) =
       var v = KitVoice(self.voices[voice])
       v.gain = newValue
     ),
+    Parameter(name: "pitch", kind: Float, min: 0.001, max: 10.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+      var v = KitVoice(self.voices[voice])
+      v.pitch = newValue
+    ),
     Parameter(name: "decay", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
       var v = KitVoice(self.voices[voice])
       v.env.d = v.osc.sample[].data.len.float * invSampleRate.float * newValue
@@ -90,6 +96,15 @@ method trigger(self: Kit, note: int) =
     var v = KitVoice(voices[3])
     v.playing = true
     v.osc.reset()
+
+method drawExtraInfo(self: Kit, x,y,w,h: int) =
+  var yv = y
+  setColor(6)
+  print("samples", x, yv)
+  yv += 9
+  for i, sample in samples:
+    print($i & ": " & (if sample.name != nil: sample.name else: " - "), x, yv)
+    yv += 9
 
 proc newKit(): Machine =
   var kit = new(Kit)

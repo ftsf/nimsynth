@@ -22,4 +22,4 @@ run: synth
 rund: synth-debug
 	./synth-debug
 
-.PHONY: web
+.PHONY: web run rund
