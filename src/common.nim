@@ -266,6 +266,12 @@ import marshal
 import streams
 import os
 
+method saveExtraData*(self: Machine): string {.base.} =
+  return nil
+
+method loadExtraData*(self: Machine, data: string) {.base.} =
+  discard
+
 proc getMarshaledParams(self: Machine): seq[ParamMarshal] =
   result = newSeq[ParamMarshal]()
   for i in 0..getParameterCount()-1:
@@ -361,12 +367,6 @@ proc loadPatch*(machine: Machine, name: string) =
 
   machine.loadMarshaledParams(p.parameters, true)
   machine.loadExtraData(p.extraData)
-
-method saveExtraData*(self: Machine): string {.base.} =
-  return nil
-
-method loadExtraData*(self: Machine, data: string) {.base.} =
-  discard
 
 proc saveLayout*(name: string) =
   var l: LayoutMarhsal
