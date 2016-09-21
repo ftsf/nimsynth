@@ -98,8 +98,6 @@ method addVoice*(self: Machine) {.base.} =
 method setDefaults*(self: Machine) {.base.} =
   for param in mitems(self.globalParams):
     param.value = param.default
-    if param.kind == Note or param.kind == Trigger:
-      continue
     param.onchange(param.value, -1)
 
   outputSamples.setLen(nOutputs)
@@ -213,13 +211,9 @@ proc registerMachine*(name: string, factory: proc(): Machine) =
   ))
 
 proc getSample*(self: Input): float32 =
+  if machine.outputSamples.len < output:
+    raise newException(Exception, "machine not initialised properly: " & machine.name)
   return machine.outputSamples[output] * gain
-
-method trigger*(self: Machine, note: int) {.base.} =
-  discard
-
-method release*(self: Machine, note: int) {.base.} =
-  discard
 
 method getParameterCount*(self: Machine): int {.base.} =
   # TODO: add support for input gain params
@@ -234,6 +228,17 @@ method getParameter*(self: Machine, paramId: int): (int, ptr Parameter) {.base.}
   else:
     let voiceParam = (paramId - globalParams.len) mod voiceParams.len
     return (voice, addr(self.voices[voice].parameters[voiceParam]))
+
+method trigger*(self: Machine, note: int) {.base.} =
+  for i in 0..getParameterCount()-1:
+    var (voice,param) = getParameter(i)
+    if param.kind == Note:
+      param.value = note.float
+      param.onchange(param.value, voice)
+      break
+
+method release*(self: Machine, note: int) {.base.} =
+  discard
 
 type
   ParamMarshal = object of RootObj

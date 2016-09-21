@@ -282,10 +282,7 @@ method init(self: FilterMachine) =
     ),
   ])
 
-  for param in mitems(self.globalParams):
-    param.value = param.default
-    if param.onchange != nil:
-      param.onchange(param.value)
+  setDefaults()
 
 
 method process(self: FilterMachine) {.inline.} =

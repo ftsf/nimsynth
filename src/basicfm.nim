@@ -191,19 +191,6 @@ method process(self: BasicFMSynth) {.inline.} =
             let phaseOffset = operator.output
             v.operators[map[1]-1].osc.phase += (phaseOffset * PI)
 
-method trigger(self: BasicFMSynth, note: int) =
-  for i,voice in mpairs(voices):
-    var v = BasicFMSynthVoice(voice)
-    if v.pitchEnv.state == Release:
-      initNote(i, note)
-      return
-
-method release(self: BasicFMSynth, note: int) =
-  for i,voice in mpairs(voices):
-    var v = BasicFMSynthVoice(voice)
-    if v.note == note:
-      initNote(i, OffNote)
-
 proc newBasicFMSynth(): Machine =
   var fm = new(BasicFMSynth)
   fm.init()

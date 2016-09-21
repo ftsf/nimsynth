@@ -54,10 +54,7 @@ method init(self: Flanger) =
     ),
   ])
 
-  for param in mitems(self.globalParams):
-    param.value = param.default
-    if param.onchange != nil:
-      param.onchange(param.value)
+  setDefaults()
 
 method process(self: Flanger) {.inline.} =
   var dry = 0.0

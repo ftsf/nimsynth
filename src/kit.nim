@@ -65,9 +65,12 @@ method init(self: Kit) =
     ),
   ])
 
+  setDefaults()
+
   # initialise 8 voices
   for i in 0..7:
     self.addVoice()
+
 
 method process*(self: Kit) {.inline.} =
   outputSamples[0] = 0.0

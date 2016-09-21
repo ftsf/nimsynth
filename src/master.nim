@@ -25,6 +25,11 @@ method init*(self: Master) =
     ),
   ])
 
+  setDefaults()
+
+  # Master needs a sample output despite having no outputs
+  outputSamples = newSeq[float32](1)
+
 method process*(self: Master) =
   outputSamples[0] = 0.0
   for input in inputs:

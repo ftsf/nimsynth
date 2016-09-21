@@ -109,10 +109,7 @@ method init(self: DelayMachine) =
     ),
   ])
 
-  for param in mitems(self.globalParams):
-    param.value = param.default
-    if param.onchange != nil:
-      param.onchange(param.value)
+  setDefaults()
 
 method process(self: DelayMachine) {.inline.} =
   outputSamples[0] = 0.0
@@ -160,10 +157,8 @@ method init(self: SDelayMachine) =
     ),
   ])
 
-  for param in mitems(self.globalParams):
-    param.value = param.default
-    if param.onchange != nil:
-      param.onchange(param.value)
+  setDefaults()
+
 
 method process(self: SDelayMachine) {.inline.} =
   outputSamples[0] = 0.0
@@ -214,10 +209,7 @@ method init(self: PingPongDelayMachine) =
     ),
   ])
 
-  for param in mitems(self.globalParams):
-    param.value = param.default
-    if param.onchange != nil:
-      param.onchange(param.value)
+  setDefaults()
 
 method process(self: PingPongDelayMachine) {.inline.} =
   outputSamples[0] = 0.0
@@ -273,10 +265,7 @@ method init(self: Chorus) =
     ),
   ])
 
-  for param in mitems(self.globalParams):
-    param.value = param.default
-    if param.onchange != nil:
-      param.onchange(param.value)
+  setDefaults()
 
 method process(self: Chorus) {.inline.} =
   var dry = 0.0
