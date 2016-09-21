@@ -14,7 +14,6 @@ type
     osc: SampleOsc
     env: Envelope
     gain: float
-    pitch: float
 
 {.this:self.}
 
@@ -56,10 +55,6 @@ method init(self: Kit) =
     Parameter(name: "gain", kind: Float, min: 0.0, max: 2.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
       var v = KitVoice(self.voices[voice])
       v.gain = newValue
-    ),
-    Parameter(name: "pitch", kind: Float, min: 0.001, max: 10.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
-      var v = KitVoice(self.voices[voice])
-      v.pitch = newValue
     ),
     Parameter(name: "decay", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
       var v = KitVoice(self.voices[voice])
