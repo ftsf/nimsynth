@@ -39,6 +39,20 @@ proc newLayoutView*(): LayoutView =
   result.camera = point2d(-screenWidth.float / 2.0, -screenHeight.float / 2.0)
   result.currentMachine = nil
 
+proc addMachineMenu(self: LayoutView, mv: Point2d, title: string, action: proc(mt: MachineType)): Menu =
+  var menu = newMenu(mv, title)
+  menu.back = proc() =
+    self.menu = nil
+  for i in 0..machineTypes.high:
+    (proc =
+      let mtype = machineTypes[i]
+      var item = newMenuItem(mtype.name, proc() =
+        action(mtype)
+      )
+      menu.items.add(item)
+    )()
+  return menu
+
 method draw*(self: LayoutView) =
   cls()
 
@@ -250,26 +264,48 @@ method update*(self: LayoutView, dt: float) =
       for machine in mitems(machines):
         for i,input in machine.inputs:
           let mid = (input.machine.pos + machine.pos) / 2.0
+          var machine = machine
           if pointInAABB(mv, mid.getAABB(4.0)):
-            disconnectMachines(input.machine, machine)
+            self.menu = newMenu(mv, "connection")
+            self.menu.back = proc() =
+              self.menu = nil
+            self.menu.items.add(newMenuItem("disconnect", proc() =
+              disconnectMachines(input.machine, machine)
+              self.menu = nil
+            ))
+            self.menu.items.add(newMenuItem("insert", proc() =
+              self.menu = self.addMachineMenu(self.menu.pos, "insert machine") do(mtype: MachineType):
+                # TODO: make sure it can be inserted here
+                var m = mtype.factory()
+                echo "inserting ", mtype.name
+                m.pos = mv
+                pauseAudio(1)
+                machines.add(m)
+                self.currentMachine = m
+                # connect it
+                if connectMachines(m, machine):
+                  if connectMachines(input.machine, m, input.gain):
+                    disconnectMachines(input.machine, machine)
+                  else:
+                    echo "failed to connect: ", machine.name, " and ", m.name
+                    discard machines.pop()
+                else:
+                  echo "failed to connect: ", m.name, " and ", input.machine.name
+                  discard machines.pop()
+                pauseAudio(0)
+                self.menu = nil
+            ))
             return
       # open new machine menu
-      self.menu = newMenu(mv, "add machine")
-      self.menu.back = proc() =
+      self.menu = addMachineMenu(mv, "add machine") do(mtype: MachineType):
+        var m = mtype.factory()
+        m.pos = mv
+        pauseAudio(1)
+        machines.add(m)
+        self.currentMachine = m
+        pauseAudio(0)
         self.menu = nil
-      for i in 0..machineTypes.high:
-        (proc =
-          let mtype = machineTypes[i]
-          var item = newMenuItem(mtype.name, proc() =
-            var m = mtype.factory()
-            m.pos = mv
-            pauseAudio(1)
-            machines.add(m)
-            pauseAudio(0)
-            self.menu = nil
-          )
-          self.menu.items.add(item)
-        )()
+      return
 
   if not mousebtn(1) and (connecting or binding) and currentMachine != nil:
     # release right click drag, attempt to create connection

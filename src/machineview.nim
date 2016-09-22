@@ -13,8 +13,8 @@ import basic2d
 type MachineView* = ref object of View
   machine*: Machine
   currentParam*: int
+  dragging: bool
   scroll: int
-  patchSlot: int
   menu*: Menu
 
 const maxPatchSlots = 64
@@ -26,9 +26,8 @@ proc newMachineView*(machine: Machine): MachineView =
 method draw*(self: MachineView) =
   let paramsOnScreen = (screenHeight div 8)
   cls()
-  setColor(1)
+  setColor(6)
   printr(machine.name, screenWidth - 1, 1)
-  printr("patch: " & $patchSlot, screenWidth - 1, 9)
   var nParams = machine.getParameterCount()
   var y = 1
   let startParam = scroll
@@ -56,12 +55,22 @@ method draw*(self: MachineView) =
 
   machine.drawExtraInfo(64 + sliderWidth + 4, 16, screenWidth - (64 + sliderWidth), screenHeight - 16)
 
+  if menu != nil:
+    menu.draw()
+
   # mouse cursor
   let mv = mouse()
   spr(20, mv.x, mv.y)
 
 
 method update*(self: MachineView, dt: float) =
+
+  let mv = mouse()
+
+  if menu != nil:
+    menu.handleMouse(mv)
+    return
+
   let paramsOnScreen = (screenHeight div 8)
   let nParams = machine.getParameterCount()
   currentParam = clamp(currentParam, 0, nParams-1)
@@ -73,23 +82,30 @@ method update*(self: MachineView, dt: float) =
 
   # mouse cursor
   let sliderWidth = (screenWidth - 64) div 3
-  let mv = mouse()
   if mousebtnp(0):
     let paramUnderCursor = mv.y.int div 8 - scroll
-    echo paramUnderCursor
-    if paramUnderCursor > -1 and paramUnderCursor < nParams:
-      currentParam = paramUnderCursor
+    if mv.x >= 64 and mv.x < 64 + sliderWidth:
+      if paramUnderCursor > -1 and paramUnderCursor < nParams:
+        currentParam = paramUnderCursor
+        dragging = true
   if mousebtn(0):
-    var (voice, param) = machine.getParameter(currentParam)
-    param.value = lerp(param.min, param.max, clamp(invLerp(64.0, 64.0 + sliderWidth.float, mv.x), 0.0, 1.0))
-    if param.kind == Int or param.kind == Trigger:
-      param.value = param.value.int.float
-    param.onchange(param.value, voice)
+    if dragging:
+      var (voice, param) = machine.getParameter(currentParam)
+      param.value = lerp(param.min, param.max, clamp(invLerp(64.0, 64.0 + sliderWidth.float, mv.x), 0.0, 1.0))
+      if param.kind == Int or param.kind == Trigger:
+        param.value = param.value.int.float
+      param.onchange(param.value, voice)
+  else:
+    dragging = false
 
   # TODO: handle mouse cursor in extradata section
 
 
 method key*(self: MachineView, key: KeyboardEventPtr, down: bool): bool =
+  if menu != nil:
+    if menu.key(key, down):
+      return true
+
   let scancode = key.keysym.scancode
   let ctrl = (int16(key.keysym.modstate) and int16(KMOD_CTRL)) != 0
   let shift = (int16(key.keysym.modstate) and int16(KMOD_SHIFT)) != 0
@@ -111,13 +127,24 @@ method key*(self: MachineView, key: KeyboardEventPtr, down: bool): bool =
         var te = newMenuItemText("name", if patchName == nil: "" else: patchName)
         self.menu.items.add(te)
         self.menu.items.add(newMenuItem("save") do():
-          savePatch(self.machine, patchName)
+          savePatch(self.machine, te.value)
           self.menu = nil
         )
         return true
     of SDL_SCANCODE_O:
       if ctrl and down:
-        loadPatch(machine, $patchSlot)
+        self.menu = newMenu(point2d(0,0), "load patch")
+        self.menu.back = proc() =
+          self.menu = nil
+        for patch in machine.getPatches():
+          (proc() =
+            let patchName = patch
+            self.menu.items.add(newMenuItem(patch) do():
+              self.machine.loadPatch(patchName)
+              self.menu = nil
+            )
+          )()
+
         return true
     of SDL_SCANCODE_UP:
       currentParam -= 1
@@ -154,16 +181,6 @@ method key*(self: MachineView, key: KeyboardEventPtr, down: bool): bool =
       return true
     of SDL_SCANCODE_KP_MINUS:
       machine.popVoice()
-      return true
-    of SDL_SCANCODE_PAGEUP:
-      patchSlot -= 1
-      if patchSlot < 0:
-        patchSlot = maxPatchSlots - 1
-      return true
-    of SDL_SCANCODE_PAGEDOWN:
-      patchSlot += 1
-      if patchSlot > maxPatchSlots - 1:
-        patchSlot = 0
       return true
 
     else:

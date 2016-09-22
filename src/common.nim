@@ -147,26 +147,32 @@ proc hasCycle[T](G: seq[T]): bool =
       return true
   return false
 
-proc connectMachines*(source, dest: Machine): bool =
+proc connectMachines*(source, dest: Machine, gain: float = 1.0, inputId: int = 0): bool =
+  echo "connect: ", source.name, " -> ", dest.name
   # check dest accepts inputs
   if dest.nInputs == 0:
+    echo dest.name, " does not have any inputs"
     return false
   if source.nOutputs == 0:
+    echo source.name, " does not have any outputs"
     return false
   # check not already connected
   if dest in source.outputs:
+    echo source.name, " is already connected to ", dest.name
     return false
   # check not connected the other way
   for input in source.inputs:
     if input.machine == dest:
+      echo source.name, " is already connected to ", dest.name, " the other way"
       return false
   # add it and test for cycle
   source.outputs.add(dest)
-  dest.inputs.add(Input(machine: source, output: 0, gain: 1.0))
+  dest.inputs.add(Input(machine: source, output: 0, gain: gain, inputId: inputId))
   if hasCycle(machines):
     # undo
     discard dest.inputs.pop()
     discard source.outputs.pop()
+    echo "would create a cycle"
     return false
   return true
 
@@ -209,7 +215,9 @@ proc delete*(self: Machine) =
             removeBinding(machine, i)
   pauseAudio(0)
 
-var machineTypes* = newSeq[tuple[name: string, factory: proc(): Machine]]()
+type MachineType* = tuple[name: string, factory: proc(): Machine]
+
+var machineTypes* = newSeq[MachineType]()
 
 proc registerMachine*(name: string, factory: proc(): Machine) =
   machineTypes.add((name: name, factory: proc(): Machine =
@@ -466,7 +474,7 @@ proc loadLayout*(name: string) =
 
 proc getPatches*(self: Machine): seq[string] =
   result = newSeq[string]()
-  let prefix = "patches/" & name
+  let prefix = "patches/" & name & "/"
   for file in walkFiles(prefix & "*.json"):
     result.add(file[prefix.len..file.high-5])
 
