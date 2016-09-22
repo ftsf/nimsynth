@@ -419,6 +419,9 @@ proc loadLayout*(name: string) =
   for i, machine in l.machines:
     if machine.className == "master":
       machineMap.add(masterMachine)
+      masterMachine.loadMarshaledParams(machine.parameters)
+      masterMachine.loadMarshaledInputs(machine.inputs)
+      masterMachine.pos = machine.pos
       continue
     for mt in machineTypes:
       if mt.name == machine.className:
