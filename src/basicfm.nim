@@ -85,7 +85,6 @@ proc initNote(self: BasicFMSynth, voiceId: int, note: int) =
   var voice = BasicFMSynthVoice(voices[voiceId])
   if note == OffNote:
     voice.note = note
-    voice.pitch = noteToHz(note.float)
     for i in 0..nOperators-1:
       voice.operators[i].env.release()
   else:

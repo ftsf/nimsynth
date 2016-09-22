@@ -558,7 +558,6 @@ method loadExtraData(self: Sequencer, data: string) =
   var patId = 0
   for line in data.splitLines:
     let sline = line.strip()
-    echo sline
     if sline == "PATTERNS":
       pattern = newPattern(0)
       continue

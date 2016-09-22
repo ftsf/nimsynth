@@ -130,6 +130,14 @@ proc fps*(): int =
 proc speed*(speed: int) =
   frameMult = speed
 
+proc sgn*[T](x: T): T =
+  if x < 0:
+    return -1
+  elif x > 0:
+    return 1
+  else:
+    return 0
+
 proc setControlInput*(pid, btn: int) =
   # after calling this, next input will be assigned to control
   setControlMode = (pid,btn)

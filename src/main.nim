@@ -10,6 +10,7 @@ import sequencer
 import synth
 import tb303
 import gbsynth
+import organ
 import fmsynth
 import basicfm
 import kit
@@ -17,6 +18,7 @@ import noise
 import lfo
 import knob
 import flanger
+import compressor
 
 
 proc audioCallback(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.} =

@@ -184,6 +184,8 @@ method key*(self: LayoutView, key: KeyboardEventPtr, down: bool): bool =
 method update*(self: LayoutView, dt: float) =
   var mv = mouse() + camera
 
+  let ctrl = (getModState() and KMOD_CTRL) != 0
+
   if menu != nil:
     menu.handleMouse(mv)
 
@@ -202,9 +204,13 @@ method update*(self: LayoutView, dt: float) =
           stolenInput = machine
           return
         else:
-          currentMachine = machine
-          dragging = true
-          return
+          if ctrl and currentMachine != nil:
+            swapMachines(currentMachine, machine)
+            return
+          else:
+            currentMachine = machine
+            dragging = true
+            return
         return
     # check for adjusting input gain
     for machine in mitems(machines):
@@ -305,8 +311,15 @@ method update*(self: LayoutView, dt: float) =
                 (proc() =
                   let slotId = i
                   var binding = addr(self.currentMachine.bindings[slotId])
+                  var str: string
+                  if binding.machine != nil:
+                    var (voice, param) = binding.machine.getParameter(binding.param)
+                    str = binding.machine.name & ": " & (if voice >= 0: ($voice & ": ") else: "") & param.name
+                  else:
+                    str = " - "
+
                   self.menu.items.add(
-                    newMenuItem($(slotId+1) & ": " & (if binding.machine == nil: " - " else: binding.machine.name)) do():
+                    newMenuItem($(slotId+1) & ": " & str) do():
                       self.menu = machine.getParameterMenu(mv, "select param") do(paramId: int):
                         sourceMachine.createBinding(slotId, machine, paramId)
                         self.menu = nil
@@ -328,7 +341,6 @@ method update*(self: LayoutView, dt: float) =
 
   if adjustingInput != nil:
     let shift = (getModState() and KMOD_SHIFT) != 0
-    let ctrl = (getModState() and KMOD_CTRL) != 0
     let move = if ctrl: 0.1 elif shift: 0.001 else: 0.01
     adjustingInput[].gain = clamp(adjustingInput[].gain + (lastmv.y - mv.y) * move, 0.0, 10.0)
   elif dragging and currentMachine != nil:

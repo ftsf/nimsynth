@@ -36,6 +36,7 @@ type
     machine*: Machine
     output*: int  # which output to read
     gain*: float
+    inputId*: int # for machines that have more than one input
   Voice* = ref object of RootObj
     parameters*: seq[Parameter]
   Machine* = ref object of RootObj
@@ -180,6 +181,13 @@ proc disconnectMachines*(source, dest: Machine) =
       source.outputs.del(i)
   pauseAudio(0)
 
+proc swapMachines*(a,b: Machine) =
+  pauseAudio(1)
+  swap(a.pos, b.pos)
+  swap(a.inputs, b.inputs)
+  swap(a.outputs, b.outputs)
+  pauseAudio(0)
+
 proc delete*(self: Machine) =
   pauseAudio(1)
   # remove all connections and references to it
@@ -211,9 +219,18 @@ proc registerMachine*(name: string, factory: proc(): Machine) =
   ))
 
 proc getSample*(self: Input): float32 =
-  if machine.outputSamples.len < output:
-    raise newException(Exception, "machine not initialised properly: " & machine.name)
   return machine.outputSamples[output] * gain
+
+proc getInput*(self: Machine, inputId: int = 0): float32 =
+  for input in inputs:
+    if input.inputId == inputId:
+      result += input.getSample()
+
+proc hasInput*(self: Machine, inputId: int = 0): bool =
+  for input in inputs:
+    if input.inputId == inputId:
+      return true
+  return false
 
 method getParameterCount*(self: Machine): int {.base.} =
   # TODO: add support for input gain params
@@ -256,6 +273,7 @@ type
     targetMachineId: int
     outputId: int
     gain: float
+    inputId: int
   MachineMarshal = object of RootObj
     name: string
     className: string # needs to match the name used to create it
@@ -312,6 +330,7 @@ proc getMarshaledInputs(self: Machine): seq[InputMarshal] =
     im.targetMachineId = machines.find(input.machine)
     im.outputId = input.output
     im.gain = input.gain
+    im.inputId = input.inputId
     result.add(im)
 
 proc savePatch*(machine: Machine, name: string) =
@@ -361,6 +380,7 @@ proc loadMarshaledInputs(self: Machine, inputs: seq[InputMarshal]) =
       ip.machine = machines[input.targetMachineId]
       ip.output = input.outputId
       ip.gain = input.gain
+      ip.inputId = input.inputId
       self.inputs.add(ip)
 
 proc loadPatch*(machine: Machine, name: string) =
