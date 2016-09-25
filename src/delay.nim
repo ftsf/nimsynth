@@ -5,6 +5,9 @@ import math
 import util
 import osc
 import pico
+import master
+import delaybuffer
+import strutils
 
 {.this:self.}
 
@@ -15,7 +18,7 @@ type
     buffer: RingBuffer[float32]
     feedback*: float
   Delay* = object of RootObj
-    buffer: RingBuffer[float32]
+    buffer: DelayBuffer[float32]
     wet*,dry*: float
     feedback*: float
     cutoff*: float
@@ -29,11 +32,9 @@ proc setLen*(self: var SimpleDelay, newLength: int) =
     self.buffer.setLen(abs(newLength))
 
 proc setLen*(self: var Delay, newLength: int) =
-  # FIXME: expand or contract the existing buffer
-  if self.buffer.length == 0:
-    self.buffer = newRingBuffer[float32](abs(newLength))
-  else:
-    self.buffer.setLen(abs(newLength))
+  pauseAudio(1)
+  self.buffer.setLen(abs(newLength))
+  pauseAudio(0)
 
 proc process*(self: var SimpleDelay, sample: float32): float32 {.inline.} =
   if self.buffer.length == 0:
@@ -43,25 +44,23 @@ proc process*(self: var SimpleDelay, sample: float32): float32 {.inline.} =
   return fromDelay
 
 proc process*(self: var Delay, sample: float32): float32 {.inline.} =
-  if self.buffer.length == 0:
+  if self.buffer.len == 0:
     return sample * wet + sample * dry
-  var fromDelay = self.buffer[0]
+  var fromDelay = self.buffer.read()
   filter.setCutoff(cutoff)
   filter.calc()
   fromDelay = filter.process(fromDelay)
-  self.buffer.add([(sample + fromDelay * feedback).float32])
+  self.buffer.write((sample + fromDelay * feedback).float32)
   return fromDelay * wet + sample * dry
 
 proc processPingPong*(self: var Delay, other: var Delay, sample: float32): float32 =
-  if self.buffer.length == 0:
-    return sample * wet + sample * dry
-  var fromDelay = self.buffer[0]
+  var fromDelay = self.buffer.read()
   filter.setCutoff(cutoff)
   filter.calc()
   fromDelay = filter.process(fromDelay)
-  self.buffer.add([(sample + fromDelay * feedback).float32])
+  self.buffer.write((sample + fromDelay * feedback).float32)
   # add wet output to other's delays's buffer
-  other.buffer[0] = other.buffer[0] + fromDelay * wet
+  other.buffer.poke(other.buffer.read() + fromDelay * wet)
   return fromDelay * wet + sample * dry
 
 type
@@ -73,6 +72,8 @@ type
   PingPongDelayMachine = ref object of Machine
     delayL: Delay
     delayR: Delay
+    ping,pong: float
+    bpmSync: bool
   Chorus = ref object of Machine
     delayLs: array[10, SimpleDelay]
     delayRs: array[10, SimpleDelay]
@@ -175,6 +176,14 @@ proc newSDelayMachine(): Machine =
 
 registerMachine("sdelay", newSDelayMachine)
 
+proc setDelayLen(self: PingPongDelayMachine) =
+  if self.bpmSync:
+    self.delayL.setLen((((ping * 16.0).int.float / 16.0) * beatsPerSecond() * sampleRate).int)
+    self.delayR.setLen((((pong * 16.0).int.float / 16.0) * beatsPerSecond() * sampleRate).int)
+  else:
+    self.delayL.setLen((ping * sampleRate).int)
+    self.delayR.setLen((pong * sampleRate).int)
+
 method init(self: PingPongDelayMachine) =
   procCall init(Machine(self))
   name = "ppdelay"
@@ -186,16 +195,32 @@ method init(self: PingPongDelayMachine) =
 
   self.globalParams.add([
     Parameter(name: "ping", kind: Float, min: 0.0, max: 10.0, default: 0.33, onchange: proc(newValue: float, voice: int) =
-      self.delayL.setLen((newValue * sampleRate).int)
+      self.ping = newValue
+      self.setDelayLen()
+    , getValueString: proc(value: float, voice: int): string =
+      if self.bpmSync:
+        return $(value * 16.0).int & "/16 b"
+      else:
+        return $value.formatFloat(ffDecimal, 3) & " s"
     ),
-    Parameter(name: "pong", kind: Float, min: 0.0, max: 10.0, default: 0.33, onchange: proc(newValue: float, voice: int) =
-      self.delayR.setLen((newValue * sampleRate).int)
+    Parameter(name: "pong", kind: Float, min: 0.0, max: 10.0, default: 0.63, onchange: proc(newValue: float, voice: int) =
+      self.pong = newValue
+      self.setDelayLen()
+    , getValueString: proc(value: float, voice: int): string =
+      if self.bpmSync:
+        return $(value * 16.0).int & "/16 b"
+      else:
+        return $value.formatFloat(ffDecimal, 3) & " s"
     ),
-    Parameter(name: "wet", kind: Float, min: -1.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "bpmsync", kind: Int, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.bpmSync = newValue.bool
+      self.setDelayLen()
+    ),
+    Parameter(name: "wet", kind: Float, min: -1.0, max: 1.0, default: 0.25, onchange: proc(newValue: float, voice: int) =
       self.delayL.wet = newValue
       self.delayR.wet = newValue
     ),
-    Parameter(name: "dry", kind: Float, min: -1.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "dry", kind: Float, min: -1.0, max: 1.0, default: 0.75, onchange: proc(newValue: float, voice: int) =
       self.delayL.dry = newValue
       self.delayR.dry = newValue
     ),
@@ -210,6 +235,9 @@ method init(self: PingPongDelayMachine) =
   ])
 
   setDefaults()
+
+method onBPMChange(self: PingPongDelayMachine) =
+  self.setDelayLen()
 
 method process(self: PingPongDelayMachine) {.inline.} =
   outputSamples[0] = 0.0

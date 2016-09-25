@@ -50,11 +50,11 @@ const waveRom = [
 
 proc process(self: var GBPulseOsc): float32 =
   result = (if pulseRom[pulse][floor(invLerp(0.0, TAU, phase) * 8.0).int] == 1: 1.0 else: -1.0)
-  phase += (freq * invSampleRate)
+  phase += (freq * invSampleRate) * TAU
   phase = phase mod TAU
 
 proc process(self: var GBWaveOsc): float32 =
-  phase += (freq * invSampleRate)
+  phase += (freq * invSampleRate) * TAU
   if phase >= TAU:
     phase -= TAU
   result = (waveRom[wave][floor(invLerp(0.0, TAU, phase) * 32.0).int].float / 7.5) - 1.0

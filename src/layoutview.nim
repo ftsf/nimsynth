@@ -97,10 +97,16 @@ method draw*(self: LayoutView) =
         setColor(7)
         printShadowC(adjustingInput[].gain.formatFloat(ffDecimal, 2), mid.x.int, mid.y.int + 4)
 
-    for binding in mitems(machine.bindings):
-      if binding.machine != nil:
-        setColor(4)
-        line(binding.machine.pos, machine.pos)
+    for i,binding in mpairs(machine.bindings):
+      if not machine.hideBindings:
+        if binding.machine != nil:
+          setColor(if machine == currentMachine: 4 else: 5)
+          line(binding.machine.pos, machine.pos)
+          if machine == currentMachine:
+            let mid = (machine.pos + binding.machine.pos) / 2.0
+            circfill(mid.x, mid.y, 4)
+            setColor(0)
+            printc($i,mid.x + 1,mid.y - 2)
 
   # draw boxes
   for machine in mitems(machines):
@@ -245,10 +251,11 @@ method update*(self: LayoutView, dt: float) =
 
   # right click drag to create connections, or delete them
   if mousebtnp(1):
-    currentMachine = nil
+    var targetMachine: Machine = nil
     for machine in mitems(machines):
       if pointInAABB(mv, machine.getAABB()):
         currentMachine = machine
+        targetMachine = machine
         if currentMachine.nOutputs > 0:
           connecting = true
           binding = false
@@ -258,7 +265,7 @@ method update*(self: LayoutView, dt: float) =
           connecting = false
           return
         break
-    if currentMachine == nil:
+    if targetMachine == nil:
       # they didn't right click on a machine, check other stuff
       # check if it was a connection midpoint
       for machine in mitems(machines):
@@ -296,6 +303,27 @@ method update*(self: LayoutView, dt: float) =
                 self.menu = nil
             ))
             return
+        for i,binding in machine.bindings:
+          if binding.machine != nil:
+            let mid = (machine.pos + binding.machine.pos) / 2.0
+            if pointInAABB(mv, mid.getAABB(4.0)):
+              # show all bindings between the two machines
+              var sourceMachine = machine
+              var targetMachine = binding.machine
+              self.menu = newMenu(mv, "bindings")
+              self.menu.back = proc() =
+                self.menu = nil
+              for slot,binding in sourceMachine.bindings:
+                (proc() =
+                  let slot = slot
+                  if binding.machine == targetMachine:
+                    var (voice, param) = binding.getParameter()
+                    self.menu.items.add(newMenuItem($slot & ": " & param.name, proc() =
+                      removeBinding(sourceMachine, slot)
+                      self.menu = nil
+                    ))
+                )()
+              return
       # open new machine menu
       self.menu = addMachineMenu(mv, "add machine") do(mtype: MachineType):
         var m = mtype.factory()
@@ -310,9 +338,11 @@ method update*(self: LayoutView, dt: float) =
   if not mousebtn(1) and (connecting or binding) and currentMachine != nil:
     # release right click drag, attempt to create connection
     # check if a connection was made
+    var sourceMachine = currentMachine
+
     for machine in mitems(machines):
       if pointInAABB(mv, machine.getAABB()):
-        if machine == currentMachine:
+        if machine == sourceMachine:
           self.menu = newMenu(mv, "machine")
           self.menu.back = proc() =
             self.menu = nil
@@ -328,25 +358,28 @@ method update*(self: LayoutView, dt: float) =
               self.menu = nil
             )
           ))
+          self.menu.items.add(newMenuItem("show bindings", proc() =
+            sourceMachine.hideBindings = not sourceMachine.hideBindings
+            self.menu = nil
+          ))
           self.menu.items.add(newMenuItem("delete", proc() =
-            self.currentMachine.delete()
+            sourceMachine.delete()
             self.menu = nil
           ))
           discard
         else:
+          var targetMachine = machine
           if binding:
             # open binding menu
             # if source machine has multiple bindings, select which one
-            if currentMachine.nBindings > 1:
+            if sourceMachine.nBindings > 1:
               self.menu = newMenu(mv, "select slot")
               self.menu.back = proc() =
                 self.menu = nil
-              for i in 0..currentMachine.nBindings-1:
-                var machine = machine
-                var sourceMachine = currentMachine
+              for i in 0..sourceMachine.nBindings-1:
                 (proc() =
                   let slotId = i
-                  var binding = addr(self.currentMachine.bindings[slotId])
+                  var binding = addr(sourceMachine.bindings[slotId])
                   var str: string
                   if binding.machine != nil:
                     var (voice, param) = binding.machine.getParameter(binding.param)
@@ -356,22 +389,63 @@ method update*(self: LayoutView, dt: float) =
 
                   self.menu.items.add(
                     newMenuItem($(slotId+1) & ": " & str) do():
-                      self.menu = machine.getParameterMenu(mv, "select param") do(paramId: int):
-                        sourceMachine.createBinding(slotId, machine, paramId)
+                      self.menu = targetMachine.getParameterMenu(mv, "select param") do(paramId: int):
+                        sourceMachine.createBinding(slotId, targetMachine, paramId)
                         self.menu = nil
                   )
                 )()
             else:
-              var binding = addr(self.currentMachine.bindings[0])
-              var machine = machine
-              self.menu = machine.getParameterMenu(mv, "select param") do(paramId: int):
-                binding.machine = machine
-                binding.param = paramId
-                echo "bound to ", machine.name, " param: ", paramId
+              var binding = addr(sourceMachine.bindings[0])
+              self.menu = targetMachine.getParameterMenu(mv, "select param") do(paramId: int):
+                sourceMachine.createBinding(0, targetMachine, paramId)
                 self.menu = nil
-
           elif connecting:
-            discard connectMachines(currentMachine, machine)
+            # connecting machines
+            if sourceMachine.nOutputs == 1 and targetMachine.nInputs == 1:
+              discard connectMachines(sourceMachine, targetMachine)
+            else:
+              if sourceMachine.nOutputs > 1:
+                # open output select menu
+                self.menu = newMenu(mv, "select output")
+                self.menu.back = proc() =
+                  self.menu = nil
+                self.menu.back = proc() =
+                  self.menu = nil
+                for i in 0..sourceMachine.nOutputs-1:
+                  (proc() =
+                    let outputId = i
+                    self.menu.items.add(newMenuItem($(outputId + 1) & ": " & sourceMachine.getOutputName(outputId) ) do():
+                      if targetMachine.nInputs > 1:
+                        # open input select menu
+                        self.menu = newMenu(mv, "select input")
+                        self.menu.back = proc() =
+                          self.menu = nil
+                        for j in 0..targetMachine.nInputs-1:
+                          (proc() =
+                            let inputId = j
+                            self.menu.items.add(newMenuItem($(inputId + 1) & ": " & targetMachine.getInputName(inputId)) do():
+                              discard connectMachines(sourceMachine, targetMachine, 1.0, inputId, outputId)
+                              self.menu = nil
+                            )
+                          )()
+                      else:
+                        discard connectMachines(sourceMachine, targetMachine, 1.0, 0, outputId)
+                        self.menu = nil
+                    )
+                  )()
+              else:
+                # open input select menu
+                self.menu = newMenu(mv, "select input")
+                self.menu.back = proc() =
+                  self.menu = nil
+                for j in 0..targetMachine.nInputs-1:
+                  (proc() =
+                    let inputId = j
+                    self.menu.items.add(newMenuItem($(inputId + 1) & ": " & targetMachine.getInputName(inputId)) do():
+                      discard connectMachines(sourceMachine, targetMachine, 1.0, inputId, 0)
+                      self.menu = nil
+                    )
+                  )()
     connecting = false
     binding = false
 

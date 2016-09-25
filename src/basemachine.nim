@@ -11,21 +11,29 @@ import layoutview
 method getMachineView*(self: Machine): View {.base.} =
   return newMachineView(self)
 
-method drawBox*(self: Machine) {.base.} =
-  setColor(1)
-  rectfill(pos.x - 16, pos.y - 4, pos.x + 16, pos.y + 4)
-  setColor(if recordMachine == self: 8 else: 6)
-  rect(pos.x.int - 16, pos.y.int - 4, pos.x.int + 16, pos.y.int + 4)
-  printc(name, pos.x, pos.y - 2)
-
-method layoutUpdate*(self: Machine, layout: View, df: float) {.base.} =
-  discard
-
 method getAABB*(self: Machine): AABB {.base.} =
   result.min.x = pos.x - 16
   result.min.y = pos.y - 4
   result.max.x = pos.x + 16
   result.max.y = pos.y + 4
+
+method drawBox*(self: Machine) {.base.} =
+  if nInputs == 0 and nOutputs > 0:
+    # generator
+    setColor(3)
+  elif nInputs == 0 and nOutputs == 0:
+    # util
+    setColor(2)
+  else:
+    # fx
+    setColor(1)
+  rectfill(getAABB())
+  setColor(if recordMachine == self: 8 else: 6)
+  rect(getAABB())
+  printc(name, pos.x, pos.y - 2)
+
+method layoutUpdate*(self: Machine, layout: View, df: float) {.base.} =
+  discard
 
 method getParameterMenu*(self: Machine, mv: Point2d, title: string, onselect: proc(paramId: int)): Menu =
   var menu = newMenu(mv, title)

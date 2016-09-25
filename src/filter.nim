@@ -13,6 +13,9 @@ type
     Highpass
     Bandpass
     Notch
+    Peak
+    LowShelf
+    HighShelf
 
   BaseFilter* = object of RootObj
     kind*: FilterKind
@@ -97,21 +100,61 @@ method calc*(self: var BiquadFilter) =
     a2 = a0
     b1 = a1
     b2 = (1.0 - K / resonance + K * K) * norm
-  #of Peak:
-  #  if peakGain >= 0.0:
-  #    norm = 1 / (1 + 1/resonance * K + K * K)
-  #    a0 = (1 + V/resonance * K + K * K) * norm
-  #    a1 = 2 * (K * K - 1) * norm
-  #    a2 = (1 - V/resonance * K + K * K) * norm
-  #    b1 = a1
-  #    b2 = (1 - 1/resonance * K + K * K) * norm
-  #  else:
-  #    norm = 1 / (1 + V/resonance * K + K * K)
-  #    a0 = (1 + 1/resonance * K + K * K) * norm
-  #    a1 = 2 * (K * K - 1) * norm
-  #    a2 = (1 - 1/resonance * K + K * K) * norm
-  #    b1 = a1
-  #    b2 = (1 - V/resonance * K + K * K) * norm
+  of Peak:
+    if peakGain >= 0.0:
+      norm = 1 / (1 + 1/resonance * K + K * K)
+      a0 = (1 + V/resonance * K + K * K) * norm
+      a1 = 2 * (K * K - 1) * norm
+      a2 = (1 - V/resonance * K + K * K) * norm
+      b1 = a1
+      b2 = (1 - 1/resonance * K + K * K) * norm
+    else:
+      norm = 1 / (1 + V/resonance * K + K * K)
+      a0 = (1 + 1/resonance * K + K * K) * norm
+      a1 = 2 * (K * K - 1) * norm
+      a2 = (1 - 1/resonance * K + K * K) * norm
+      b1 = a1
+      b2 = (1 - V/resonance * K + K * K) * norm
+  of LowShelf:
+      if peakGain >= 0.0:
+        norm = 1 / (1 + sqrt(2.0) * K + K * K)
+        a0 = (1 + sqrt(2.0*V) * K + V * K * K) * norm
+        a1 = 2 * (V * K * K - 1) * norm
+        a2 = (1 - sqrt(2.0*V) * K + V * K * K) * norm
+        b1 = 2 * (K * K - 1) * norm
+        b2 = (1 - sqrt(2.0) * K + K * K) * norm
+      else:
+        norm = 1 / (1 + sqrt(2.0*V) * K + V * K * K)
+        a0 = (1 + sqrt(2.0) * K + K * K) * norm
+        a1 = 2 * (K * K - 1) * norm
+        a2 = (1 - sqrt(2.0) * K + K * K) * norm
+        b1 = 2 * (V * K * K - 1) * norm
+        b2 = (1 - sqrt(2.0*V) * K + V * K * K) * norm
+  of HighShelf:
+      if peakGain >= 0:
+        norm = 1 / (1 + sqrt(2.0) * K + K * K)
+        a0 = (V + sqrt(2.0*V) * K + K * K) * norm
+        a1 = 2 * (K * K - V) * norm
+        a2 = (V - sqrt(2.0*V) * K + K * K) * norm
+        b1 = 2 * (K * K - 1) * norm
+        b2 = (1 - sqrt(2.0) * K + K * K) * norm
+      else:
+        norm = 1 / (V + sqrt(2.0*V) * K + K * K)
+        a0 = (1 + sqrt(2.0) * K + K * K) * norm
+        a1 = 2 * (K * K - 1) * norm
+        a2 = (1 - sqrt(2.0) * K + K * K) * norm
+        b1 = 2 * (K * K - V) * norm
+        b2 = (V - sqrt(2.0*V) * K + K * K) * norm
+
+method normalize*(self: var BiquadFilter) =
+  if a0 != 0.0:
+    a1 /= a0
+    a2 /= a0
+    b1 /= a0
+    b2 /= a0
+    z1 /= a0
+    z2 /= a0
+    a0 = 1.0
 
 method reset*(self: var BiquadFilter) =
   a0 = 0.0
@@ -218,8 +261,13 @@ method init*(self: var OnePoleFilter) =
   cutoff = 1.0
 
 method calc*(self: var OnePoleFilter) =
-  b1 = exp(-2.0 * PI * cutoff)
-  a0 = 1.0 - b1
+  if kind == Lowpass:
+    b1 = exp(-2.0 * PI * cutoff)
+    a0 = 1.0 - b1
+  elif kind == Highpass:
+    b1 = -exp(-2.0 * PI * (0.5 - cutoff))
+    a0 = 1.0 + b1
+
 
 method setCutoff*(self: var OnePoleFilter, cutoff: float) =
   self.cutoff = cutoff
@@ -308,3 +356,36 @@ proc newFilterMachine(): Machine =
   result.init()
 
 registerMachine("filter", newFilterMachine)
+
+import complex
+
+proc toComplex(x: float): TComplex = result.re = x
+
+proc fft[T](x: openarray[T]): seq[TComplex] =
+  let n = x.len
+  result = newSeq[TComplex]()
+  if n <= 1:
+    for v in x: result.add toComplex(v)
+    return
+  var evens,odds = newSeq[T]()
+  for i,v in x:
+    if i mod 2 == 0: evens.add(v)
+    else: odds.add(v)
+  var (even, odd) = (fft(evens), fft(odds))
+
+  for k in 0..<n div 2:
+    result.add(even[k] + exp((0.0, -2.0*PI*float(k)/float(n))) * odd[k])
+
+  for k in 0..<n div 2:
+    result.add(even[k] - exp((0.0, -2.0*PI*float(k)/float(n))) * odd[k])
+
+proc generateImpulse*(points: int): seq[float32] =
+  result = newSeq[float32](points)
+  for i in 0..<points:
+    result[i] = if i == 0: 1.0 else: 0.0
+
+proc graphResponse*(timeDomain: openarray[float32], points: int): seq[float] =
+  var res = fft(timeDomain)
+  result = newSeq[float](points)
+  for i in 0..<points:
+    result[i] = res[i].re

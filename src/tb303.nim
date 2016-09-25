@@ -79,7 +79,7 @@ method init(self: TB303) =
     Parameter(name: "cutoff", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
       self.cutoff = exp(lerp(-8.0, -0.8, newValue))
     ),
-    Parameter(name: "res", kind: Float, min: 0.0, max: 10.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "res", kind: Float, min: 0.01, max: 10.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
       self.resonance = newValue
     ),
     Parameter(name: "envMod", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =

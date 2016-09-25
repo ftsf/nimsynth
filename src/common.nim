@@ -5,16 +5,24 @@ import sdl2
 import sdl2.audio
 import math
 import basic2d
+import strutils
 
 export sdl2
 
 export pauseAudio
 
 var baseOctave* = 4
-var beatsPerMinute* = 128
 
 var sampleId*: int
 var sampleBuffer*: array[1024, float32]
+
+var statusMessage: string
+
+proc setStatus*(text: string) =
+  statusMessage = text
+
+proc getStatus*(): string =
+  return statusMessage
 
 type
   # used for connecting a machine to another machine's parameter
@@ -47,11 +55,11 @@ type
     voiceParams*: seq[Parameter]
     voices*: seq[Voice]
     inputs*: seq[Input]
-    outputs*: seq[Machine]
     nOutputs*: int
     nInputs*: int
     bindings*: seq[Binding]
     nBindings*: int
+    hideBindings*: bool
     stereo*: bool
     outputSampleId*: int  # updated externally each sample, maybe this could be a global
     outputSamples*: seq[float32]
@@ -77,7 +85,6 @@ method init*(self: Machine) {.base.} =
   voiceParams = newSeq[Parameter]()
   voices = newSeq[Voice]()
   inputs = newSeq[Input]()
-  outputs = newSeq[Machine]()
   bindings = newSeq[Binding]()
   outputSamples = newSeq[float32]()
 
@@ -111,6 +118,9 @@ method createBinding*(self: Machine, slot: int, target: Machine, paramId: int) {
 method removeBinding*(self: Machine, slot: int) {.base.} =
   bindings[slot].machine = nil
   bindings[slot].param = 0
+
+method onBPMChange*(self: Machine, bpm: int) {.base.} =
+  discard
 
 method handleClick*(self: Machine, mouse: Point2d): bool {.base.} =
   return false
@@ -147,7 +157,7 @@ proc hasCycle[T](G: seq[T]): bool =
       return true
   return false
 
-proc connectMachines*(source, dest: Machine, gain: float = 1.0, inputId: int = 0): bool =
+proc connectMachines*(source, dest: Machine, gain: float = 1.0, inputId: int = 0, outputId: int = 0): bool =
   echo "connect: ", source.name, " -> ", dest.name
   # check dest accepts inputs
   if dest.nInputs == 0:
@@ -157,21 +167,20 @@ proc connectMachines*(source, dest: Machine, gain: float = 1.0, inputId: int = 0
     echo source.name, " does not have any outputs"
     return false
   # check not already connected
-  if dest in source.outputs:
-    echo source.name, " is already connected to ", dest.name
-    return false
+  for input in dest.inputs:
+    if input.machine == source:
+      echo source.name, " is already connected to ", dest.name
+      return false
   # check not connected the other way
   for input in source.inputs:
     if input.machine == dest:
       echo source.name, " is already connected to ", dest.name, " the other way"
       return false
   # add it and test for cycle
-  source.outputs.add(dest)
-  dest.inputs.add(Input(machine: source, output: 0, gain: gain, inputId: inputId))
+  dest.inputs.add(Input(machine: source, output: outputId, gain: gain, inputId: inputId))
   if hasCycle(machines):
     # undo
     discard dest.inputs.pop()
-    discard source.outputs.pop()
     echo "would create a cycle"
     return false
   return true
@@ -182,30 +191,39 @@ proc disconnectMachines*(source, dest: Machine) =
     if input.machine == source:
       dest.inputs.del(i)
       break
-  for i,output in source.outputs:
-    if output == dest:
-      source.outputs.del(i)
   pauseAudio(0)
 
 proc swapMachines*(a,b: Machine) =
-  pauseAudio(1)
-  swap(a.pos, b.pos)
-  swap(a.inputs, b.inputs)
-  swap(a.outputs, b.outputs)
-  pauseAudio(0)
+  # check they are compatible
+  if a == masterMachine or b == masterMachine:
+    return
+  if a.nOutputs == b.nOutputs and a.nInputs == b.nInputs:
+    pauseAudio(1)
+    swap(a.pos, b.pos)
+    swap(a.inputs, b.inputs)
+    var aOutputs = newSeq[tuple[machine: Machine, input: ptr Input]]()
+    var bOutputs = newSeq[tuple[machine: Machine, input: ptr Input]]()
+    for machine in mitems(machines):
+      for input in mitems(machine.inputs):
+        if input.machine == a:
+          aOutputs.add((machine,addr(input)))
+        if input.machine == b:
+          bOutputs.add((machine,addr(input)))
+
+    for v in aOutputs:
+      v.input.machine = b
+    for v in bOutputs:
+      v.input.machine = a
+    pauseAudio(0)
 
 proc delete*(self: Machine) =
   pauseAudio(1)
   # remove all connections and references to it
-  for output in mitems(self.outputs):
-    for i,input in output.inputs:
-      if input.machine == self:
-        output.inputs.del(i)
-        break
-  machines.del(machines.find(self))
-  if recordMachine == self:
-    recordMachine = nil
-
+  for machine in mitems(machines):
+    if machine != self:
+      for i,input in machine.inputs:
+        if input.machine == self:
+          disconnectMachines(self, machine)
   # remove all bindings to this machine
   for machine in mitems(machines):
     if machine != self:
@@ -213,6 +231,12 @@ proc delete*(self: Machine) =
         for i, binding in mpairs(machine.bindings):
           if binding.machine == self:
             removeBinding(machine, i)
+
+  machines.del(machines.find(self))
+
+  if recordMachine == self:
+    recordMachine = nil
+
   pauseAudio(0)
 
 type MachineType* = tuple[name: string, factory: proc(): Machine]
@@ -240,6 +264,15 @@ proc hasInput*(self: Machine, inputId: int = 0): bool =
       return true
   return false
 
+method getOutputName*(self: Machine, outputId: int = 0): string {.base.} =
+  if stereo:
+    return "stereo"
+  else:
+    return "mono"
+
+method getInputName*(self: Machine, inputId: int = 0): string {.base.} =
+  return "main"
+
 method getParameterCount*(self: Machine): int {.base.} =
   # TODO: add support for input gain params
   return self.globalParams.len + self.voiceParams.len * self.voices.len
@@ -253,6 +286,12 @@ method getParameter*(self: Machine, paramId: int): (int, ptr Parameter) {.base.}
   else:
     let voiceParam = (paramId - globalParams.len) mod voiceParams.len
     return (voice, addr(self.voices[voice].parameters[voiceParam]))
+
+proc getParameter*(self: Binding): (int, ptr Parameter) =
+  if self.machine != nil:
+    return self.machine.getParameter(self.param)
+  else:
+    return (-1, nil)
 
 method trigger*(self: Machine, note: int) {.base.} =
   for i in 0..getParameterCount()-1:
@@ -288,6 +327,7 @@ type
     pos: Point2d
     parameters: seq[ParamMarshal]
     bindings: seq[BindMarshal]
+    hideBindings: bool
     inputs: seq[InputMarshal]
     voices: int
     extraData: string
@@ -414,6 +454,7 @@ proc saveLayout*(name: string) =
     m.pos = machine.pos
     m.parameters = machine.getMarshaledParams()
     m.bindings = machine.getMarshaledBindings()
+    m.hideBindings = machine.hideBindings
     m.inputs = machine.getMarshaledInputs()
     m.voices = machine.voices.len
     m.extraData = machine.saveExtraData()
@@ -456,6 +497,7 @@ proc loadLayout*(name: string) =
         var m = mt.factory()
         m.pos = machine.pos
         m.name = machine.name
+        m.hideBindings = machine.hideBindings
         while m.voices.len < machine.voices:
           m.addVoice()
         machines.add(m)
@@ -621,3 +663,17 @@ proc noteToNoteName*(note: int): string =
 
 proc hzToNoteName*(hz: float): string =
   return noteToNoteName(hzToNote(hz).int)
+
+proc valueString*(self: Parameter, value: float): string =
+  if self.getValueString != nil:
+    return self.getValueString(value, -1)
+  else:
+    case kind:
+    of Note:
+      return noteToNoteName(value.int)
+    of Trigger:
+      return (if value.int == 1: "x" else: "0")
+    of Int:
+      return $value.int
+    of Float:
+      return value.formatFloat(ffDecimal, 2)

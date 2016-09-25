@@ -19,6 +19,12 @@ import lfo
 import knob
 import flanger
 import compressor
+import dc
+import paramrecorder
+import gate
+import arp
+import eq
+import keyboard
 
 
 proc audioCallback(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.} =

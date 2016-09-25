@@ -70,10 +70,10 @@ proc rotated*(v: Vector2d, angle: float): Vector2d =
   v.rotate(angle)
   return v
 
-proc lerp*[T](a, b: T, t: float): T =
+proc lerp*[T](a, b: T, t: float): T {.inline.} =
   return a + (b - a) * t
 
-proc invLerp*[T](a, b: T, t: T): float =
+proc invLerp*[T](a, b: T, t: T): float {.inline.} =
   return (t - a) / (b - a)
 
 proc trifill*(tri: Triangle | Polygon) =
@@ -109,6 +109,9 @@ proc pointInPoly*(p: Point2d, poly: Polygon | Triangle | Quad): bool =
   return c
 
 type AABB* = tuple[min: Point2d, max: Point2d]
+
+proc rectfill*(aabb: AABB) =
+  rectfill(aabb.min.x.int, aabb.min.y.int, aabb.max.x.int, aabb.max.y.int)
 
 proc rect*(aabb: AABB) =
   rect(aabb.min.x.int, aabb.min.y.int, aabb.max.x.int, aabb.max.y.int)
@@ -403,7 +406,9 @@ proc wrapAngleTAU*(angle: float): float =
     angle += TAU
   return angle
 
-
+proc getSubsample*[T](a: openarray[T], s: float): T =
+  let alpha = s mod 1.0
+  return lerp(a[s.int], if s < a.high: a[s.int+1] else: 0.0, alpha)
 
 import unittest
 

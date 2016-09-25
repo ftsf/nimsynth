@@ -8,6 +8,10 @@ import layoutview
 
 type Knob = ref object of Machine
   lastmv: Point2d
+  held: bool
+  min,max: float
+  center: float
+  spring: float
 
 {.this:self.}
 
@@ -16,6 +20,24 @@ method init(self: Knob) =
   nBindings = 1
   bindings.setLen(1)
   name = "knob"
+
+  self.globalParams.add([
+    Parameter(name: "min", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.min = newValue
+    ),
+    Parameter(name: "max", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+      self.max = newValue
+    ),
+    Parameter(name: "center", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+      self.center = newValue
+    ),
+    Parameter(name: "spring", kind: Float, min: 0.0, max: 10.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.spring = newValue
+    ),
+  ])
+
+  setDefaults()
+
 
 method drawBox(self: Knob) =
   let x = self.pos.x.int
@@ -28,9 +50,12 @@ method drawBox(self: Knob) =
   setColor(6)
   if bindings[0].machine != nil:
     var (voice,param) = bindings[0].machine.getParameter(bindings[0].param)
-    let range = param.max - param.min
-    let angle = lerp(degToRad(-180.0 - 45.0), degToRad(45.0), ((param.value - param.min) / range))
-    line(x,y, x + cos(angle) * 4, y + sin(angle) * 4)
+    let min = lerp(param.min,param.max,self.min)
+    let max = lerp(param.min,param.max,self.max)
+    let range = max - min
+    if range != 0.0:
+      let angle = lerp(degToRad(-180.0 - 45.0), degToRad(45.0), ((param.value - min) / range))
+      line(x,y, x + cos(angle) * 4, y + sin(angle) * 4)
     printShadowC(param.name, x, y + 8)
     printShadowC(
       if param.getValueString != nil:
@@ -66,8 +91,10 @@ method layoutUpdate(self: Knob, layout: View, dt: float) =
   if not mousebtn(0):
     LayoutView(layout).stolenInput = nil
     relmouse(false)
+    held = false
 
   elif bindings[0].machine != nil:
+    held = true
     let mv = mouse()
 
     var (voice,param) = bindings[0].machine.getParameter(bindings[0].param)
@@ -75,11 +102,23 @@ method layoutUpdate(self: Knob, layout: View, dt: float) =
     let ctrl = (getModState() and KMOD_CTRL) != 0
     let move = if ctrl: 0.1 elif shift: 0.001 else: 0.01
 
-    param.value -= (mv.y - lastmv.y) * move * (param.max - param.min)
-    param.value = clamp(param.value, param.min, param.max)
-    param.onchange(param.value)
+    let min = lerp(param.min,param.max,min)
+    let max = lerp(param.min,param.max,max)
+    param.value -= (mv.y - lastmv.y) * move * (max - min)
+    param.value = clamp(param.value, min, max)
+    param.onchange(param.value, voice)
 
     lastmv = mv
+
+method process(self: Knob) =
+  if bindings[0].machine != nil and not held:
+    if self.spring > 0.0:
+      var (voice,param) = bindings[0].machine.getParameter(bindings[0].param)
+      let d = param.value - center
+      let f = d * spring * invSampleRate
+      param.value -= f
+      param.value = clamp(param.value, min, max)
+      param.onchange(param.value, voice)
 
 proc newKnob(): Machine =
   var knob = new(Knob)

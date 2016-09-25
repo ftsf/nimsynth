@@ -67,17 +67,17 @@ Sequencer1 -> Sequencer2 -> MonoSynth1
 
 Notes from snowglobe:
  - DONE: count ticks from 0
- - space for transport control rather than return
+ - DONE: space for transport control rather than return
  - shift and left drag for connections (for buzz natives)
- - delay length of 0 crashes
+ - DONE: delay length of 0 crashes
  - mouse in pattern view
  - remove bindings
  - knob dragging more obvious
  - save and load buttons
- - preset naming, save and load buttons
- - preset menu
+ - DONE: preset naming, save and load buttons
+ - DONE: preset menu
  - presets store sample data, or links to it?
- - clone patterns
+ - DONE: clone patterns
  - resample patterns (eg, change TPB from 4 to 8 inserting blanks in between, warn when removing information)
  - double click on box to show machine view
  - fix scrolling in sequencer and parameters

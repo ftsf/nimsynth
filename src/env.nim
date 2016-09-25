@@ -27,6 +27,9 @@ type
     targetLevel: float
     actualLevel: float
 
+proc value*(self: Envelope): float32 =
+  return self.actualLevel
+
 proc process*(self: var Envelope): float32 =
   case state:
   of Attack:

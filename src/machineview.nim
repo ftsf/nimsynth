@@ -19,41 +19,53 @@ type MachineView* = ref object of View
 
 const maxPatchSlots = 64
 
+const paramNameWidth = 64
+
 proc newMachineView*(machine: Machine): MachineView =
   result = new(MachineView)
   result.machine = machine
+
+proc drawParams*(self: MachineView, x,y,w,h: int) =
+  let paramsOnScreen = (h div 8)
+
+  var nParams = machine.getParameterCount()
+  var y = y
+  let startParam = scroll
+  let sliderWidth = w - 64
+  if nParams > 0:
+    # TODO: fix scrolling
+    for i in startParam..(min(nParams-1, startParam+paramsOnScreen)):
+      setColor(if i == currentParam: 8 else: 7)
+      var (voice, param) = machine.getParameter(i)
+      print((if voice > -1: $(voice+1) & ": " else: "") & param.name, x, y)
+      printr(if param.getValueString != nil: param.getValueString(param.value, voice) else: param.value.formatFloat(ffDecimal, 2), x + 63, y)
+      var range = (param.max - param.min)
+      if range == 0.0:
+        range = 1.0
+      setColor(1)
+      # draw slider background
+      rectfill(x + paramNameWidth, y, x + paramNameWidth + sliderWidth, y+4)
+
+      # draw slider fill
+      setColor(if i == currentParam: 8 else: 6)
+      let zero = if 0.0 >= param.min and 0.0 <= param.max: invLerp(param.min, param.max, 0.0) else: param.min
+      rectfill(x + paramNameWidth + sliderWidth * ((zero - param.min) / range).float, y, x + paramNameWidth + sliderWidth.float * ((param.value - param.min) / range).float, y+4)
+
+      # draw default bar
+      setColor(7)
+      line(x + paramNameWidth + sliderWidth * ((param.default - param.min) / range), y, x + paramNameWidth + sliderWidth * ((param.default - param.min) / range), y+4)
+      y += 8
 
 method draw*(self: MachineView) =
   let paramsOnScreen = (screenHeight div 8)
   cls()
   setColor(6)
   printr(machine.name, screenWidth - 1, 1)
-  var nParams = machine.getParameterCount()
-  var y = 1
-  let startParam = scroll
-  let sliderWidth = (screenWidth - 64) div 3
-  for i in startParam..(min(nParams-1, startParam+paramsOnScreen)):
-    setColor(if i == currentParam: 8 else: 7)
-    var (voice, param) = machine.getParameter(i)
-    print((if voice > -1: $(voice+1) & ": " else: "") & param.name, 1, y)
-    printr(if param.getValueString != nil: param.getValueString(param.value, voice) else: param.value.formatFloat(ffDecimal, 2), 64, y)
-    var range = (param.max - param.min)
-    if range == 0.0:
-      range = 1.0
-    setColor(1)
-    # draw slider background
-    rectfill(64, y, 64 + sliderWidth, y+4)
 
-    # draw slider fill
-    setColor(if i == currentParam: 8 else: 6)
-    let zero = invLerp(param.min, param.max, 0.0)
-    rectfill(64 + sliderWidth * ((zero - param.min) / range).float, y, 64 + sliderWidth.float * ((param.value - param.min) / range).float, y+4)
-    # draw default bar
-    setColor(7)
-    line(64 + sliderWidth * ((param.default - param.min) / range), y, 64 + sliderWidth * ((param.default - param.min) / range),y+4)
-    y += 8
+  let paramWidth = screenWidth div 3 + paramNameWidth
+  drawParams(1,1, paramWidth, screenHeight - 1)
 
-  machine.drawExtraInfo(64 + sliderWidth + 4, 16, screenWidth - (64 + sliderWidth), screenHeight - 16)
+  machine.drawExtraInfo(paramWidth + 4, 16, screenWidth - paramWidth - 4, screenHeight - 16)
 
   if menu != nil:
     menu.draw()
@@ -61,6 +73,38 @@ method draw*(self: MachineView) =
   # mouse cursor
   let mv = mouse()
   spr(20, mv.x, mv.y)
+
+proc updateParams*(self: MachineView, x,y,w,h: int) =
+  let mv = mouse()
+
+  let paramsOnScreen = h div 8
+  let nParams = machine.getParameterCount()
+  currentParam = clamp(currentParam, 0, nParams-1)
+
+  if currentParam >= paramsOnScreen - scroll:
+    scroll = currentParam
+  elif currentParam < scroll:
+    scroll = currentParam
+
+  # mouse cursor
+  let sliderWidth = w - paramNameWidth
+  if mousebtnp(0):
+    # click to select param
+    let paramUnderCursor = mv.y.int div 8 - scroll
+    if mv.x >= x + paramNameWidth and mv.x < x + paramNameWidth + sliderWidth:
+      if paramUnderCursor > -1 and paramUnderCursor < nParams:
+        currentParam = paramUnderCursor
+        dragging = true
+  if mousebtn(0):
+    # drag to adjust value
+    if dragging:
+      var (voice, param) = machine.getParameter(currentParam)
+      param.value = lerp(param.min, param.max, clamp(invLerp(paramNameWidth.float, paramNameWidth.float + sliderWidth.float, mv.x), 0.0, 1.0))
+      if param.kind == Int or param.kind == Trigger:
+        param.value = param.value.int.float
+      param.onchange(param.value, voice)
+  else:
+    dragging = false
 
 
 method update*(self: MachineView, dt: float) =
@@ -71,32 +115,7 @@ method update*(self: MachineView, dt: float) =
     menu.handleMouse(mv)
     return
 
-  let paramsOnScreen = (screenHeight div 8)
-  let nParams = machine.getParameterCount()
-  currentParam = clamp(currentParam, 0, nParams-1)
-
-  if currentParam >= paramsOnScreen - scroll:
-    scroll = currentParam
-  elif currentParam < scroll:
-    scroll = currentParam
-
-  # mouse cursor
-  let sliderWidth = (screenWidth - 64) div 3
-  if mousebtnp(0):
-    let paramUnderCursor = mv.y.int div 8 - scroll
-    if mv.x >= 64 and mv.x < 64 + sliderWidth:
-      if paramUnderCursor > -1 and paramUnderCursor < nParams:
-        currentParam = paramUnderCursor
-        dragging = true
-  if mousebtn(0):
-    if dragging:
-      var (voice, param) = machine.getParameter(currentParam)
-      param.value = lerp(param.min, param.max, clamp(invLerp(64.0, 64.0 + sliderWidth.float, mv.x), 0.0, 1.0))
-      if param.kind == Int or param.kind == Trigger:
-        param.value = param.value.int.float
-      param.onchange(param.value, voice)
-  else:
-    dragging = false
+  updateParams(1,1, screenWidth div 3 + paramNameWidth, screenHeight - 1)
 
   # TODO: handle mouse cursor in extradata section
 

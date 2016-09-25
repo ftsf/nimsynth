@@ -13,18 +13,21 @@ type
     preGain*: float
     threshold*: float
     postGain*: float
+    mix: float
+    feedback: float
 
 proc process*(self: Distortion, sample: float32): float32 =
-  result = sample * preGain
-  if result > threshold or result < -threshold:
+  var drySignal = sample * preGain
+  var wetSignal = drySignal
+  if abs(wetSignal) > threshold:
     case kind:
     of Foldback:
-      result = abs(abs((result - threshold) mod (threshold * 4.0)) - threshold * 2.0) - threshold
+      wetSignal = abs(abs((wetSignal - threshold) mod (threshold * 4.0)) - threshold * 2.0) - threshold
     of HardClip:
-      result = clamp(result, -threshold, threshold)
+      wetSignal = clamp(wetSignal, -threshold, threshold)
     of SoftClip:
-      result = tanh(result)
-  result *= postGain
+      wetSignal = tanh(wetSignal * (1.0 / threshold))
+  result = (wetSignal * postGain * mix) + (drySignal * (1.0 - mix))
 
 type
   DistortionMachine = ref object of Machine
@@ -46,6 +49,9 @@ method init(self: DistortionMachine) =
     Parameter(name: "pre", kind: Float, min: 0.0, max: 2.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
       self.distortion.preGain = newValue
     ),
+    Parameter(name: "mix", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+      self.distortion.mix = newValue
+    ),
     Parameter(name: "threshold", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
       self.distortion.threshold = newValue
     ),
@@ -58,9 +64,7 @@ method init(self: DistortionMachine) =
 
 
 method process(self: DistortionMachine) {.inline.} =
-  outputSamples[0] = 0.0
-  for input in mitems(self.inputs):
-    outputSamples[0] += input.getSample()
+  outputSamples[0] = getInput()
   outputSamples[0] = self.distortion.process(outputSamples[0])
 
 proc newDistortionMachine(): Machine =

@@ -22,6 +22,8 @@ method init*(self: Master) =
     ),
     Parameter(kind: Int, name: "bpm", min: 1.0, max: 300.0, default: 128.0, value: 128.0, onchange: proc(newValue: float, voice: int) =
       self.beatsPerMinute = clamp(newValue, 1.0, 300.0)
+      for machine in mitems(machines):
+        machine.onBPMChange(self.beatsPerMinute.int)
     ),
   ])
 
@@ -39,3 +41,11 @@ method process*(self: Master) =
 proc newMaster*(): Master =
   result = new(Master)
   result.init()
+
+proc beatsPerMinute*(): float =
+  var m = Master(masterMachine)
+  return m.beatsPerMinute
+
+proc beatsPerSecond*(): float =
+  var m = Master(masterMachine)
+  return m.beatsPerMinute / 60.0

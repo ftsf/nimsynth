@@ -18,6 +18,7 @@ const algorithms = [
   @[ # 1
     (2,1),
     (3,1),
+    (3,3),
 
     (1,0),
   ],
@@ -116,7 +117,7 @@ method init(self: BasicFMSynth) =
     , getValueString: proc(value: float, voice: int): string =
       return $(self.algorithm.int + 1)
     ),
-    Parameter(name: "feedback", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "feedback", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.feedback = newValue
     ),
   ])
@@ -147,7 +148,7 @@ method init(self: BasicFMSynth) =
         Parameter(name: $(opId+1) & ":A", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
           self.envSettings[opId].a = newValue
         ),
-        Parameter(name: $(opId+1) & ":D", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":D", kind: Float, min: 0.0, max: 10.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
           self.envSettings[opId].d = newValue
         ),
         Parameter(name: $(opId+1) & ":S", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
@@ -187,12 +188,70 @@ method process(self: BasicFMSynth) {.inline.} =
           if map[1] == 0:
             outputSamples[0] += operator.output
           else:
-            let phaseOffset = operator.output
-            v.operators[map[1]-1].osc.phase += (phaseOffset * PI)
+            let phaseOffset = if map[1] == map[0]: operator.output * feedback else: operator.output
+            v.operators[map[1]-1].osc.phase += phaseOffset
 
 proc newBasicFMSynth(): Machine =
   var fm = new(BasicFMSynth)
   fm.init()
   return fm
+
+import pico
+
+method drawExtraInfo(self: BasicFMSynth, x,y,w,h: int) =
+  # draw algorithm layout
+  let algorithm = algorithms[algorithm]
+
+  const rectSize = 13
+  const padding = 8
+  var carrier = 0
+  var modulator = 0
+  var modDepth = 0
+
+  var ops = newSeq[tuple[id: int, x,y: int, targets: seq[int]]]()
+  # find carriers
+  var y = y + 32
+  var x = x + padding
+  for map in algorithm:
+    if map[1] == 0:
+      ops.add((id: map[0], x: x + carrier * (rectSize + padding), y: y, targets: nil))
+      carrier += 1
+    # find modulators
+    for map2 in algorithm:
+      if map2[1] == map[0]:
+        var thisOp: ptr tuple[id: int, x,y: int, targets: seq[int]]
+        for op in mitems(ops):
+          if op.id == map2[0]:
+            thisOp = op.addr
+            break
+        if thisOp == nil:
+          ops.add((id: map2[0], x: x + modulator * (rectSize + padding), y: y - (rectSize + padding), targets: newSeq[int]()))
+          thisOp = ops[ops.high].addr
+          modulator += 1
+        thisOp.targets.add(map2[1])
+
+  # draw lines
+  for op in ops:
+    if op.targets != nil:
+      for target in op.targets:
+        if target == op.id:
+          # feedback
+          pico.rect(op.x - rectSize div 3, op.y - rectSize div 3, op.x + rectSize div 2, op.y + rectSize div 2)
+        else:
+          for op2 in ops:
+            if op2.id == target:
+              line(op.x + rectSize div 2, op.y + rectSize div 2, op2.x + rectSize div 2, op2.y + rectSize div 2)
+              break
+
+  # draw boxes
+  for op in ops:
+    setColor(0)
+    rectfill(op.x, op.y, op.x + rectSize, op.y + rectSize)
+    setColor(7)
+    pico.rect(op.x, op.y, op.x + rectSize, op.y + rectSize)
+    printc($op.id, op.x + 6, op.y + 6)
+
+
+
 
 registerMachine("BASICfm", newBasicFMSynth)

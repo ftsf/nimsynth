@@ -18,6 +18,7 @@ type
     items*: seq[MenuItem]
     selected*: int
     back*: proc()
+    hasSetTextFunc: int
 
 proc newMenu*(pos: Point2d, label: string = nil): Menu =
   result = new(Menu)
@@ -25,6 +26,7 @@ proc newMenu*(pos: Point2d, label: string = nil): Menu =
   result.label = label
   result.items = newSeq[MenuItem]()
   result.selected = -1
+  result.hasSetTextFunc = -1
 
 proc newMenuItem*(label: string, action: proc() = nil): MenuItem =
   result = new(MenuItem)
@@ -113,7 +115,7 @@ proc key*(self: Menu, key: KeyboardEventPtr, down: bool): bool =
   if down:
     if selected >= 0 and selected < items.len and items[selected] of MenuItemText:
       var te = MenuItemText(items[selected])
-      if not hasTextFunc():
+      if hasSetTextFunc != selected:
         setTextFunc(proc(text: string): bool =
           return te.inputText(text)
         )
@@ -122,6 +124,7 @@ proc key*(self: Menu, key: KeyboardEventPtr, down: bool): bool =
         return true
     else:
       setTextFunc(nil)
+      hasSetTextFunc = -1
 
     case key.keysym.scancode:
     of SDL_SCANCODE_UP:
