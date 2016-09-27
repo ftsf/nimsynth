@@ -53,6 +53,9 @@ Workspace similar to buzz where you lay out generator/effects/sequencers
   - Tell it which pattern to play
   - You can sequence sequencers
 
+* handle importing layout into current layout
+* clear layout when loading layout by default
+
 Sequencer1 -> Sequencer2 (some notes) -> MonoSynth
 
 Each column of the sequencer maps to an attribute of a machine
@@ -88,3 +91,5 @@ Notes from snowglobe:
  - scrolling in menus
  - DONE: resizable window
  - DONE: sequencer loop toggle
+ - save window position in config file
+ - show window decorations
