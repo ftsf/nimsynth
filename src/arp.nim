@@ -59,6 +59,12 @@ method init(self: Arp) =
       self.note = newValue.int
       self.step = 0.0
       self.playing = if self.note == OffNote: false else: true
+      if self.note == OffNote:
+        # send target OffNote too
+        if bindings[0].machine != nil:
+          var (voice, param) = bindings[0].getParameter()
+          param.value = newValue
+          param.onchange(newValue, voice)
     , getValueString: proc(value: float, voice: int): string =
       return noteToNoteName(value.int)
     ),
