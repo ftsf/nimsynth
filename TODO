@@ -25,20 +25,24 @@ Workspace similar to buzz where you lay out generator/effects/sequencers
   - Can adjust speed/pitch/reverse/do glitchy stuff
 
 * Effects:
-  - Delay
+  - DONE: Delay
   - Distortion
   - Reverb
   - EQ
   - Chorus
-  - Compressor (good excuse to implement multiple audio input/output for machines)
+  - DONE: Compressor (good excuse to implement multiple audio input/output for machines)
   - Flanger
   - Phaser
-  - Gate
+  - DONE: Gate
   - Pan
   - Frequency Splitter
   - Mixer (multi in, single out)
 
-* LFO
+* Random machines
+  - Probability gate
+  - Send trigger from pool
+
+* DONE: LFO
   - Binding: machine, param
   - Shape
   - Frequency
