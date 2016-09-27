@@ -128,7 +128,6 @@ method key*(self: MachineView, key: KeyboardEventPtr, down: bool): bool =
   let scancode = key.keysym.scancode
   let ctrl = (int16(key.keysym.modstate) and int16(KMOD_CTRL)) != 0
   let shift = (int16(key.keysym.modstate) and int16(KMOD_SHIFT)) != 0
-  let move = if shift: 0.001 elif ctrl: 0.1 else: 0.01
 
   let paramsOnScreen = (screenHeight div 8)
 
@@ -175,23 +174,17 @@ method key*(self: MachineView, key: KeyboardEventPtr, down: bool): bool =
       if currentParam > nParams - 1:
         currentParam = 0
       return true
-    of SDL_SCANCODE_LEFT:
+    of SDL_SCANCODE_LEFT, SDL_SCANCODE_RIGHT:
       var (voice, param) = machine.getParameter(currentParam)
       let range = param.max - param.min
-      if param.kind == Int or param.kind == Trigger:
-        param.value = clamp(param.value.int.float - 1.0, param.min, param.max)
-      else:
-        param.value = clamp(param.value - range * move, param.min, param.max)
-      if param.onchange != nil:
-        param.onchange(param.value, voice)
-      return true
-    of SDL_SCANCODE_RIGHT:
-      var (voice, param) = machine.getParameter(currentParam)
-      let range = param.max - param.min
-      if param.kind == Int or param.kind == Trigger:
-        param.value = clamp(param.value.int.float + 1.0, param.min, param.max)
-      else:
-        param.value = clamp(param.value + range * move, param.min, param.max)
+      let dir = if scancode == SDL_SCANCODE_LEFT: -1.0 else: 1.0
+      case param.kind:
+      of Int, Trigger, Note:
+        let move = if ctrl: (if param.kind == Note: 12.0 else: 10.0) else: 1.0
+        param.value = clamp(param.value.int.float + move * dir, param.min, param.max)
+      of Float:
+        let move = if shift: 0.001 elif ctrl: 0.1 else: 0.01
+        param.value = clamp(param.value + range * move * dir, param.min, param.max)
       if param.onchange != nil:
         param.onchange(param.value, voice)
       return true
