@@ -18,9 +18,12 @@ type
 
 proc setFreq(self: LFO) =
   if bpmSync:
-    osc.freq = freq.floor * beatsPerSecond()
+    osc.freq = ((freq * 16.0).floor / 16.0) * beatsPerSecond()
   else:
     osc.freq = freq
+
+method onBPMChange(self: LFO, bpm: int) =
+  setFreq()
 
 method init(self: LFO) =
   procCall init(Machine(self))
@@ -37,10 +40,10 @@ method init(self: LFO) =
       self.freq = newValue
       self.setFreq()
     , getValueString: proc(value: float, voice: int): string =
-      if not self.bpmSync:
-        return $(self.freq).formatFloat(ffDecimal, 2) & " hZ"
+      if self.bpmSync:
+        return $(value * 16.0).int & "/16 b"
       else:
-        return $(self.freq / beatsPerSecond()).int & " beats"
+        return $value.formatFloat(ffDecimal, 2) & " hZ"
     ),
     Parameter(name: "shape", kind: Int, min: OscKind.low.float, max: OscKind.high.float, default: Sin.float, onchange: proc(newValue: float, voice: int) =
       self.osc.kind = newValue.OscKind

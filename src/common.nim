@@ -287,6 +287,9 @@ method getParameter*(self: Machine, paramId: int): (int, ptr Parameter) {.base.}
     let voiceParam = (paramId - globalParams.len) mod voiceParams.len
     return (voice, addr(self.voices[voice].parameters[voiceParam]))
 
+proc isBound*(self: Binding): bool =
+  return (self.machine != nil)
+
 proc getParameter*(self: Binding): (int, ptr Parameter) =
   if self.machine != nil:
     return self.machine.getParameter(self.param)
@@ -416,8 +419,8 @@ proc loadMarshaledParams(self: Machine, parameters: seq[ParamMarshal], setDefaul
 
 proc loadMarshaledBindings(self: Machine, bindings: seq[BindMarshal]) =
   for i,binding in bindings:
-    self.bindings[i].machine = if binding.targetMachineId != -1: machines[binding.targetMachineId] else: nil
-    self.bindings[i].param = binding.paramId
+    if binding.targetMachineId != -1:
+      self.createBinding(i, machines[binding.targetMachineId], binding.paramId)
 
 proc loadMarshaledInputs(self: Machine, inputs: seq[InputMarshal]) =
   for i,input in inputs:

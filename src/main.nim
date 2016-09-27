@@ -17,6 +17,7 @@ import kit
 import noise
 import lfo
 import knob
+import button
 import flanger
 import compressor
 import dc
@@ -24,6 +25,8 @@ import paramrecorder
 import gate
 import arp
 import eq
+import probgate
+import probpick
 import keyboard
 
 

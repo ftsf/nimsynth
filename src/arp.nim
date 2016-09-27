@@ -61,8 +61,8 @@ method init(self: Arp) =
       self.playing = if self.note == OffNote: false else: true
       if self.note == OffNote:
         # send target OffNote too
-        if bindings[0].machine != nil:
-          var (voice, param) = bindings[0].getParameter()
+        if self.bindings[0].isBound():
+          var (voice, param) = self.bindings[0].getParameter()
           param.value = newValue
           param.onchange(newValue, voice)
     , getValueString: proc(value: float, voice: int): string =

@@ -303,27 +303,29 @@ method update*(self: LayoutView, dt: float) =
                 self.menu = nil
             ))
             return
-        for i,binding in machine.bindings:
-          if binding.machine != nil:
-            let mid = (machine.pos + binding.machine.pos) / 2.0
-            if pointInAABB(mv, mid.getAABB(4.0)):
-              # show all bindings between the two machines
-              var sourceMachine = machine
-              var targetMachine = binding.machine
-              self.menu = newMenu(mv, "bindings")
-              self.menu.back = proc() =
-                self.menu = nil
-              for slot,binding in sourceMachine.bindings:
-                (proc() =
-                  let slot = slot
-                  if binding.machine == targetMachine:
-                    var (voice, param) = binding.getParameter()
-                    self.menu.items.add(newMenuItem($slot & ": " & param.name, proc() =
-                      removeBinding(sourceMachine, slot)
-                      self.menu = nil
-                    ))
-                )()
-              return
+
+        if not machine.hideBindings:
+          for i,binding in machine.bindings:
+            if binding.machine != nil:
+              let mid = (machine.pos + binding.machine.pos) / 2.0
+              if pointInAABB(mv, mid.getAABB(4.0)):
+                # show all bindings between the two machines
+                var sourceMachine = machine
+                var targetMachine = binding.machine
+                self.menu = newMenu(mv, "remove bindings")
+                self.menu.back = proc() =
+                  self.menu = nil
+                for slot,binding in sourceMachine.bindings:
+                  (proc() =
+                    let slot = slot
+                    if binding.machine == targetMachine:
+                      var (voice, param) = binding.getParameter()
+                      self.menu.items.add(newMenuItem($slot & ": " & param.name, proc() =
+                        removeBinding(sourceMachine, slot)
+                        self.menu = nil
+                      ))
+                  )()
+                return
       # open new machine menu
       self.menu = addMachineMenu(mv, "add machine") do(mtype: MachineType):
         var m = mtype.factory()
