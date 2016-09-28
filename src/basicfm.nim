@@ -63,6 +63,8 @@ type
     amps: array[nOperators, float]
     fixed: array[nOperators, bool]
     envSettings: array[nOperators, tuple[a,d,s,r: float]]
+    pitchEnvSettings: tuple[a,d,s,r: float]
+    pitchEnvMod: float
     algorithm: int # 0..31 which layout of operators to use
     feedback: float
 
@@ -86,11 +88,17 @@ proc initNote(self: BasicFMSynth, voiceId: int, note: int) =
   var voice = BasicFMSynthVoice(voices[voiceId])
   if note == OffNote:
     voice.note = note
+    voice.pitchEnv.release()
     for i in 0..nOperators-1:
       voice.operators[i].env.release()
   else:
     voice.note = note
     voice.pitch = noteToHz(note.float)
+    voice.pitchEnv.a = self.pitchEnvSettings.a
+    voice.pitchEnv.d = self.pitchEnvSettings.d
+    voice.pitchEnv.s = self.pitchEnvSettings.s
+    voice.pitchEnv.r = self.pitchEnvSettings.r
+    voice.pitchEnv.trigger()
     for i in 0..nOperators-1:
       voice.operators[i].env.a = self.envSettings[i].a
       voice.operators[i].env.d = self.envSettings[i].d
@@ -119,6 +127,21 @@ method init(self: BasicFMSynth) =
     ),
     Parameter(name: "feedback", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.feedback = newValue
+    ),
+    Parameter(name: "pmod", kind: Float, min: -24.0, max: 24.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.pitchEnvMod = newValue
+    ),
+    Parameter(name: "pmod:a", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.pitchEnvSettings.a = newValue
+    ),
+    Parameter(name: "pmod:d", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.pitchEnvSettings.d = newValue
+    ),
+    Parameter(name: "pmod:s", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.pitchEnvSettings.s = newValue
+    ),
+    Parameter(name: "pmod:r", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.pitchEnvSettings.r = newValue
     ),
   ])
 
@@ -179,8 +202,9 @@ method process(self: BasicFMSynth) {.inline.} =
   outputSamples[0] = 0
   for voice in mitems(self.voices):
     var v = BasicFMSynthVoice(voice)
+    let pitchMod = pow(2.0, (v.pitchEnv.process() * pitchEnvMod) / 12.0)
     for i,operator in mpairs(v.operators):
-      operator.osc.freq = (if fixed[i]: 440.0 else: v.pitch) * multipliers[i] * pow(2.0, centOffsets[i].float / 1200.0 + semiOffsets[i].float / 12.0 + octOffsets[i].float)
+      operator.osc.freq = (if fixed[i]: 440.0 else: v.pitch * pitchMod) * multipliers[i] * pow(2.0, centOffsets[i].float / 1200.0 + semiOffsets[i].float / 12.0 + octOffsets[i].float)
       let opId = i+1
       operator.output = operator.osc.process() * operator.env.process() * amps[i]
       for map in algorithms[algorithm]:
