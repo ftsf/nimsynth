@@ -44,6 +44,8 @@ type
 
 proc mapSeqValueToParamValue(value: int, param: ptr Parameter): float =
   case param.kind:
+  of Bool:
+    return (if value == 1.0: 1.0 else: 0.0)
   of Note, Int:
     return clamp(value.float, param.min, param.max)
   of Trigger:
@@ -207,6 +209,8 @@ proc drawPattern(self: Sequencer, x,y,w,h: int) =
           print(str[0..1], x + col * 16 + 12, y + 1)
           setColor(if i == currentStep and col == currentColumn and subColumn == 1: 12 elif ticksPerBeat > 1 and i %% ticksPerBeat == 0: 6 else: 13)
           print(str[2..2], x + col * 16 + 12 + 8, y + 1)
+        of Bool:
+          var str = if val == Blank: "  ." else: align($val, 3, ' ')
         of Int,Float:
           # we want to split this into 3 columns, one for each char
           var str = if val == Blank: "..." else: align($val, 3, '.')
@@ -618,7 +622,7 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
             return true
           else:
             discard
-    of Int, Float, Trigger:
+    of Int, Float, Trigger, Bool:
       if down:
         case scancode:
         of SDL_SCANCODE_0:

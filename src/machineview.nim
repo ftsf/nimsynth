@@ -179,7 +179,7 @@ method key*(self: MachineView, key: KeyboardEventPtr, down: bool): bool =
       let range = param.max - param.min
       let dir = if scancode == SDL_SCANCODE_LEFT: -1.0 else: 1.0
       case param.kind:
-      of Int, Trigger, Note:
+      of Int, Trigger, Note, Bool:
         let move = if ctrl: (if param.kind == Note: 12.0 else: 10.0) else: 1.0
         param.value = clamp(param.value.int.float + move * dir, param.min, param.max)
       of Float:

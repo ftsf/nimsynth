@@ -29,6 +29,7 @@ type
   Binding* = tuple[machine: Machine, param: int]
   ParameterKind* = enum
     Float
+    Bool
     Int
     Note
     Trigger
@@ -678,5 +679,7 @@ proc valueString*(self: Parameter, value: float): string =
       return (if value.int == 1: "x" else: "0")
     of Int:
       return $value.int
+    of Bool:
+      return (if value.bool: "on" else: "off")
     of Float:
       return value.formatFloat(ffDecimal, 2)
