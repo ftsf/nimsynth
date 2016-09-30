@@ -2,6 +2,7 @@ import pico
 import sdl2
 
 import common
+import menu
 import machineview
 import layoutview
 
@@ -29,6 +30,7 @@ import probgate
 import probpick
 import paramlp
 import keyboard
+import dummy
 
 
 proc audioCallback(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.} =
@@ -45,37 +47,49 @@ proc audioCallback(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.} =
     if i mod 2 == 0 and i < 2048:
       sampleBuffer[i div 2] = samples[i]
 
-proc keyFunc(key: KeyboardEventPtr, down: bool): bool =
-  # handle global keys
-  let scancode = key.keysym.scancode
-  if down:
-    case scancode:
-    of SDL_SCANCODE_F1:
-      currentView = vLayoutView
-      return true
-    of SDL_SCANCODE_SLASH:
-      baseOctave -= 1
-      return true
-    of SDL_SCANCODE_APOSTROPHE:
-      baseOctave += 1
-      return true
-    of SDL_SCANCODE_Q:
-      let ctrl = (getModState() and KMOD_CTRL) != 0
-      if ctrl:
-        shutdown()
+proc eventFunc(event: Event): bool =
+  case event.kind:
+  of KeyDown, KeyUp:
+    let down = event.kind == KeyDown
+    # handle global keys
+    let scancode = event.key.keysym.scancode
+    if down:
+      case scancode:
+      of SDL_SCANCODE_F1:
+        currentView = vLayoutView
         return true
-    else:
-      discard
+      of SDL_SCANCODE_SLASH:
+        baseOctave -= 1
+        return true
+      of SDL_SCANCODE_APOSTROPHE:
+        baseOctave += 1
+        return true
+      of SDL_SCANCODE_Q:
+        let ctrl = (getModState() and KMOD_CTRL) != 0
+        if ctrl:
+          # TODO: ask if ok to exit
+          shutdown()
+          return true
+      else:
+        discard
 
-  if recordMachine != nil:
-    let note = keyToNote(key)
-    if note > -1:
-      if down and not key.repeat:
-        recordMachine.trigger(note)
-      elif not down:
-        recordMachine.release(note)
+    if recordMachine != nil:
+      let note = keyToNote(event.key)
+      if note > -1:
+        if down and not event.key.repeat:
+          recordMachine.trigger(note)
+        elif not down:
+          recordMachine.release(note)
 
-  if currentView.key(key, down):
+  else:
+    discard
+
+  if hasMenu():
+    var menu = getMenu()
+    if menu.event(event):
+      return true
+
+  if currentView.event(event):
     return true
 
   return false
@@ -84,10 +98,10 @@ proc keyFunc(key: KeyboardEventPtr, down: bool): bool =
 proc init() =
   loadSpriteSheet("spritesheet.png")
   setAudioCallback(2, audioCallback)
-  setKeyFunc(keyFunc)
+  setEventFunc(eventFunc)
 
   machines = newSeq[Machine]()
-  knobs = newSeq[Knob]()
+  menuStack = newSeq[Menu]()
 
   masterMachine = newMaster()
   machines.add(masterMachine)
@@ -103,6 +117,15 @@ proc update(dt: float) =
 proc draw() =
   if currentView != nil:
     currentView.draw()
+
+  setCamera()
+
+  if hasMenu():
+    var menu = getMenu()
+    menu.draw()
+
+  let mv = mouse()
+  spr(20, mv.x, mv.y)
 
 pico.init(false)
 pico.run(init, update, draw)

@@ -64,10 +64,10 @@ method reset*(self: var BaseFilter) {.base.} =
 # BiquadFilter
 
 method setCutoff*(self: var BiquadFilter, cutoff: float) =
-  self.cutoff = clamp(cutoff, 0.0001, 0.5)
+  self.cutoff = clamp(cutoff, 0.0001, 0.4999)
 
 method calc*(self: var BiquadFilter) =
-  self.cutoff = clamp(cutoff, 0.0001, 0.499)
+  cutoff = clamp(cutoff, 0.0001, 0.499)
   var norm: float
   let V = pow(10.0, abs(peakGain) / 20.0)
   let K = tan(PI * cutoff)
@@ -355,7 +355,7 @@ proc newFilterMachine(): Machine =
   result = new(FilterMachine)
   result.init()
 
-registerMachine("filter", newFilterMachine)
+registerMachine("filter", newFilterMachine, "fx")
 
 import complex
 

@@ -2,18 +2,21 @@ import sndfile
 import common
 import math
 import util
+import basic2d
 
 # Common Sampler code, load samples etc
 
-type Sample* = object of RootObj
+type Sample* = ref object of RootObj
   data*: seq[float32]
   freq*: float
   loop*: bool
   name*: string
+  filename*: string
 
 {.this:self.}
 
-proc loadSample*(filename: string): Sample =
+proc loadSample*(filename: string, name: string): Sample =
+  result = new(Sample)
   # TODO: add sample rate conversion
   var info: Tinfo
   var fp = sndfile.open(filename.cstring, READ, addr(info))
@@ -26,14 +29,15 @@ proc loadSample*(filename: string): Sample =
   echo "frames: ", info.frames
 
   result.data = newSeq[float32](info.frames)
-  result.name = filename
+  result.name = name
+  result.filename = filename
 
   let count = fp.read_float(addr(result.data[0]), info.frames)
   if count != info.frames:
     echo "only read ", count, " not ", info.frames
 
 type SampleOsc* = object of RootObj
-  sample*: ptr Sample
+  sample*: Sample
   samplePos*: int
 
 proc finished*(self: var SampleOsc): bool =
@@ -56,3 +60,20 @@ proc process*(self: var SampleOsc): float32 =
 # TODO: need reusable sample loading interface code
 #
 # TODO: need a way to save/load sample data in patches
+
+import menu
+import os
+
+proc newSampleMenu*(mv: Point2d, prefix = "samples/", action: proc(sample: Sample) = nil): Menu =
+  var menu = newMenu(mv, "load sample")
+  for file in walkFiles(prefix & "*.wav"):
+    (proc() =
+      let file = file
+      let sampleName = file[(prefix.len)..file.high-4]
+      menu.items.add(newMenuItem(sampleName) do():
+        var sample = loadSample(file, sampleName)
+        action(sample)
+        popMenu()
+      )
+    )()
+  return menu

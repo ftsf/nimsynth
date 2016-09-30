@@ -10,8 +10,8 @@ export math.sin
 import random
 
 type
-  IntPoint2d = object
-    x,y: int
+  IntPoint2d* = object
+    x*,y*: int
 
 type
   PhysicalInputType = enum
@@ -250,13 +250,17 @@ proc getControlPretty*(pid, btn: int): string =
       bits.add("(" & (if phys.value < 0: "-" else: "+") & "AXIS" & $(phys.index + 1) & ")")
   return bits.join(", ")
 
-proc intPoint2d(x,y: int): IntPoint2d =
+proc intPoint2d*(x,y: int): IntPoint2d =
   result.x = x
   result.y = y
 
 converter toIntPoint2d*(p: Point2d): IntPoint2d =
   result.x = p.x.int
   result.y = p.y.int
+
+converter toPoint2d*(p: IntPoint2d): Point2d =
+  result.x = p.x.float
+  result.y = p.y.float
 
 converter toBool32(x: bool): Bool32 =
   return Bool32(x)
@@ -278,7 +282,7 @@ when not defined(emscripten):
 import math
 import stb_image
 
-const screenScale = 2
+const screenScale* = 2
 
 var window: WindowPtr
 var spriteSheet: SurfacePtr
@@ -287,6 +291,7 @@ var initFunc: proc()
 var updateFunc: proc(dt:float)
 var drawFunc: proc()
 var keyFunc: proc(key: KeyboardEventPtr, down: bool): bool
+var eventFunc: proc(event: Event): bool
 var textFunc: proc(text: string): bool
 
 type
@@ -967,14 +972,22 @@ proc warpmouse*(x,y: int) =
   sdl2.warpMouseInWindow(window, x div screenScale, y div screenScale)
 
 proc mouse*(): Point2d =
-  var x,y, w,h: cint
+  var x,y: cint
   sdl2.getMouseState(addr(x),addr(y))
   x -= screenPaddingX*2
   y -= screenPaddingY*2
   x = x / screenScale
   y = y / screenScale
-  window.getSize(w,h)
   return point2d(float(x),float(y))
+
+proc windowToLocal*(window: IntPoint2d): IntPoint2d =
+  ## converts window coords to local coords
+  echo window
+  var x = window.x - screenPaddingX * 2
+  var y = window.y - screenPaddingY * 2
+  x = x div screenScale
+  y = y div screenScale
+  return intPoint2d(x, y)
 
 var mouseButtonState: int
 var mouseButtonPState: int
@@ -1171,7 +1184,11 @@ proc step() {.cdecl.} =
   var evt: Event
   zeroMem(addr(evt), sizeof(Event))
   while pollEvent(evt):
-    appHandleEvent(evt)
+    if eventFunc != nil:
+      if not eventFunc(evt):
+        appHandleEvent(evt)
+    else:
+      appHandleEvent(evt)
 
   next_time = getTicks()
   acc += float(next_time - current_time)/1000.0 * frameMult.float
@@ -1412,6 +1429,9 @@ proc setUpdateFunc*(update: (proc(dt:float))) =
 
 proc setKeyFunc*(key: (proc(key: KeyboardEventPtr, down: bool): bool)) =
   keyFunc = key
+
+proc setEventFunc*(ef: proc(event: Event): bool) =
+  eventFunc = ef
 
 proc setTextFunc*(text: (proc(text: string): bool)) =
   if text == nil:

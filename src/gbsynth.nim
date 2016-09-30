@@ -276,4 +276,4 @@ proc newGBSynth(): Machine =
   gbs.init()
   return gbs
 
-registerMachine("gb", newGBSynth)
+registerMachine("gb", newGBSynth, "generator")

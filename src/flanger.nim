@@ -75,6 +75,6 @@ proc newFlanger(): Machine =
   result = new(Flanger)
   result.init()
 
-registerMachine("flanger", newFlanger)
+registerMachine("flanger", newFlanger, "fx")
 
 

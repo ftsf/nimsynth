@@ -42,4 +42,4 @@ method release(self: Keyboard, note: int) =
     param.value = OffNote.float
     param.onchange(param.value, voice)
 
-registerMachine("keyboard", newKeyboard)
+registerMachine("keyboard", newKeyboard, "util")

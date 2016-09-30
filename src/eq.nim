@@ -101,7 +101,7 @@ proc newEQ(): Machine =
   eq.init()
   return eq
 
-method drawExtraInfo(self: EQ, x,y,w,h: int) =
+method drawExtraData(self: EQ, x,y,w,h: int) =
   # draw frequency response
   const resolution = 1024
 
@@ -150,4 +150,4 @@ method drawExtraInfo(self: EQ, x,y,w,h: int) =
         let y1 = response.getSubsample(i.float * (resolution.float / w.float))
         line(x + (i-1), h - y0, x + i, h - y1)
 
-registerMachine("eq", newEQ)
+registerMachine("eq", newEQ, "fx")

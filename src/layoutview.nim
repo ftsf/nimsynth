@@ -24,14 +24,14 @@ type LayoutView* = ref object of View
   connecting*: bool
   binding*: bool
   lastmv*: Point2d
-  menu*: Menu
   stolenInput*: Machine
   camera*: Point2d
+  panning: bool
 
 const arrowVerts = [
-  point2d(-5,-3),
-  point2d( 5, 0),
-  point2d(-5, 3)
+  point2d(-3,-3),
+  point2d( 3, 0),
+  point2d(-3, 3)
 ]
 
 proc newLayoutView*(): LayoutView =
@@ -39,16 +39,27 @@ proc newLayoutView*(): LayoutView =
   result.camera = point2d(-screenWidth.float / 2.0, -screenHeight.float / 2.0)
   result.currentMachine = nil
 
+import tables
+
 proc addMachineMenu(self: LayoutView, mv: Point2d, title: string, action: proc(mt: MachineType)): Menu =
   var menu = newMenu(mv, title)
-  menu.back = proc() =
-    self.menu = nil
-  for i in 0..machineTypes.high:
+  for cat, contents in pairs(machineTypesByCategory):
     (proc =
-      let mtype = machineTypes[i]
-      var item = newMenuItem(mtype.name, proc() =
-        action(mtype)
-      )
+      let cat = cat
+      let contents = contents
+      var item = newMenuItem(cat) do():
+        var menu = newMenu(mv, cat)
+        for mtype in contents:
+          (proc =
+            let mtype = mtype
+            var item = newMenuItem(mtype.name, proc() =
+              action(mtype)
+              popMenu()
+            )
+            menu.items.add(item)
+          )()
+        popMenu()
+        pushMenu(menu)
       menu.items.add(item)
     )()
   return menu
@@ -59,12 +70,12 @@ method draw*(self: LayoutView) =
   when true:
     setColor(1)
     line(0, screenHeight div 2, screenWidth, screenHeight div 2)
-    setColor(1)
     for x in 1..<sampleBuffer.len:
       if x > screenWidth:
         break
       let y0 = (sampleBuffer[x-1] * 64).int + screenHeight div 2
       let y1 = (sampleBuffer[x] * 64).int + screenHeight div 2
+      setColor(if abs(sampleBuffer[x-1]) > 1.0: 2 else: 1)
       line(x-1,y0,x,y1)
 
   setCamera(camera)
@@ -84,29 +95,35 @@ method draw*(self: LayoutView) =
       # TODO: find nearest points on AABBs
       # TODO: use nice bezier splines for connections
 
-      setColor(1)
+      setColor(if input.machine.mute or input.gain == 0.0: 1 else: 13)
       line(input.machine.pos, machine.pos)
       let mid = (input.machine.pos + machine.pos) / 2.0
       setColor(6)
       trifill(rotatedPoly(mid, arrowVerts, (machine.pos - input.machine.pos).angle))
-      setColor(1)
+      setColor(if input.machine.mute: 1 else: 13)
       poly(rotatedPoly(mid, arrowVerts, (machine.pos - input.machine.pos).angle))
 
       # if the user is adjusting the gain, draw the gain amount
       if adjustingInput == addr(input):
         setColor(7)
-        printShadowC(adjustingInput[].gain.formatFloat(ffDecimal, 2), mid.x.int, mid.y.int + 4)
+        printShadowC(adjustingInput[].gain.linearToDb.formatFloat(ffDecimal, 2) & " Db", mid.x.int, mid.y.int + 4)
 
     for i,binding in mpairs(machine.bindings):
       if not machine.hideBindings:
         if binding.machine != nil:
-          setColor(if machine == currentMachine: 4 else: 5)
+          setColor(if machine == currentMachine: 4 else: 2)
           line(binding.machine.pos, machine.pos)
+
+          let mid = (machine.pos + binding.machine.pos) / 2.0
           if machine == currentMachine:
-            let mid = (machine.pos + binding.machine.pos) / 2.0
             circfill(mid.x, mid.y, 4)
             setColor(0)
             printc($i,mid.x + 1,mid.y - 2)
+          else:
+            setColor(14)
+            trifill(rotatedPoly(mid, arrowVerts, (binding.machine.pos - machine.pos).angle))
+            setColor(2)
+            poly(rotatedPoly(mid, arrowVerts, (binding.machine.pos - machine.pos).angle))
 
   # draw boxes
   for machine in mitems(machines):
@@ -115,173 +132,88 @@ method draw*(self: LayoutView) =
       setColor(6)
       rect(machine.getAABB().expandAABB(2.0))
 
-  if menu != nil:
-    menu.draw()
-
-  spr(20, mv.x, mv.y)
-
   setCamera()
   setColor(1)
   if self.name != nil:
     print(self.name, 1, 1)
   printr("layout", screenWidth - 1, 1)
 
-method key*(self: LayoutView, key: KeyboardEventPtr, down: bool): bool =
-  if menu != nil:
-    if menu.key(key, down):
-      return true
 
-  let scancode = key.keysym.scancode
+method event*(self: LayoutView, event: Event): bool =
   let shift = (getModState() and KMOD_SHIFT) != 0
   let ctrl = (getModState() and KMOD_CTRL) != 0
 
-  if down:
-    case scancode:
-    of SDL_SCANCODE_S:
-      if down and ctrl:
-        # TODO: ask for filename
-        self.menu = newMenu(point2d(0,0), "save layout")
-        self.menu.back = proc() =
-          self.menu = nil
-        var te = newMenuItemText("name", if self.name == nil: "" else: self.name)
-        self.menu.items.add(te)
-        self.menu.items.add(newMenuItem("save") do():
-          self.name = te.value
-          if self.name in getLayouts():
-            self.menu = newMenu(point2d(0,0), "overwrite '" & self.name & "'?")
-            self.menu.back = proc() =
-              self.menu = nil
-            self.menu.items.add(newMenuItem("no") do():
-              self.menu = nil
-            )
-            self.menu.items.add(newMenuItem("yes") do():
-              saveLayout(self.name)
-              self.menu = nil
-            )
-          else:
-            saveLayout(self.name)
-            self.menu = nil
-        )
-    of SDL_SCANCODE_O:
-      if down and ctrl:
-        # TODO: show list of layout files
-        self.menu = newMenu(point2d(0,0), "select file to load")
-        self.menu.back = proc() =
-          self.menu = nil
-
-        for i,layout in getLayouts():
-          (proc() =
-            let layout = layout
-            self.menu.items.add(newMenuItem(layout) do():
-              loadLayout(layout)
-              if self.name == nil:
-                self.name = layout
-              self.menu = nil
-            )
-          )()
-    of SDL_SCANCODE_F2:
-      if currentMachine != nil:
-        currentView = currentMachine.getMachineView()
-        return true
-    of SDL_SCANCODE_HOME:
-        camera = point2d(-screenWidth.float / 2.0, -screenHeight.float / 2.0)
-        return true
-    of SDL_SCANCODE_INSERT:
-      if currentMachine != nil:
-        recordMachine = currentMachine
-      else:
-        recordMachine = nil
-    of SDL_SCANCODE_DELETE:
-      if currentMachine != nil and currentMachine != masterMachine:
-        currentMachine.delete()
-        currentMachine = nil
-        return true
-    else:
-      discard
-
-  return false
-
-method update*(self: LayoutView, dt: float) =
-  var mv = mouse() + camera
-
-  let ctrl = (getModState() and KMOD_CTRL) != 0
-
-  if menu != nil:
-    menu.handleMouse(mv)
-
   if stolenInput != nil:
-    stolenInput.layoutUpdate(self, dt)
+    var (handled,keep) = stolenInput.event(event)
+    if not keep:
+      stolenInput = nil
+    if handled:
+      return true
 
-  if mousebtn(2):
-    camera -= mv - lastmv
-    return
-
-  # left click to select and move machines
-  if mousebtnp(0):
-    for machine in mitems(machines):
-      if pointInAABB(mv, machine.getAABB()):
-        if machine.handleClick(mv):
-          stolenInput = machine
-          return
-        else:
+  case event.kind:
+  of MouseButtonDown:
+    let mv = intPoint2d(event.button.x, event.button.y) + camera
+    case event.button.button:
+    of 1:
+      # left click, check for machines under cursor
+      for machine in mitems(machines):
+        if pointInAABB(mv, machine.getAABB().expandAABB(2.0)):
           if ctrl and currentMachine != nil:
             swapMachines(currentMachine, machine)
-            return
           else:
+            # handle machines that steal input
+            if machine.handleClick(mv):
+              stolenInput = machine
+              return true
             currentMachine = machine
-            dragging = true
-            return
-        return
-    # check for adjusting input gain
-    for machine in mitems(machines):
-      for input in mitems(machine.inputs):
-        let mid = (input.machine.pos + machine.pos) / 2.0
-        if pointInAABB(mv, mid.getAABB(4.0)):
-          adjustingInput = addr(input)
-          relmouse(true)
-          return
-    # clicked on nothing
-    currentMachine = nil
+            if event.button.clicks == 2:
+              # switch to machineview
+              currentView = currentMachine.getMachineView()
+            else:
+              dragging = true
+          return true
+      # didn't click on a machine, maybe a gain control?
+      for machine in mitems(machines):
+        for input in mitems(machine.inputs):
+          let mid = (input.machine.pos + machine.pos) / 2.0
+          if pointInAABB(mv, mid.getAABB(4.0)):
+            adjustingInput = addr(input)
+            relmouse(true)
+            return true
+      # clicked on nothing
+      currentMachine = nil
+    of 2:
+      panning = true
+      discard captureMouse(true)
+      return true
+    of 3:
+      # right click
+      for machine in mitems(machines):
+        if pointInAABB(mv, machine.getAABB().expandAABB(2.0)):
+          currentMachine = machine
+          if currentMachine.nOutputs > 0:
+            connecting = true
+            binding = false
+          elif currentMachine.nBindings > 0:
+            binding = true
+            connecting = false
+          return true
 
-
-  if not mousebtn(0):
-    dragging = false
-    adjustingInput = nil
-    relmouse(false)
-
-  # right click drag to create connections, or delete them
-  if mousebtnp(1):
-    var targetMachine: Machine = nil
-    for machine in mitems(machines):
-      if pointInAABB(mv, machine.getAABB()):
-        currentMachine = machine
-        targetMachine = machine
-        if currentMachine.nOutputs > 0:
-          connecting = true
-          binding = false
-          return
-        if currentMachine.nBindings > 0:
-          binding = true
-          connecting = false
-          return
-        break
-    if targetMachine == nil:
       # they didn't right click on a machine, check other stuff
       # check if it was a connection midpoint
+
       for machine in mitems(machines):
         for i,input in machine.inputs:
           let mid = (input.machine.pos + machine.pos) / 2.0
           var machine = machine
           if pointInAABB(mv, mid.getAABB(4.0)):
-            self.menu = newMenu(mv, "connection")
-            self.menu.back = proc() =
-              self.menu = nil
-            self.menu.items.add(newMenuItem("disconnect", proc() =
+            var menu = newMenu(mv + -camera, "connection")
+            menu.items.add(newMenuItem("disconnect", proc() =
               disconnectMachines(input.machine, machine)
-              self.menu = nil
+              popMenu()
             ))
-            self.menu.items.add(newMenuItem("insert", proc() =
-              self.menu = self.addMachineMenu(self.menu.pos, "insert machine") do(mtype: MachineType):
+            menu.items.add(newMenuItem("insert", proc() =
+              pushMenu(self.addMachineMenu(menu.pos, "insert machine") do(mtype: MachineType):
                 # TODO: make sure it can be inserted here
                 var m = mtype.factory()
                 echo "inserting ", mtype.name
@@ -300,8 +232,11 @@ method update*(self: LayoutView, dt: float) =
                   echo "failed to connect: ", m.name, " and ", input.machine.name
                   discard machines.pop()
                 pauseAudio(0)
-                self.menu = nil
+                popMenu()
+                popMenu()
+              )
             ))
+            pushMenu(menu)
             return
 
         if not machine.hideBindings:
@@ -312,152 +247,195 @@ method update*(self: LayoutView, dt: float) =
                 # show all bindings between the two machines
                 var sourceMachine = machine
                 var targetMachine = binding.machine
-                self.menu = newMenu(mv, "remove bindings")
-                self.menu.back = proc() =
-                  self.menu = nil
+                var menu = newMenu(mv + -camera, "remove bindings")
                 for slot,binding in sourceMachine.bindings:
                   (proc() =
                     let slot = slot
                     if binding.machine == targetMachine:
                       var (voice, param) = binding.getParameter()
-                      self.menu.items.add(newMenuItem($slot & ": " & param.name, proc() =
+                      menu.items.add(newMenuItem($slot & " -> " & param.name, proc() =
                         removeBinding(sourceMachine, slot)
-                        self.menu = nil
+                        popMenu()
                       ))
                   )()
+                pushMenu(menu)
                 return
-      # open new machine menu
-      self.menu = addMachineMenu(mv, "add machine") do(mtype: MachineType):
+
+      pushMenu(self.addMachineMenu(mv + -camera, "add machine") do(mtype: MachineType):
         var m = mtype.factory()
         m.pos = mv
         pauseAudio(1)
         machines.add(m)
         self.currentMachine = m
         pauseAudio(0)
-        self.menu = nil
-      return
+        popMenu()
+      )
+      return true
+    else:
+      discard
 
-  if not mousebtn(1) and (connecting or binding) and currentMachine != nil:
-    # release right click drag, attempt to create connection
-    # check if a connection was made
-    var sourceMachine = currentMachine
+  of MouseMotion:
+    let mv = intPoint2d(event.motion.x, event.motion.y) + camera
+    if adjustingInput != nil:
+      let shift = (getModState() and KMOD_SHIFT) != 0
+      let move = if ctrl: 0.1 elif shift: 0.001 else: 0.01
+      #adjustingInput[].gain = clamp(adjustingInput[].gain + (lastmv.y - mv.y) * move, 0.0, 10.0)
+      let gain = adjustingInput[].gain
+      adjustingInput[].gain = clamp(adjustingInput[].gain + (lastmv.y - mv.y) * move, 0.0, 10.0)
+      lastmv = mv
+      return true
+    if dragging:
+      currentMachine.pos += mv - lastmv
+      lastmv = mv
+      return true
+    if panning:
+      camera -= (mv - lastmv)
+      return true
+    lastmv = mv
+    return true
 
-    for machine in mitems(machines):
-      if pointInAABB(mv, machine.getAABB()):
-        if machine == sourceMachine:
-          self.menu = newMenu(mv, "machine")
-          self.menu.back = proc() =
-            self.menu = nil
-          var machine = machine
-          self.menu.items.add(newMenuItem("rename", proc() =
-            self.menu = newMenu(mv, "rename")
-            self.menu.back = proc() =
-              self.menu = nil
-            var te = newMenuItemText("name", machine.name)
-            self.menu.items.add(te)
-            self.menu.items.add(newMenuItem("rename") do():
-              machine.name = te.value
-              self.menu = nil
-            )
-          ))
-          self.menu.items.add(newMenuItem("show bindings", proc() =
-            sourceMachine.hideBindings = not sourceMachine.hideBindings
-            self.menu = nil
-          ))
-          self.menu.items.add(newMenuItem("delete", proc() =
-            sourceMachine.delete()
-            self.menu = nil
-          ))
-          discard
-        else:
-          var targetMachine = machine
-          if binding:
-            # open binding menu
-            # if source machine has multiple bindings, select which one
-            if sourceMachine.nBindings > 1:
-              self.menu = newMenu(mv, "select slot")
-              self.menu.back = proc() =
-                self.menu = nil
-              for i in 0..sourceMachine.nBindings-1:
-                (proc() =
-                  let slotId = i
-                  var binding = addr(sourceMachine.bindings[slotId])
-                  var str: string
-                  if binding.machine != nil:
-                    var (voice, param) = binding.machine.getParameter(binding.param)
-                    str = binding.machine.name & ": " & (if voice >= 0: ($voice & ": ") else: "") & param.name
-                  else:
-                    str = " - "
+  of MouseButtonUp:
+    let mv = intPoint2d(event.button.x, event.button.y) + camera
+    case event.button.button:
+    of 1:
+      dragging = false
+      adjustingInput = nil
+      relmouse(false)
+      return true
+    of 2:
+      panning = false
+      relmouse(false)
+      discard captureMouse(false)
+      return true
+    of 3:
+      relmouse(false)
+      if currentMachine != nil and pointInAABB(mv, currentMachine.getAABB.expandAABB(2)):
+        # open machine context menu
+        pushMenu(currentMachine.getMenu(mv + -camera))
+        connecting = false
+        binding = false
+        return true
+      elif currentMachine != nil and connecting:
+        # if there's a machine under cursor, connect them
+        for machine in mitems(machines):
+          if pointInAABB(mv, machine.getAABB):
+            if machine != currentMachine:
+              var targetMachine = machine
+              var sourceMachine = currentMachine
+              var selectedOutput = 0
+              var selectedInput = 0
 
-                  self.menu.items.add(
-                    newMenuItem($(slotId+1) & ": " & str) do():
-                      self.menu = targetMachine.getParameterMenu(mv, "select param") do(paramId: int):
-                        sourceMachine.createBinding(slotId, targetMachine, paramId)
-                        self.menu = nil
-                  )
-                )()
-            else:
-              var binding = addr(sourceMachine.bindings[0])
-              self.menu = targetMachine.getParameterMenu(mv, "select param") do(paramId: int):
-                sourceMachine.createBinding(0, targetMachine, paramId)
-                self.menu = nil
-          elif connecting:
-            # connecting machines
-            if sourceMachine.nOutputs == 1 and targetMachine.nInputs == 1:
-              discard connectMachines(sourceMachine, targetMachine)
-            else:
               if sourceMachine.nOutputs > 1:
-                # open output select menu
-                self.menu = newMenu(mv, "select output")
-                self.menu.back = proc() =
-                  self.menu = nil
-                self.menu.back = proc() =
-                  self.menu = nil
-                for i in 0..sourceMachine.nOutputs-1:
-                  (proc() =
-                    let outputId = i
-                    self.menu.items.add(newMenuItem($(outputId + 1) & ": " & sourceMachine.getOutputName(outputId) ) do():
-                      if targetMachine.nInputs > 1:
-                        # open input select menu
-                        self.menu = newMenu(mv, "select input")
-                        self.menu.back = proc() =
-                          self.menu = nil
-                        for j in 0..targetMachine.nInputs-1:
-                          (proc() =
-                            let inputId = j
-                            self.menu.items.add(newMenuItem($(inputId + 1) & ": " & targetMachine.getInputName(inputId)) do():
-                              discard connectMachines(sourceMachine, targetMachine, 1.0, inputId, outputId)
-                              self.menu = nil
-                            )
-                          )()
-                      else:
-                        discard connectMachines(sourceMachine, targetMachine, 1.0, 0, outputId)
-                        self.menu = nil
-                    )
-                  )()
+                pushMenu(sourceMachine.getOutputMenu(mv + -camera) do(outputId: int):
+                  selectedOutput = outputId
+                  popMenu()
+                  pushMenu(targetMachine.getInputMenu(mv + -self.camera) do(inputId: int):
+                    selectedInput = inputId
+                    discard connectMachines(sourceMachine, targetMachine, 1.0, selectedInput, selectedOutput)
+                    popMenu()
+                  )
+                )
+              elif targetMachine.nInputs > 1:
+                pushMenu(targetMachine.getInputMenu(mv + -camera) do(inputId: int):
+                  selectedInput = inputId
+                  discard connectMachines(sourceMachine, targetMachine, 1.0, selectedInput, selectedOutput)
+                  popMenu()
+                )
               else:
-                # open input select menu
-                self.menu = newMenu(mv, "select input")
-                self.menu.back = proc() =
-                  self.menu = nil
-                for j in 0..targetMachine.nInputs-1:
-                  (proc() =
-                    let inputId = j
-                    self.menu.items.add(newMenuItem($(inputId + 1) & ": " & targetMachine.getInputName(inputId)) do():
-                      discard connectMachines(sourceMachine, targetMachine, 1.0, inputId, 0)
-                      self.menu = nil
-                    )
-                  )()
-    connecting = false
-    binding = false
+                discard connectMachines(sourceMachine, targetMachine, 1.0, selectedInput, selectedOutput)
+        connecting = false
+      elif currentMachine != nil and binding:
+        for machine in mitems(machines):
+          if pointInAABB(mv, machine.getAABB):
+            if machine != currentMachine:
+              var target = machine
+              var source = currentMachine
+              if source.nBindings > 1:
+                pushMenu(currentMachine.getSlotMenu(mv + -camera) do(slotId: int):
+                  popMenu()
+                  pushMenu(target.getParameterMenu(mv + -self.camera, "select param") do(paramId: int):
+                    createBinding(source, slotId, target, paramId)
+                    popMenu()
+                  )
+                )
+              else:
+                pushMenu(machine.getParameterMenu(mv + -camera, "select param") do(paramId: int):
+                  createBinding(source, 0, target, paramId)
+                  popMenu()
+                )
+        binding = false
 
-  if adjustingInput != nil:
-    let shift = (getModState() and KMOD_SHIFT) != 0
-    let move = if ctrl: 0.1 elif shift: 0.001 else: 0.01
-    adjustingInput[].gain = clamp(adjustingInput[].gain + (lastmv.y - mv.y) * move, 0.0, 10.0)
-  elif dragging and currentMachine != nil:
-    currentMachine.pos += (mv - lastmv)
-  elif dragging and currentMachine != nil:
-    currentMachine.pos += (mv - lastmv)
+      return true
+    else:
+      discard
 
-  lastmv = mv
+  of KeyDown, KeyUp:
+    let scancode = event.key.keysym.scancode
+    let down = event.kind == KeyDown
+
+    if down:
+      case scancode:
+      of SDL_SCANCODE_S:
+        if down and ctrl:
+          # TODO: ask for filename
+          var menu = newMenu(point2d(0,0), "save layout")
+          var te = newMenuItemText("name", if self.name == nil: "" else: self.name)
+          menu.items.add(te)
+          menu.items.add(newMenuItem("save") do():
+            self.name = te.value
+            if self.name in getLayouts():
+              var menu = newMenu(point2d(0,0), "overwrite '" & self.name & "'?")
+              menu.items.add(newMenuItem("no") do():
+                popMenu()
+                popMenu()
+              )
+              menu.items.add(newMenuItem("yes") do():
+                saveLayout(self.name)
+                popMenu()
+                popMenu()
+              )
+              pushMenu(menu)
+            else:
+              saveLayout(self.name)
+              popMenu()
+          )
+          pushMenu(menu)
+      of SDL_SCANCODE_O:
+        if down and ctrl:
+          # TODO: show list of layout files
+          var menu = newMenu(point2d(0,0), "select file to load")
+
+          for i,layout in getLayouts():
+            (proc() =
+              let layout = layout
+              menu.items.add(newMenuItem(layout) do():
+                loadLayout(layout)
+                if self.name == nil:
+                  self.name = layout
+                popMenu()
+              )
+            )()
+          pushMenu(menu)
+      of SDL_SCANCODE_F2:
+        if currentMachine != nil:
+          currentView = currentMachine.getMachineView()
+          return true
+      of SDL_SCANCODE_HOME:
+          camera = point2d(-screenWidth.float / 2.0, -screenHeight.float / 2.0)
+          return true
+      of SDL_SCANCODE_INSERT:
+        if currentMachine != nil:
+          recordMachine = currentMachine
+        else:
+          recordMachine = nil
+      of SDL_SCANCODE_DELETE:
+        if currentMachine != nil and currentMachine != masterMachine:
+          currentMachine.delete()
+          currentMachine = nil
+          return true
+      else:
+        discard
+  else:
+    discard
+
+  return false

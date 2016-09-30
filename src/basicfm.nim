@@ -51,6 +51,7 @@ type
   BasicFMSynthVoice = ref object of Voice
     pitch: float
     note: int
+    velocity: float
     operators: array[nOperators, BasicFMSynthOperator]
     pitchEnv: Envelope
     pitchEnvMod: float
@@ -75,13 +76,16 @@ method init(self: BasicFMSynthVoice, machine: BasicFMSynth) =
 
   for operator in mitems(operators):
     operator.osc.kind = Sin
+    operator.env.init()
     operator.env.d = 1.0
+
+  pitchEnv.init()
 
 method addVoice*(self: BasicFMSynth) =
   pauseAudio(1)
   var voice = new(BasicFMSynthVoice)
-  voice.init(self)
   voices.add(voice)
+  voice.init(self)
   pauseAudio(0)
 
 proc initNote(self: BasicFMSynth, voiceId: int, note: int) =
@@ -104,7 +108,7 @@ proc initNote(self: BasicFMSynth, voiceId: int, note: int) =
       voice.operators[i].env.d = self.envSettings[i].d
       voice.operators[i].env.s = self.envSettings[i].s
       voice.operators[i].env.r = self.envSettings[i].r
-      voice.operators[i].env.trigger()
+      voice.operators[i].env.trigger(voice.velocity)
 
 method init(self: BasicFMSynth) =
   procCall init(Machine(self))
@@ -153,7 +157,7 @@ method init(self: BasicFMSynth) =
         Parameter(name: $(opId+1) & ":AMP", kind: Float, min: 0.0, max: 1.0, default: if opId == 0: 1.0 else: 0.0, onchange: proc(newValue: float, voice: int) =
           self.amps[opId] = newValue
         ),
-        Parameter(name: $(opId+1) & ":FIXED", kind: Int, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":FIXED", kind: Bool, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
           self.fixed[opId] = newValue.bool
         ),
         Parameter(name: $(opId+1) & ":OCT", kind: Int, min: -8.0, max: 8.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
@@ -184,14 +188,13 @@ method init(self: BasicFMSynth) =
     )()
 
   self.voiceParams.add([
-    Parameter(name: "note", kind: Note, min: 0.0, max: 255.0, default: OffNote, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "note", kind: Note, deferred: true, min: OffNote, max: 255.0, default: OffNote, onchange: proc(newValue: float, voice: int) =
       self.initNote(voice, newValue.int)
-    , getValueString: proc(value: float, voice: int): string =
-      if value == OffNote:
-        return "Off"
-      else:
-        return noteToNoteName(value.int)
-    )
+    ),
+    Parameter(name: "vel", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+      var v = BasicFMSynthVoice(self.voices[voice])
+      v.velocity = newValue
+    ),
   ])
 
   setDefaults()
@@ -222,7 +225,7 @@ proc newBasicFMSynth(): Machine =
 
 import pico
 
-method drawExtraInfo(self: BasicFMSynth, x,y,w,h: int) =
+method drawExtraData(self: BasicFMSynth, x,y,w,h: int) =
   # draw algorithm layout
   let algorithm = algorithms[algorithm]
 
@@ -278,4 +281,4 @@ method drawExtraInfo(self: BasicFMSynth, x,y,w,h: int) =
 
 
 
-registerMachine("BASICfm", newBasicFMSynth)
+registerMachine("BASICfm", newBasicFMSynth, "generator")

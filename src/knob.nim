@@ -87,28 +87,35 @@ method handleClick(self: Knob, mouse: Point2d): bool =
     return true
   return false
 
-method layoutUpdate(self: Knob, layout: View, dt: float) =
-  if not mousebtn(0):
-    LayoutView(layout).stolenInput = nil
-    relmouse(false)
-    held = false
+method event(self: Knob, event: Event): (bool, bool) =
+  case event.kind:
+  of MouseButtonUp:
+    if event.button.button == 1:
+      relmouse(false)
+      held = false
+      return (true,false)
 
-  elif bindings[0].machine != nil:
+  of MouseButtonDown:
     held = true
-    let mv = mouse()
+    return (true,true)
 
-    var (voice,param) = bindings[0].machine.getParameter(bindings[0].param)
-    let shift = (getModState() and KMOD_SHIFT) != 0
-    let ctrl = (getModState() and KMOD_CTRL) != 0
-    let move = if ctrl: 0.1 elif shift: 0.001 else: 0.01
+  of MouseMotion:
+    if bindings[0].machine != nil:
+      var (voice,param) = bindings[0].machine.getParameter(bindings[0].param)
+      let shift = (getModState() and KMOD_SHIFT) != 0
+      let ctrl = (getModState() and KMOD_CTRL) != 0
+      let move = if ctrl: 0.1 elif shift: 0.001 else: 0.01
 
-    let min = lerp(param.min,param.max,min)
-    let max = lerp(param.min,param.max,max)
-    param.value -= (mv.y - lastmv.y) * move * (max - min)
-    param.value = clamp(param.value, min, max)
-    param.onchange(param.value, voice)
+      let min = lerp(param.min,param.max,min)
+      let max = lerp(param.min,param.max,max)
+      param.value -= event.motion.yrel.float * move * (max - min)
+      param.value = clamp(param.value, min, max)
+      param.onchange(param.value, voice)
+      return (true,true)
+  else:
+    discard
 
-    lastmv = mv
+  return (false,true)
 
 method process(self: Knob) =
   if bindings[0].machine != nil and not held:
@@ -125,4 +132,4 @@ proc newKnob(): Machine =
   knob.init()
   return knob
 
-registerMachine("knob", newKnob)
+registerMachine("knob", newKnob, "util")

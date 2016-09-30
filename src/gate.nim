@@ -65,4 +65,4 @@ proc newGate(): Machine =
   gate.init()
   return gate
 
-registerMachine("gate", newGate)
+registerMachine("gate", newGate, "fx")

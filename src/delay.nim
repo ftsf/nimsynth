@@ -122,7 +122,7 @@ proc newDelayMachine(): Machine =
   result = new(DelayMachine)
   result.init()
 
-registerMachine("delay", newDelayMachine)
+registerMachine("delay", newDelayMachine, "fx")
 
 method init(self: SDelayMachine) =
   procCall init(Machine(self))
@@ -174,7 +174,7 @@ proc newSDelayMachine(): Machine =
   result = new(SDelayMachine)
   result.init()
 
-registerMachine("sdelay", newSDelayMachine)
+registerMachine("sdelay", newSDelayMachine, "fx")
 
 proc setDelayLen(self: PingPongDelayMachine) =
   if self.bpmSync:
@@ -199,7 +199,7 @@ method init(self: PingPongDelayMachine) =
       self.setDelayLen()
     , getValueString: proc(value: float, voice: int): string =
       if self.bpmSync:
-        return $(value * 16.0).int & "/16 b"
+        return getFractionStr((value * 16.0).int, 16)
       else:
         return $value.formatFloat(ffDecimal, 3) & " s"
     ),
@@ -208,11 +208,11 @@ method init(self: PingPongDelayMachine) =
       self.setDelayLen()
     , getValueString: proc(value: float, voice: int): string =
       if self.bpmSync:
-        return $(value * 16.0).int & "/16 b"
+        return getFractionStr((value * 16.0).int, 16)
       else:
         return $value.formatFloat(ffDecimal, 3) & " s"
     ),
-    Parameter(name: "bpmsync", kind: Int, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "bpmsync", kind: Bool, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.bpmSync = newValue.bool
       self.setDelayLen()
     ),
@@ -253,7 +253,7 @@ proc newPingPongDelayMachine(): Machine =
   result = new(PingPongDelayMachine)
   result.init()
 
-registerMachine("ppdelay", newPingPongDelayMachine)
+registerMachine("ppdelay", newPingPongDelayMachine, "fx")
 
 proc reset(self: Chorus) =
   for i,delay in mpairs(delayLs):
@@ -316,4 +316,4 @@ proc newChorus(): Machine =
   result = new(Chorus)
   result.init()
 
-registerMachine("chorus", newChorus)
+registerMachine("chorus", newChorus, "fx")

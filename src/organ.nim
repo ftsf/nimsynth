@@ -59,8 +59,8 @@ method init(self: OrganVoice, machine: Organ) =
 method addVoice*(self: Organ) =
   pauseAudio(1)
   var voice = new(OrganVoice)
-  voice.init(self)
   voices.add(voice)
+  voice.init(self)
   pauseAudio(0)
 
 proc initNote(self: Organ, voiceId: int, note: int) =
@@ -149,4 +149,4 @@ proc newOrgan(): Machine =
   organ.init()
   return organ
 
-registerMachine("organ", newOrgan)
+registerMachine("organ", newOrgan, "generator")

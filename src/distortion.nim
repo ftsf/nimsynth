@@ -71,4 +71,4 @@ proc newDistortionMachine(): Machine =
   result = new(DistortionMachine)
   result.init()
 
-registerMachine("distortion", newDistortionMachine)
+registerMachine("distortion", newDistortionMachine, "fx")

@@ -1,4 +1,5 @@
 const sampleRate* = 48000.0
+const nyquist* = sampleRate / 2.0
 const invSampleRate* = 1.0/sampleRate
 
 import sdl2
@@ -6,6 +7,7 @@ import sdl2.audio
 import math
 import basic2d
 import strutils
+import math
 
 export sdl2
 
@@ -41,6 +43,8 @@ type
     default*: float
     onchange*: proc(newValue: float, voice: int = -1)
     getValueString*: proc(value: float, voice: int = -1): string
+    deferred*: bool # deferred attributes get changed by a sequencer last
+    separator*: bool # put a space above it
   Input* = object of RootObj
     machine*: Machine
     output*: int  # which output to read
@@ -64,6 +68,8 @@ type
     stereo*: bool
     outputSampleId*: int  # updated externally each sample, maybe this could be a global
     outputSamples*: seq[float32]
+    mute*: bool
+    bypass*: bool
   View* = ref object of RootObj
     discard
   Knob* = ref object of RootObj
@@ -72,8 +78,6 @@ type
     paramId*: int
 
 var machines*: seq[Machine]
-var knobs*: seq[Knob]
-
 var currentView*: View
 var vLayoutView*: View
 var masterMachine*: Machine
@@ -92,7 +96,12 @@ method init*(self: Machine) {.base.} =
 method init*(self: Voice, machine: Machine) {.base.} =
   parameters = newSeq[Parameter]()
   for p in machine.voiceParams:
-    parameters.add(p)
+    var newP = p
+    parameters.add(newP)
+
+  for p in mitems(self.parameters):
+    p.value = p.default
+    p.onchange(p.value, machine.voices.high)
 
 method rename*(self: Machine, newName: string) {.base.} =
   self.name = newName
@@ -100,8 +109,8 @@ method rename*(self: Machine, newName: string) {.base.} =
 method addVoice*(self: Machine) {.base.} =
   pauseAudio(1)
   var voice = new(Voice)
-  voice.init(self)
   self.voices.add(voice)
+  voice.init(self)
   pauseAudio(0)
 
 method setDefaults*(self: Machine) {.base.} =
@@ -159,7 +168,7 @@ proc hasCycle[T](G: seq[T]): bool =
   return false
 
 proc connectMachines*(source, dest: Machine, gain: float = 1.0, inputId: int = 0, outputId: int = 0): bool =
-  echo "connect: ", source.name, " -> ", dest.name
+  echo "connecting: ", source.name, ": ", outputId, " -> ", dest.name, ": ", inputId
   # check dest accepts inputs
   if dest.nInputs == 0:
     echo dest.name, " does not have any inputs"
@@ -244,14 +253,32 @@ type MachineType* = tuple[name: string, factory: proc(): Machine]
 
 var machineTypes* = newSeq[MachineType]()
 
-proc registerMachine*(name: string, factory: proc(): Machine) =
-  machineTypes.add((name: name, factory: proc(): Machine =
+import tables
+
+type MachineCategory = Table[string, seq[MachineType]]
+
+var machineTypesByCategory* = initTable[string, seq[MachineType]]()
+
+proc registerMachine*(name: string, factory: proc(): Machine, category: string = "na") =
+
+  var mCreator = proc(): Machine =
     var m = factory()
     m.className = name
     return m
-  ))
+
+  machineTypes.add((name: name, factory: mCreator))
+
+  if not machineTypesByCategory.hasKey(category):
+    machineTypesByCategory.add(category, newSeq[MachineType]())
+  machineTypesByCategory[category].add((name: name, factory: mCreator))
+
+proc getInput*(self: Machine, inputId: int = 0): float32
 
 proc getSample*(self: Input): float32 =
+  if machine.mute:
+    return 0.0
+  elif machine.bypass:
+    return machine.getInput() * gain
   return machine.outputSamples[output] * gain
 
 proc getInput*(self: Machine, inputId: int = 0): float32 =
@@ -276,7 +303,7 @@ method getInputName*(self: Machine, inputId: int = 0): string {.base.} =
 
 method getParameterCount*(self: Machine): int {.base.} =
   # TODO: add support for input gain params
-  return self.globalParams.len + self.voiceParams.len * self.voices.len
+  return self.globalParams.len + (self.voiceParams.len * self.voices.len)
 
 method getParameter*(self: Machine, paramId: int): (int, ptr Parameter) {.base.} =
   let voice = if paramId <= globalParams.high: -1 else: (paramId - globalParams.len) div voiceParams.len
@@ -487,6 +514,9 @@ proc loadLayout*(name: string) =
   fp.load(l)
   fp.close()
 
+  # first clear out layout
+  machines.setLen(1)
+
   var machineMap = newSeq[Machine]()
 
   for i, machine in l.machines:
@@ -549,11 +579,17 @@ method update*(self: View, dt: float) {.base.} =
 method draw*(self: View) {.base.} =
   discard
 
-method drawExtraInfo*(self: Machine, x,y,w,h: int) {.base.} =
+method drawExtraData*(self: Machine, x,y,w,h: int) {.base.} =
   discard
 
-method key*(self: View, key: KeyboardEventPtr, down: bool): bool {.base.} =
+method updateExtraData*(self: Machine, x,y,w,h: int) {.base.} =
+  discard
+
+method event*(self: View, event: Event): bool {.base.} =
   return false
+
+method event*(self: Machine, event: Event): (bool, bool) {.base.} =
+  return (false, false)
 
 const OffNote* = -2
 const Blank* = -1
@@ -625,6 +661,12 @@ proc keyToNote*(key: KeyboardEventPtr): int =
 proc noteToHz*(note: float): float =
   return pow(2.0,((note - 69.0) / 12.0)) * 440.0
 
+proc hzToSampleRateFraction*(hz: float): float =
+  return hz / sampleRate
+
+proc sampleRateFractionToHz*(srf: float): float =
+  return sampleRate * srf
+
 proc hzToNote*(hz: float): float =
   if hz == 0.0:
     return 0
@@ -668,6 +710,17 @@ proc noteToNoteName*(note: int): string =
 proc hzToNoteName*(hz: float): string =
   return noteToNoteName(hzToNote(hz).int)
 
+proc dbToLinear*(db: float): float =
+  if db == 0.0:
+    return 1.0
+  else:
+    return pow(10.0, db / 20.0)
+
+proc linearToDb*(linear: float): float =
+  if linear == 0:
+    return -Inf
+  return 10.0 * log10(linear)
+
 proc valueString*(self: Parameter, value: float): string =
   if self.getValueString != nil:
     return self.getValueString(value, -1)
@@ -682,4 +735,4 @@ proc valueString*(self: Parameter, value: float): string =
     of Bool:
       return (if value.bool: "on" else: "off")
     of Float:
-      return value.formatFloat(ffDecimal, 2)
+      return value.formatFloat(ffDecimal, 4)

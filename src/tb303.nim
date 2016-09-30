@@ -54,6 +54,8 @@ method init(self: TB303) =
 
 
   filter.init()
+  envAmp.init()
+  envFlt.init()
 
   self.globalParams.add([
     Parameter(name: "note", kind: Note, min: 0.0, max: 255.0, default: OffNote, onchange: proc(newValue: float, voice: int) =
@@ -114,4 +116,4 @@ proc newTB303(): Machine =
   my303.init()
   return my303
 
-registerMachine("303", newTB303)
+registerMachine("303", newTB303, "generator")

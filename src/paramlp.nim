@@ -62,4 +62,4 @@ proc newParamLP(): Machine =
   return m
 
 
-registerMachine("PARAMlp", newParamLP)
+registerMachine("PARAMlp", newParamLP, "util")

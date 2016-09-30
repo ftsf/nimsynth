@@ -106,7 +106,7 @@ proc newCompressor(): Machine =
   comp.init()
   return comp
 
-method drawExtraInfo(self: Compressor, x,y,w,h: int) =
+method drawExtraData(self: Compressor, x,y,w,h: int) =
   var yv = y
   setColor(11)
   rectfill(x, yv, x + (w-1).float * abs(inputSample), yv + 4)
@@ -138,4 +138,4 @@ method getInputName(self: Compressor, inputId: int): string =
     return "sidechain"
 
 
-registerMachine("compressor", newCompressor)
+registerMachine("compressor", newCompressor, "fx")

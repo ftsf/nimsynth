@@ -114,5 +114,4 @@ proc newButton(): Machine =
   button.init()
   return button
 
-registerMachine("button", newButton)
-
+registerMachine("button", newButton, "util")

@@ -17,8 +17,8 @@ method init(self: ProbPickVoice, machine: Machine) =
 
 method addVoice(self: ProbPick) =
   var voice = new(ProbPickVoice)
-  voice.init(self)
   voices.add(voice)
+  voice.init(self)
 
 method init(self: ProbPick) =
   procCall init(Machine(self))
@@ -66,14 +66,8 @@ method createBinding*(self: ProbPick, slot: int, target: Machine, paramId: int) 
 
   # match input to be the same as the target param
   var (voice,param) = target.getParameter(paramId)
-  var inputParam = globalParams[1].addr
-  inputParam.kind = param.kind
-  inputParam.min = param.min
-  inputParam.max = param.max
-  inputParam.default = param.default
-  inputParam.getValueString = param.getValueString
 
-  inputParam = voiceParams[0].addr
+  var inputParam = voiceParams[0].addr
   inputParam.kind = param.kind
   inputParam.min = param.min
   inputParam.max = param.max
@@ -94,4 +88,4 @@ proc newProbPick(): Machine =
   return pp
 
 
-registerMachine("probpick", newProbPick)
+registerMachine("probpick", newProbPick, "util")

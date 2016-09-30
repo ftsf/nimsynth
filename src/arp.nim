@@ -112,7 +112,7 @@ method process(self: Arp) =
         param.value = (note + intervals[j mod intervals.len] + oct * 12).float
         param.onchange(param.value, voice)
 
-method drawExtraInfo(self: Arp, x,y,w,h: int) =
+method drawExtraData(self: Arp, x,y,w,h: int) =
   let intervals = chords[chord][1]
   var yv = y
   for i in 0..nNotes-1:
@@ -137,4 +137,4 @@ proc newArp(): Machine =
   arp.init()
   return arp
 
-registerMachine("arp", newArp)
+registerMachine("arp", newArp, "util")

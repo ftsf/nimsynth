@@ -9,7 +9,7 @@ import basemachine
 
 type
   LFO = ref object of Machine
-    osc: Osc
+    osc: LFOOsc
     min,max: float
     freq: float
     bpmSync: bool
@@ -41,12 +41,14 @@ method init(self: LFO) =
       self.setFreq()
     , getValueString: proc(value: float, voice: int): string =
       if self.bpmSync:
-        return $(value * 16.0).int & "/16 b"
+        return getFractionStr((value * 16.0).int, 16)
       else:
         return $value.formatFloat(ffDecimal, 2) & " hZ"
     ),
     Parameter(name: "shape", kind: Int, min: OscKind.low.float, max: OscKind.high.float, default: Sin.float, onchange: proc(newValue: float, voice: int) =
       self.osc.kind = newValue.OscKind
+    , getValueString: proc(value: float, voice: int): string =
+      return $value.OscKind
     ),
     Parameter(name: "min", kind: Float, min: 0.0, max: 1.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
       self.min = newValue
@@ -54,10 +56,7 @@ method init(self: LFO) =
       var binding = self.bindings[0]
       if binding.machine != nil:
         var (voice, param) = binding.machine.getParameter(binding.param)
-        if param.getValueString != nil:
-          return param.getValueString(value, voice)
-        else:
-          return value.formatFloat(ffDecimal, 2)
+        return param[].valueString(lerp(param.min, param.max, value))
       else:
         return value.formatFloat(ffDecimal, 2)
     ),
@@ -67,14 +66,11 @@ method init(self: LFO) =
       var binding = self.bindings[0]
       if binding.machine != nil:
         var (voice, param) = binding.machine.getParameter(binding.param)
-        if param.getValueString != nil:
-          return param.getValueString(value, voice)
-        else:
-          return value.formatFloat(ffDecimal, 2)
+        return param[].valueString(lerp(param.min, param.max, value))
       else:
         return value.formatFloat(ffDecimal, 2)
     ),
-    Parameter(name: "sync", kind: Int, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "bpmsync", kind: Bool, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.bpmSync = newValue.bool
       self.setFreq()
     ),
@@ -90,7 +86,7 @@ method process(self: LFO) {.inline.} =
   for binding in bindings:
     if binding.machine != nil:
       var (voice, param) = binding.machine.getParameter(binding.param)
-      param.value = lerp(param.min, param.max, lerp(min, max, oscVal + 1.0) / 2.0)
+      param.value = lerp(param.min, param.max, lerp(min, max, invLerp(-1.0, 1.0, oscVal)))
       param.onchange(param.value, voice)
 
   globalParams[5].value = osc.phase
@@ -124,7 +120,7 @@ method drawBox*(self: LFO) =
     else:
       setColor(1)
     let val = osc.peek(osc.phase + ((i.float / 30.float) * TAU))
-    pset(pos.x + i, pos.y + 8 - (lerp(min, max, val) * 4.0))
+    pset(pos.x + i, pos.y + 9 - val * 4.0)
 
 
 method createBinding(self: LFO, slot: int, target: Machine, paramId: int) =
@@ -138,7 +134,7 @@ proc newLFO(): Machine =
   lfo.init()
   return lfo
 
-method drawExtraInfo(self: LFO, x,y,w,h: int) =
+method drawExtraData(self: LFO, x,y,w,h: int) =
   var y = y
   setColor(4)
   for binding in bindings:
@@ -152,4 +148,4 @@ method drawExtraInfo(self: LFO, x,y,w,h: int) =
   setColor(6)
   printr(osc.freq.formatFloat(ffDecimal, 2), x + w, y)
 
-registerMachine("lfo", newLFO)
+registerMachine("lfo", newLFO, "util")

@@ -74,6 +74,7 @@ proc lerp*[T](a, b: T, t: float): T {.inline.} =
   return a + (b - a) * t
 
 proc invLerp*[T](a, b: T, t: T): float {.inline.} =
+  assert(b!=a)
   return (t - a) / (b - a)
 
 proc trifill*(tri: Triangle | Polygon) =
@@ -409,6 +410,12 @@ proc wrapAngleTAU*(angle: float): float =
 proc getSubsample*[T](a: openarray[T], s: float): T =
   let alpha = s mod 1.0
   return lerp(a[s.int], if s < a.high: a[s.int+1] else: 0.0, alpha)
+
+proc getFractionStr*(a,b: int | float): string =
+  let g = gcd(a,b)
+  if a == 0:
+    return $a
+  return $(a/g).int & "/" & $(b/g).int
 
 import unittest
 

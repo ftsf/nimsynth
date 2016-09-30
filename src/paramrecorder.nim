@@ -132,4 +132,4 @@ proc newParamRecorder(): Machine =
   m.init()
   return m
 
-registerMachine("paramrec", newParamRecorder)
+registerMachine("paramrec", newParamRecorder, "util")

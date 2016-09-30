@@ -20,6 +20,21 @@ type
     back*: proc()
     hasSetTextFunc: int
 
+var menuStack*: seq[Menu]
+
+proc pushMenu*(menu: Menu) =
+  menuStack.add(menu)
+
+proc popMenu*() =
+  if menuStack.len > 0:
+    discard menuStack.pop()
+
+proc hasMenu*(): bool =
+  return menuStack.len > 0
+
+proc getMenu*(): Menu =
+  return menuStack[menuStack.high]
+
 proc newMenu*(pos: Point2d, label: string = nil): Menu =
   result = new(Menu)
   result.pos = pos
@@ -74,81 +89,111 @@ method draw*(self: MenuItemText, x,y,w: int, selected: bool): int =
 
 proc draw*(self: Menu) =
   let camera = getCamera()
-  let aabb = self.getAABB()
+  var aabb = self.getAABB()
+
   let w = (aabb.max.x - aabb.min.x).int
   let h = (aabb.max.y - aabb.min.y).int
+
   if aabb.max.x > screenWidth + camera.x:
     pos.x = (screenWidth + camera.x - w).float
   if aabb.max.y > screenHeight + camera.y:
-    pos.y = (screenHeight + camera.y - h).float
+    pos.y = clamp((screenHeight + camera.y - h).float, 0.0, screenHeight.float - 8.0)
 
   let x = pos.x.int
   let y = pos.y.int
 
+  if y + items.len * 9 >= screenHeight - 8:
+    aabb.max.x += 64.0
+
   setColor(1)
-  rectfill(x,y,x+w,y+h)
+  rectfill(aabb)
   var yv = y + 2
+  var xv = x
   if label != nil:
     setColor(13)
     print(label, x + 2, yv)
     yv += 9
+  let starty = yv
   for i,item in items:
-    yv += item.draw(x, yv, w, selected == i)
+    yv += item.draw(xv, yv, w, selected == i)
+    if yv >= screenHeight - 8:
+      yv = starty
+      xv += 64
 
   setColor(6)
-  rect(x,y,x+w,y+h)
+  rect(aabb)
 
-proc handleMouse*(self: Menu, mv: Point2d) =
-  if pointInAABB(mv, self.getAABB()):
-    # figure out which item is under cursor
-    let item = (mv.y - pos.y).int div 9 - (if label != nil: 1 else: 0)
-    if item >= 0 and item < items.len:
-      selected = item
-    if mousebtnp(0) and selected >= 0:
-      if items[selected].action != nil:
-        items[selected].action()
-  elif mousebtnp(0):
-    if back != nil:
-      back()
+proc event*(self: Menu, event: Event): bool =
+  case event.kind:
+  of MouseMotion:
+    let mv = mouse()
+    let aabb = self.getAABB()
+    if pointInAABB(mv, self.getAABB()):
+      #let rows = (aabb.max.y - aabb.min.y) div 9
+      let item = (mv.y - pos.y).int div 9 - (if label != nil: 1 else: 0)
+      if item >= 0 and item < items.len:
+        selected = item
+      return true
 
-proc key*(self: Menu, key: KeyboardEventPtr, down: bool): bool =
-  if down:
-    if selected >= 0 and selected < items.len and items[selected] of MenuItemText:
-      var te = MenuItemText(items[selected])
-      if hasSetTextFunc != selected:
-        setTextFunc(proc(text: string): bool =
-          return te.inputText(text)
-        )
-      if key.keysym.scancode == SDL_SCANCODE_BACKSPACE and down and te.value.len > 0:
-        te.value = te.value[0..te.value.high-1]
-        return true
-    else:
-      setTextFunc(nil)
-      hasSetTextFunc = -1
+  of MouseButtonDown:
+    let mv = mouse()
+    if pointInAABB(mv, self.getAABB()):
+      if event.button.button == 1 and selected >= 0:
+        if items[selected].action != nil:
+          items[selected].action()
+      return true
 
-    case key.keysym.scancode:
-    of SDL_SCANCODE_UP:
-      selected -= 1
-      if selected < 0:
-        selected = items.high
-      return true
-    of SDL_SCANCODE_DOWN:
-      selected += 1
-      if selected > items.high:
-        selected = 0
-      return true
-    of SDL_SCANCODE_RETURN:
-      if selected < 0:
-        return true
-      if items[selected].action != nil:
-        items[selected].action()
-      return true
-    of SDL_SCANCODE_ESCAPE:
+    elif event.button.button == 1:
       if back != nil:
         back()
+      else:
+        popMenu()
       return true
-    else:
-      return false
+
+  of KeyDown, KeyUp:
+    let down = event.kind == KeyDown
+    let scancode = event.key.keysym.scancode
+
+    if down:
+      if selected >= 0 and selected < items.len and items[selected] of MenuItemText:
+        var te = MenuItemText(items[selected])
+        if hasSetTextFunc != selected:
+          setTextFunc(proc(text: string): bool =
+            return te.inputText(text)
+          )
+        if scancode == SDL_SCANCODE_BACKSPACE and down and te.value.len > 0:
+          te.value = te.value[0..te.value.high-1]
+          return true
+      else:
+        setTextFunc(nil)
+        hasSetTextFunc = -1
+
+      case scancode:
+      of SDL_SCANCODE_UP:
+        selected -= 1
+        if selected < 0:
+          selected = items.high
+        return true
+      of SDL_SCANCODE_DOWN:
+        selected += 1
+        if selected > items.high:
+          selected = 0
+        return true
+      of SDL_SCANCODE_RETURN:
+        if selected < 0:
+          return true
+        if items[selected].action != nil:
+          items[selected].action()
+        return true
+      of SDL_SCANCODE_ESCAPE:
+        if back != nil:
+          back()
+        else:
+          popMenu()
+        return true
+      else:
+        discard
+  else:
+    discard
+
   return false
-
-

@@ -381,8 +381,8 @@ method init(self: FMSynthVoice, machine: FMSynth) =
 method addVoice*(self: FMSynth) =
   pauseAudio(1)
   var voice = new(FMSynthVoice)
-  voice.init(self)
   voices.add(voice)
+  voice.init(self)
   pauseAudio(0)
 
 proc initNote(self: FMSynth, voiceId: int, note: int) =
@@ -510,4 +510,4 @@ proc newFMSynth(): Machine =
   fm.init()
   return fm
 
-registerMachine("fmsynth", newFMSynth)
+registerMachine("fmsynth", newFMSynth, "generator")

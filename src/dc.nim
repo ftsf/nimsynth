@@ -45,4 +45,4 @@ proc newDCRemover(): Machine =
   dc.init()
   return dc
 
-registerMachine("dc", newDCRemover)
+registerMachine("dc", newDCRemover, "util")

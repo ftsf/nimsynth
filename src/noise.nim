@@ -25,4 +25,4 @@ proc newNoiseMachine(): Machine =
   result = new(NoiseMachine)
   result.init()
 
-registerMachine("noise", newNoiseMachine)
+registerMachine("noise", newNoiseMachine, "generator")
