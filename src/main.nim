@@ -48,6 +48,7 @@ proc audioCallback(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.} =
       sampleBuffer[i div 2] = samples[i]
 
 proc eventFunc(event: Event): bool =
+  let ctrl = ctrl()
   case event.kind:
   of KeyDown, KeyUp:
     let down = event.kind == KeyDown
@@ -58,6 +59,10 @@ proc eventFunc(event: Event): bool =
       of SDL_SCANCODE_F1:
         currentView = vLayoutView
         return true
+      of SDL_SCANCODE_1:
+        if ctrl:
+          currentView = vLayoutView
+          return true
       of SDL_SCANCODE_SLASH:
         baseOctave -= 1
         return true
@@ -65,7 +70,6 @@ proc eventFunc(event: Event): bool =
         baseOctave += 1
         return true
       of SDL_SCANCODE_Q:
-        let ctrl = (getModState() and KMOD_CTRL) != 0
         if ctrl:
           # TODO: ask if ok to exit
           shutdown()

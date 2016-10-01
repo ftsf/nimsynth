@@ -122,7 +122,7 @@ method update*(self: MachineView, dt: float) =
 
 proc key*(self: MachineView, key: KeyboardEventPtr, down: bool): bool =
   let scancode = key.keysym.scancode
-  let ctrl = (int16(key.keysym.modstate) and int16(KMOD_CTRL)) != 0
+  let ctrl = ctrl()
   let shift = (int16(key.keysym.modstate) and int16(KMOD_SHIFT)) != 0
 
   let paramsOnScreen = (screenHeight div 8)

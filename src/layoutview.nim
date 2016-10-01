@@ -140,9 +140,7 @@ method draw*(self: LayoutView) =
 
 
 method event*(self: LayoutView, event: Event): bool =
-  let shift = (getModState() and KMOD_SHIFT) != 0
-  let ctrl = (getModState() and KMOD_CTRL) != 0
-
+  let ctrl = ctrl()
   if stolenInput != nil:
     var (handled,keep) = stolenInput.event(event)
     if not keep:
@@ -420,15 +418,21 @@ method event*(self: LayoutView, event: Event): bool =
         if currentMachine != nil:
           currentView = currentMachine.getMachineView()
           return true
+      of SDL_SCANCODE_2:
+        if ctrl:
+          if currentMachine != nil:
+            currentView = currentMachine.getMachineView()
+            return true
       of SDL_SCANCODE_HOME:
           camera = point2d(-screenWidth.float / 2.0, -screenHeight.float / 2.0)
           return true
-      of SDL_SCANCODE_INSERT:
-        if currentMachine != nil:
-          recordMachine = currentMachine
-        else:
-          recordMachine = nil
-      of SDL_SCANCODE_DELETE:
+      of SDL_SCANCODE_I:
+        if ctrl:
+          if currentMachine != nil:
+            recordMachine = currentMachine
+          else:
+            recordMachine = nil
+      of SDL_SCANCODE_DELETE, SDL_SCANCODE_BACKSPACE:
         if currentMachine != nil and currentMachine != masterMachine:
           currentMachine.delete()
           currentMachine = nil

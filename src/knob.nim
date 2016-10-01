@@ -103,7 +103,7 @@ method event(self: Knob, event: Event): (bool, bool) =
     if bindings[0].machine != nil:
       var (voice,param) = bindings[0].machine.getParameter(bindings[0].param)
       let shift = (getModState() and KMOD_SHIFT) != 0
-      let ctrl = (getModState() and KMOD_CTRL) != 0
+      let ctrl = ctrl()
       let move = if ctrl: 0.1 elif shift: 0.001 else: 0.01
 
       let min = lerp(param.min,param.max,min)

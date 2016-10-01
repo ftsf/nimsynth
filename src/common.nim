@@ -736,3 +736,9 @@ proc valueString*(self: Parameter, value: float): string =
       return (if value.bool: "on" else: "off")
     of Float:
       return value.formatFloat(ffDecimal, 4)
+
+proc ctrl*(): bool =
+  when defined(osx):
+    return (getModState() and KMOD_GUI) != 0
+  else:
+    return (getModState() and KMOD_CTRL) != 0
