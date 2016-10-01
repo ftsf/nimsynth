@@ -91,7 +91,7 @@ method updateExtraData(self: Kit, x,y,w,h: int) =
     let voice = (mv.y - y - 9) div 9
     if voice >= 0 and voice < voices.len:
       # open sample selection menu
-      pushMenu(newSampleMenu(mv, "samples/") do(sample: Sample):
+      pushMenu(newSampleMenu(mv, basePath & "samples/") do(sample: Sample):
         var v = KitVoice(self.voices[voice])
         v.sample = sample
         v.parameters[0].name = sample.name

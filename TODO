@@ -77,8 +77,8 @@ Notes from snowglobe:
  - DONE: space for transport control rather than return
  - shift and left drag for connections (for buzz natives)
  - DONE: delay length of 0 crashes
- - mouse in pattern view
- - remove bindings
+ - DONE: mouse in pattern view
+ - DONE: remove bindings
  - knob dragging more obvious
  - save and load buttons
  - DONE: preset naming, save and load buttons

@@ -120,6 +120,8 @@ var frameRate* = 60
 var timeStep* = 1/frameRate
 var frameMult = 1
 
+var basePath*: string
+
 proc fps*(fps: int) =
   frameRate = fps
   timeStep = 1.0 / fps.float
@@ -1220,7 +1222,7 @@ proc setWindowTitle*(title: string) =
 proc loadSpriteSheet*(filename: string) =
   var w,h: cint
   var components: Components
-  var raw_pixels = load(("assets/" & filename).cstring(), addr(w), addr(h), addr(components), RgbAlpha)
+  var raw_pixels = load((basePath & "/assets/" & filename).cstring(), addr(w), addr(h), addr(components), RgbAlpha)
   if raw_pixels == nil:
     echo "error loading spriteSheet: ", filename
     quit(1)
@@ -1392,6 +1394,9 @@ proc init*(audio = true) =
     sdl2.quit()
   )
 
+  basePath = $sdl2.getBasePath()
+  echo "basePath: ", basePath
+
   randomize()
 
   window = createWindow("NimSynth", 0, 0, (screenWidth+screenPaddingX*2)*screenScale, (screenHeight+screenPaddingY*2)*screenScale, SDL_WINDOW_SHOWN or SDL_WINDOW_RESIZABLE)
@@ -1405,7 +1410,10 @@ proc init*(audio = true) =
   spriteSheet = createRGBSurface(0, 128, 128, 8, 0, 0, 0, 0)
   spriteSheet.format.palette.setPaletteColors(addr(colors[0]), 0, 16)
 
-  font = setFont("assets/font.png", " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{:}~")
+  font = setFont(basePath & "/assets/font.png", " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{:}~")
+  discard sdl2.setHint("SDL_HINT_RENDER_VSYNC", "1")
+  discard render.setLogicalSize(screenWidth+screenPaddingX*2, screenHeight+screenPaddingY*2)
+  discard sdl2.setHint("SDL_RENDER_SCALE_QUALITY", "0")
   sdl2.showCursor(false)
 
   when not defined(emscripten):
