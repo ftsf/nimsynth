@@ -29,6 +29,7 @@ import eq
 import probgate
 import probpick
 import paramlp
+import transposer
 import keyboard
 import dummy
 
