@@ -181,10 +181,10 @@ proc key*(self: MachineView, key: KeyboardEventPtr, down: bool): bool =
       if param.onchange != nil:
         param.onchange(param.value, voice)
       return true
-    of SDL_SCANCODE_KP_PLUS:
+    of SDL_SCANCODE_KP_PLUS, SDL_SCANCODE_EQUALS:
       machine.addVoice()
       return true
-    of SDL_SCANCODE_KP_MINUS:
+    of SDL_SCANCODE_KP_MINUS, SDL_SCANCODE_MINUS:
       machine.popVoice()
       return true
 

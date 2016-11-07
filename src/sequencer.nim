@@ -13,6 +13,7 @@ import math
 import basic2d
 
 const colsPerPattern = 8
+const maxPatterns = 64
 
 type
   PatternColor = enum
@@ -25,6 +26,8 @@ type
     name*: string
     color*: PatternColor
     rows*: seq[array[colsPerPattern, int]]
+    loopStart*: int
+    loopEnd*: int
   ColumnMode = enum
     cmCoarse
     cmFine
@@ -71,7 +74,7 @@ proc newPattern*(length: int = 16): Pattern =
 method init*(self: Sequencer) =
   procCall init(Machine(self))
 
-  patterns = newSeq[Pattern](64)
+  patterns = newSeq[Pattern](maxPatterns)
   patterns[0] = newPattern(16)
   ticksPerBeat = 4
   subTick = 0.0
@@ -83,12 +86,12 @@ method init*(self: Sequencer) =
 
   globalParams.add([
     Parameter(kind: Int, name: "pattern", min: 0.0, max: 63.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
-      if newValue == OffNote:
+      self.playingPattern = clamp(newValue.int, 0, self.patterns.high)
+      if self.patterns[self.playingPattern] == nil:
         self.subTick = 0.0
         self.step = 0
         self.playing = false
       else:
-        self.playingPattern = clamp(newValue.int, 0, self.patterns.high)
         self.subTick = 0.0
         self.step = 0
         self.playing = true
@@ -96,7 +99,7 @@ method init*(self: Sequencer) =
       if self.patterns[value.int] != nil:
         return $value.int & ": " & self.patterns[value.int].name
       else:
-        return $value.int
+        return $value.int & ": empty"
     ),
     Parameter(kind: Int, name: "tpb", min: -32.0, max: 32.0, default: 4.0, onchange: proc(newValue: float, voice: int) =
       self.ticksPerBeat = newValue.int
@@ -200,10 +203,17 @@ proc drawPattern(self: Sequencer, x,y,w,h: int) =
     rectfill(x, y, x + colsPerPattern * 17, y+7)
 
     # draw line
-    if playingPattern == currentPattern and step == i:
-      setColor(2)
-      let y = y + (subTick * 8.0).int
-      line(x, y, x + colsPerPattern * 17, y)
+    if playingPattern == currentPattern:
+      if pattern.loopStart != pattern.loopEnd:
+        setColor(10)
+        if pattern.loopStart == i:
+          line(x, y, x + colsPerPattern * 17, y)
+        if pattern.loopEnd == i:
+          line(x, y + 7, x + colsPerPattern * 17, y + 7)
+      if step == i:
+        setColor(2)
+        let y = y + (subTick * 8.0).int
+        line(x, y, x + colsPerPattern * 17, y)
 
     # draw step number
     setColor(if i == currentStep: 12 elif ticksPerBeat > 1 and i %% ticksPerBeat == 0: 6 else: 13)
@@ -398,8 +408,8 @@ method process*(self: Sequencer) =
     if subTick >= 1.0:
       step += 1
       subTick = 0.0
-      if step > pattern.rows.high:
-        step = 0
+      if step > pattern.rows.high or (pattern.loopEnd != pattern.loopStart and step > pattern.loopEnd):
+        step = pattern.loopStart
         if not looping:
           playing = false
 
@@ -459,6 +469,10 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
       s.globalParams[2].value = 1.0
       s.globalParams[2].onchange(1.0)
     return true
+  elif scancode == SDL_SCANCODE_B and ctrl and down:
+    pattern.loopStart = s.currentStep
+  elif scancode == SDL_SCANCODE_E and ctrl and down:
+    pattern.loopEnd = s.currentStep
   elif scancode == SDL_SCANCODE_C and ctrl and down:
     clipboard = newPattern()
     clipboard.rows = pattern.rows
@@ -548,7 +562,8 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
     if s.currentPattern == s.playingPattern:
       s.playing = not s.playing
       if s.playing:
-        s.step = s.currentStep
+        if ctrl:
+          s.step = s.currentStep
         s.subTick = 0.0
     else:
       s.globalParams[0].value = s.currentPattern.float
@@ -774,7 +789,7 @@ import strutils
 
 method loadExtraData(self: Sequencer, data: string) =
   echo "loading extra Sequencer data"
-  patterns = newSeq[Pattern](64)
+  patterns = newSeq[Pattern](maxPatterns)
   var pattern: Pattern
   var patId = 0
   for line in data.splitLines:
