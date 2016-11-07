@@ -50,6 +50,7 @@ type
     keytracking: float
     keytrkReference: int
     legato: bool
+    retrigger: bool
 
 method init*(self: SynthVoice, machine: Synth) =
   procCall init(Voice(self), machine)
@@ -209,6 +210,8 @@ method init*(self: Synth) =
     ),
     Parameter(name: "legato", kind: Bool, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.legato = newValue.bool
+    Parameter(name: "retrig", kind: Bool, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+      self.retrigger = newValue.bool
     ),
   ])
   self.voiceParams.add([
@@ -229,12 +232,26 @@ method init*(self: Synth) =
           voice.env1.trigger(voice.velocity)
           voice.env2.trigger(voice.velocity)
           voice.env3.trigger(voice.velocity)
+
+        if self.retrigger and voice.note != OffNote:
+          voice.env1.trigger()
+          voice.env2.trigger()
+          voice.env3.trigger()
+          voice.env4.trigger()
+    , getValueString: proc(value: float, voice: int): string =
+      if value == OffNote:
+        return "Off"
+      else:
+        return noteToNoteName(value.int)
+
     ),
     Parameter(name: "vel", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
       var voice: SynthVoice = SynthVoice(self.voices[voice])
       voice.velocity = newValue
     ),
   ])
+    )
+  )
 
   setDefaults()
 
