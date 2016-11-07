@@ -154,7 +154,7 @@ method init(self: BasicFMSynth) =
     (proc() =
       let opId = i
       self.globalParams.add([
-        Parameter(name: $(opId+1) & ":AMP", kind: Float, min: 0.0, max: 1.0, default: if opId == 0: 1.0 else: 0.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":AMP", separator: true, kind: Float, min: 0.0, max: 1.0, default: if opId == 0: 1.0 else: 0.0, onchange: proc(newValue: float, voice: int) =
           self.amps[opId] = newValue
         ),
         Parameter(name: $(opId+1) & ":FIXED", kind: Bool, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
@@ -188,7 +188,7 @@ method init(self: BasicFMSynth) =
     )()
 
   self.voiceParams.add([
-    Parameter(name: "note", kind: Note, deferred: true, min: OffNote, max: 255.0, default: OffNote, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "note", kind: Note, separator: true, deferred: true, min: OffNote, max: 255.0, default: OffNote, onchange: proc(newValue: float, voice: int) =
       self.initNote(voice, newValue.int)
     ),
     Parameter(name: "vel", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =

@@ -106,7 +106,7 @@ method init*(self: GBSynth) =
     (proc() =
       let voiceId = i
       self.globalParams.add([
-        Parameter(name: $voiceId & ":note", kind: Note, min: 0.0, max: 255.0, default: OffNote, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $voiceId & ":note", separator: true, kind: Note, min: OffNote, max: 255.0, default: OffNote, onchange: proc(newValue: float, voice: int) =
           var v = self.gbVoices[voiceId].addr
           if newValue == OffNote:
             v.samplesLeft = 0

@@ -210,6 +210,7 @@ method init*(self: Synth) =
     ),
     Parameter(name: "legato", kind: Bool, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.legato = newValue.bool
+    ),
     Parameter(name: "retrig", kind: Bool, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
       self.retrigger = newValue.bool
     ),
@@ -233,11 +234,6 @@ method init*(self: Synth) =
           voice.env2.trigger(voice.velocity)
           voice.env3.trigger(voice.velocity)
 
-        if self.retrigger and voice.note != OffNote:
-          voice.env1.trigger()
-          voice.env2.trigger()
-          voice.env3.trigger()
-          voice.env4.trigger()
     , getValueString: proc(value: float, voice: int): string =
       if value == OffNote:
         return "Off"
@@ -250,8 +246,6 @@ method init*(self: Synth) =
       voice.velocity = newValue
     ),
   ])
-    )
-  )
 
   setDefaults()
 
