@@ -32,6 +32,7 @@ import paramlp
 import transposer
 import keyboard
 import dummy
+import filerec
 
 
 proc audioCallback(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.} =
