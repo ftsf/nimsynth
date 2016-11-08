@@ -95,7 +95,8 @@ method draw*(self: LayoutView) =
       # TODO: find nearest points on AABBs
       # TODO: use nice bezier splines for connections
 
-      setColor(if input.machine.mute or input.gain == 0.0: 1 else: 13)
+      let power = if input.machine.mute: 0.0 else: abs(input.machine.outputSamples[input.output]) * input.gain
+      setColor(if power <= 0.0001: 1 elif power <= 0.01: 3 elif power < 1.0: 11 else: 8)
       line(input.machine.pos, machine.pos)
       let mid = (input.machine.pos + machine.pos) / 2.0
       setColor(6)
