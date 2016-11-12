@@ -51,10 +51,6 @@ method init(self: Gate) =
   setDefaults()
 
 method process(self: Gate) {.inline.} =
-  if inputs.len == 0:
-    outputSamples[0] = 0.0
-    return
-
   if sampleId mod 2 == 0:
     discard env.process()
 

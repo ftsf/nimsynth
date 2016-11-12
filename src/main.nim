@@ -1,9 +1,6 @@
 import pico
 import sdl2
 
-import jack.types
-import jack.jack
-import jack.midiport
 import strutils
 
 import common
@@ -40,8 +37,11 @@ import dummy
 import filerec
 
 when defined(jack):
-  import audioin
+  import jack.types
+  import jack.jack
+  import jack.midiport
 
+  import audioin
 
 when defined(jack):
   var J: ptr JackClient

@@ -26,11 +26,10 @@ type
     released: bool
     filter: OnePoleFilter
     targetLevel: float
-    actualLevel: float
     velocity*: float
 
 proc value*(self: Envelope): float32 =
-  return self.actualLevel
+  return self.targetLevel
 
 proc process*(self: var Envelope): float32 =
   case state:
@@ -80,7 +79,6 @@ proc process*(self: var Envelope): float32 =
   else:
     targetLevel = 0.0
 
-  #actualLevel = clamp(filter.process(targetLevel), 0.0, 1.0)
   return targetLevel
 
 proc init*(self: var Envelope) =
