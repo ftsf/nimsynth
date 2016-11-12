@@ -427,12 +427,6 @@ method event*(self: LayoutView, event: Event): bool =
       of SDL_SCANCODE_HOME:
           camera = point2d(-screenWidth.float / 2.0, -screenHeight.float / 2.0)
           return true
-      of SDL_SCANCODE_I:
-        if ctrl:
-          if currentMachine != nil:
-            recordMachine = currentMachine
-          else:
-            recordMachine = nil
       of SDL_SCANCODE_DELETE, SDL_SCANCODE_BACKSPACE:
         if currentMachine != nil and currentMachine != masterMachine:
           currentMachine.delete()

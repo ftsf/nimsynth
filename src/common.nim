@@ -1,6 +1,6 @@
-const sampleRate* = 48000.0
-const nyquist* = sampleRate / 2.0
-const invSampleRate* = 1.0/sampleRate
+var sampleRate* = 48000.0
+var nyquist* = sampleRate / 2.0
+var invSampleRate* = 1.0/sampleRate
 
 import sdl2
 import sdl2.audio
@@ -18,6 +18,8 @@ var baseOctave* = 4
 var sampleId*: int
 var sampleBuffer*: array[1024, float32]
 
+var inputSample*: float32
+
 var statusMessage: string
 
 proc setStatus*(text: string) =
@@ -25,6 +27,10 @@ proc setStatus*(text: string) =
 
 proc getStatus*(): string =
   return statusMessage
+
+const MidiStatusNoteOff = 0x00000000
+const MidiStatusNoteOn =  0x00000001
+const MidiStatusControlChange = 0x00000011
 
 type
   # used for connecting a machine to another machine's parameter
@@ -45,6 +51,11 @@ type
     getValueString*: proc(value: float, voice: int = -1): string
     deferred*: bool # deferred attributes get changed by a sequencer last
     separator*: bool # put a space above it
+  MidiEvent* = object of RootObj
+    time*: int
+    channel*: range[0..15]
+    command*: uint8
+    data1*,data2*: uint8
   Input* = object of RootObj
     machine*: Machine
     output*: int  # which output to read
@@ -70,6 +81,8 @@ type
     outputSamples*: seq[float32]
     mute*: bool
     bypass*: bool
+    useMidi*: bool
+    midiChannel*: int
   View* = ref object of RootObj
     discard
   Knob* = ref object of RootObj
@@ -81,9 +94,21 @@ var machines*: seq[Machine]
 var currentView*: View
 var vLayoutView*: View
 var masterMachine*: Machine
-var recordMachine*: Machine
 
 {.this:self.}
+
+when defined(jack):
+  import jack.midiport
+
+  proc newMidiEvent*(rawEvent: JackMidiEvent): MidiEvent =
+    let status = cast[ptr array[3, uint8]](rawEvent.buffer)[0]
+    result.time = rawEvent.time.int
+    result.channel = status.int and 0b00001111
+    result.command = ((status.int shr 4) and 0b00000111)
+    if rawEvent.size >= 2:
+      result.data1 = cast[ptr array[3, uint8]](rawEvent.buffer)[1]
+    if rawEvent.size >= 3:
+      result.data2 = cast[ptr array[3, uint8]](rawEvent.buffer)[2]
 
 method init*(self: Machine) {.base.} =
   globalParams = newSeq[Parameter]()
@@ -244,9 +269,6 @@ proc delete*(self: Machine) =
 
   machines.del(machines.find(self))
 
-  if recordMachine == self:
-    recordMachine = nil
-
   pauseAudio(0)
 
 type MachineType* = tuple[name: string, factory: proc(): Machine]
@@ -323,17 +345,6 @@ proc getParameter*(self: Binding): (int, ptr Parameter) =
     return self.machine.getParameter(self.param)
   else:
     return (-1, nil)
-
-method trigger*(self: Machine, note: int) {.base.} =
-  for i in 0..getParameterCount()-1:
-    var (voice,param) = getParameter(i)
-    if param.kind == Note:
-      param.value = note.float
-      param.onchange(param.value, voice)
-      break
-
-method release*(self: Machine, note: int) {.base.} =
-  discard
 
 type
   ParamMarshal = object of RootObj
@@ -571,6 +582,9 @@ method popVoice*(self: Machine) {.base.} =
 
 
 method process*(self: Machine) {.base.} =
+  discard
+
+method midiEvent*(self: Machine, event: MidiEvent) {.base.} =
   discard
 
 method update*(self: View, dt: float) {.base.} =

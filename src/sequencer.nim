@@ -805,6 +805,8 @@ method loadExtraData(self: Sequencer, data: string) =
           patterns[patId] = pattern
         pattern = newPattern(0)
         patId += 1
+        if patId > 63:
+          break
       else:
         pattern.rows.setLen(pattern.rows.len+1)
         for i,col in pairs(sline.split(",")):
