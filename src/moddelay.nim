@@ -2,7 +2,7 @@ import common
 import math
 import util
 
-const maxSamples = (sampleRate * 0.5).int
+const maxSamples = 48000
 
 type
   ModDelay* = object of RootObj

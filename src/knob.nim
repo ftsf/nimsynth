@@ -12,6 +12,7 @@ type Knob = ref object of Machine
   min,max: float
   center: float
   spring: float
+  midicc: int
 
 {.this:self.}
 
@@ -20,6 +21,8 @@ method init(self: Knob) =
   nBindings = 1
   bindings.setLen(1)
   name = "knob"
+  useMidi = true
+  midiChannel = 0
 
   self.globalParams.add([
     Parameter(name: "min", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
@@ -33,6 +36,9 @@ method init(self: Knob) =
     ),
     Parameter(name: "spring", kind: Float, min: 0.0, max: 10.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.spring = newValue
+    ),
+    Parameter(name: "cc", kind: Int, min: 0.0, max: 120.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.midicc = newValue.int
     ),
   ])
 
@@ -79,6 +85,18 @@ proc getKnobAABB(self: Knob): AABB =
   result.min.y = self.pos.y - 6.0
   result.max.x = self.pos.x + 6.0
   result.max.y = self.pos.y + 6.0
+
+method midiEvent(self: Knob, event: MidiEvent) =
+  echo event.repr
+  if event.command == 3 and event.data1 == midicc.uint8:
+    echo "got cc event: ", event.data2
+    if bindings[0].isBound:
+      var (voice,param) = bindings[0].getParameter()
+      let min = lerp(param.min,param.max,min)
+      let max = lerp(param.min,param.max,max)
+      param.value = lerp(min, max, event.data2.float / 127.0)
+      param.onchange(param.value, voice)
+
 
 method handleClick(self: Knob, mouse: Point2d): bool =
   if pointInAABB(mouse, getKnobAABB()):

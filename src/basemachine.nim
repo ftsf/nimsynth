@@ -28,7 +28,7 @@ method drawBox*(self: Machine) {.base.} =
     # fx
     setColor(1)
   rectfill(getAABB())
-  setColor(if bypass: 5 elif mute: 1 elif recordMachine == self: 8 else: 6)
+  setColor(if bypass: 5 elif mute: 1 else: 6)
   rect(getAABB())
   printc(name, pos.x, pos.y - 2)
 
