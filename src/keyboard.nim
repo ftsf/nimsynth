@@ -22,6 +22,12 @@ method init*(self: Keyboard) =
   for i in 0..<polyphony:
     noteBuffer[i].note = OffNote
 
+  self.globalParams.add([
+    Parameter(name: "channel", kind: Int, min: 0.0, max: 15.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.midiChannel = newValue.int
+    ),
+  ])
+
   setDefaults()
 
 method process*(self: Keyboard) =
@@ -35,6 +41,8 @@ method midiEvent*(self: Keyboard, event: MidiEvent) =
         noteBuffer[i].age += 1
 
     for i in 0..<polyphony:
+      if not bindings[i*2].isBound:
+        continue
       if noteBuffer[i].note == OffNote:
         noteBuffer[i].note = event.data1.int
         noteBuffer[i].age = 0
@@ -56,6 +64,8 @@ method midiEvent*(self: Keyboard, event: MidiEvent) =
       var oldestAge = 0
       var oldestVoice = 0
       for i in 0..<polyphony:
+        if not bindings[i*2].isBound:
+          continue
         if noteBuffer[i].age > oldestAge:
           oldestAge = noteBuffer[i].age
           oldestVoice = i
