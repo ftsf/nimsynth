@@ -220,7 +220,8 @@ proc to4bit(input: float32): float32 =
 
 method process*(self: GBSynth) {.inline.} =
   outputSamples[0] = 0.0
-  if outputSampleId mod 2 == 0:
+
+  if sampleId mod 2 == 0:
     for i in 0..3:
       var v = addr(gbVoices[i])
       if v.enabled:
