@@ -5,6 +5,8 @@ import math
 import strutils
 import basic2d
 import layoutview
+import menu
+import basemachine
 
 type Knob = ref object of Machine
   lastmv: Point2d
@@ -13,6 +15,7 @@ type Knob = ref object of Machine
   center: float
   spring: float
   midicc: int
+  learning: bool
 
 {.this:self.}
 
@@ -87,15 +90,19 @@ proc getKnobAABB(self: Knob): AABB =
   result.max.y = self.pos.y + 6.0
 
 method midiEvent(self: Knob, event: MidiEvent) =
-  echo event.repr
-  if event.command == 3 and event.data1 == midicc.uint8:
-    echo "got cc event: ", event.data2
-    if bindings[0].isBound:
-      var (voice,param) = bindings[0].getParameter()
-      let min = lerp(param.min,param.max,min)
-      let max = lerp(param.min,param.max,max)
-      param.value = lerp(min, max, event.data2.float / 127.0)
-      param.onchange(param.value, voice)
+  if event.command == 3:
+    if learning:
+      self.midicc = event.data1.int
+      self.globalParams[4].value = self.midicc.float
+      self.learning = false
+      echo "assigned cc: ", self.midicc
+    elif event.data1 == midicc.uint8:
+      if bindings[0].isBound:
+        var (voice,param) = bindings[0].getParameter()
+        let min = lerp(param.min,param.max,min)
+        let max = lerp(param.min,param.max,max)
+        param.value = lerp(min, max, event.data2.float / 127.0)
+        param.onchange(param.value, voice)
 
 
 method handleClick(self: Knob, mouse: Point2d): bool =
@@ -144,6 +151,14 @@ method process(self: Knob) =
       param.value -= f
       param.value = clamp(param.value, min, max)
       param.onchange(param.value, voice)
+
+method getMenu*(self: Knob, mv: Point2d): Menu =
+  result = procCall getMenu(Machine(self), mv)
+  result.items.add(newMenuItem("midi learn") do():
+    self.learning = true
+    echo "learning enabled"
+    popMenu()
+  )
 
 proc newKnob(): Machine =
   var knob = new(Knob)

@@ -49,7 +49,6 @@ type
     env3O2GainMod: float
     keytracking: float
     keytrkReference: int
-    legato: bool
     retrigger: bool
 
 method init*(self: SynthVoice, machine: Synth) =
@@ -158,10 +157,14 @@ method init*(self: Synth) =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
     Parameter(name: "env2 a", kind: Float, separator: true, min: 0.0, max: 1.0, default: 0.001, onchange: proc(newValue: float, voice: int) =
-      self.env[1].a = newValue
+      self.env[1].a = exp(newValue) - 1.0
+    , getValueString: proc(value: float, voice: int): string =
+      return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
     Parameter(name: "env2 d", kind: Float, min: 0.0, max: 1.0, default: 0.05, onchange: proc(newValue: float, voice: int) =
-      self.env[1].d = newValue
+      self.env[1].d = exp(newValue) - 1.0
+    , getValueString: proc(value: float, voice: int): string =
+      return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
     Parameter(name: "env2 ds", kind: Float, min: 0.1, max: 10.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
       self.env[1].decayExp = newValue
@@ -170,16 +173,22 @@ method init*(self: Synth) =
       self.env[1].s = newValue
     ),
     Parameter(name: "env2 r", kind: Float, min: 0.0, max: 1.0, default: 0.001, onchange: proc(newValue: float, voice: int) =
-      self.env[1].r = newValue
+      self.env[1].r = exp(newValue) - 1.0
+    , getValueString: proc(value: float, voice: int): string =
+      return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
-    Parameter(name: "env2 cut", kind: Float, min: -1.0, max: 1.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env2 cut", kind: Float, min: -10.0, max: 10.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
       self.env2CutoffMod = newValue
     ),
-    Parameter(name: "env3 a", kind: Float, separator: true, min: 0.0, max: 1.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
-      self.env[2].a = newValue
+    Parameter(name: "env3 a", kind: Float, separator: true, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.env[2].a = exp(newValue) - 1.0
+    , getValueString: proc(value: float, voice: int): string =
+      return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
-    Parameter(name: "env3 d", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
-      self.env[2].d = newValue
+    Parameter(name: "env3 d", kind: Float, min: 0.0, max: 1.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
+      self.env[2].d = exp(newValue) - 1.0
+    , getValueString: proc(value: float, voice: int): string =
+      return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
     Parameter(name: "env3 ds", kind: Float, min: 0.1, max: 10.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
       self.env[2].decayExp = newValue
@@ -188,7 +197,9 @@ method init*(self: Synth) =
       self.env[2].s = newValue
     ),
     Parameter(name: "env3 r", kind: Float, min: 0.0, max: 1.0, default: 0.001, onchange: proc(newValue: float, voice: int) =
-      self.env[2].r = newValue
+      self.env[2].r = exp(newValue) - 1.0
+    , getValueString: proc(value: float, voice: int): string =
+      return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
     Parameter(name: "env3 pmod", kind: Float, min: -24.0, max: 24.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.env3PitchMod = newValue
@@ -208,9 +219,6 @@ method init*(self: Synth) =
     Parameter(name: "ref", kind: Note, min: 0, max: 256.0, default: 60.0, onchange: proc(newValue: float, voice: int) =
       self.keytrkReference = newValue.int
     ),
-    Parameter(name: "legato", kind: Bool, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
-      self.legato = newValue.bool
-    ),
     Parameter(name: "retrig", kind: Bool, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
       self.retrigger = newValue.bool
     ),
@@ -225,7 +233,7 @@ method init*(self: Synth) =
         voice.env3.release()
       else:
         voice.pitch = noteToHz(newValue)
-        if self.legato:
+        if not self.retrigger:
           voice.env1.triggerIfReady(voice.velocity)
           voice.env2.triggerIfReady(voice.velocity)
           voice.env3.triggerIfReady(voice.velocity)

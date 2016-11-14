@@ -49,6 +49,7 @@ type
     playing: bool
     subTick: float
     looping: bool
+    recording: bool
   SequencerView* = ref object of MachineView
     clipboard: Pattern
 
@@ -83,6 +84,7 @@ method init*(self: Sequencer) =
   nInputs = 0
   nBindings = 8
   bindings.setLen(8)
+  useMidi = true
 
   globalParams.add([
     Parameter(kind: Int, name: "pattern", min: 0.0, max: 63.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
@@ -236,14 +238,15 @@ proc drawPattern(self: Sequencer, x,y,w,h: int) =
           print(str[0..1], x + col * 16 + 12, y + 1)
           setColor(if i == currentStep and col == currentColumn and subColumn == 1: 12 elif ticksPerBeat > 1 and i %% ticksPerBeat == 0: 6 else: 13)
           print(str[2..2], x + col * 16 + 12 + 8, y + 1)
-        of Bool:
-          var str = if val == Blank: "  ." else: align($val, 3, ' ')
         of Int,Float:
           # we want to split this into 3 columns, one for each char
           var str = if val == Blank: "..." else: align($val, 3, '.')
           for c in 0..2:
             setColor(if i == currentStep and col == currentColumn and c == subColumn: 12 elif ticksPerBeat > 1 and i %% ticksPerBeat == 0: 6 else: 13)
             print(str[c..c], x + col * 16 + 12 + c * 4, y + 1)
+        of Bool:
+          setColor(if i == currentStep and col == currentColumn: 12 elif ticksPerBeat > 1 and i %% ticksPerBeat == 0: 6 else: 13)
+          print(if val == 1: " 1 " elif val == 0: " 0 " else: " . ", x + col * 16 + 12, y + 1)
         of Trigger:
           setColor(if i == currentStep and col == currentColumn: 12 elif ticksPerBeat > 1 and i %% ticksPerBeat == 0: 6 else: 13)
           print(if val == 1: " x " elif val == 0: " - " else: " . ", x + col * 16 + 12, y + 1)
@@ -317,6 +320,10 @@ proc drawPatternSelector(self: Sequencer, x,y,w,h: int) =
     print("time: " & floatToTimeStr((currentStep.float / (1.0 / -ticksPerBeat.float)).float * beatsPerSecond()), x, y)
   else:
     print("time: n/a", x, y)
+  y += 8
+  if self.recording:
+    setColor(8)
+  print("recording: " & (if self.recording: "yes" else: "no"), x, y)
 
 
 method update(self: SequencerView, dt: float) =
@@ -371,7 +378,10 @@ method draw*(self: SequencerView) =
       if param.kind == Note:
         printr("oct: " & $baseOctave, colsPerPattern * 17, screenHeight - 8)
 
-  drawParams(screenWidth - 128, 8, 126, screenHeight - 9)
+  drawParams(screenWidth - 128, 8, 126, screenHeight - 100)
+
+  # draw keyboard
+  sspr(0,91,49,127-91, screenWidth - 100, screenHeight - 76, 100, 76)
 
 method process*(self: Sequencer) =
   let pattern = patterns[playingPattern]
@@ -443,7 +453,7 @@ proc setValue(self: Sequencer, newValue: int) =
           # just change octave
           let note = value mod 12
           value = ((newValue + 1) * 12) + note
-    elif param.kind == Trigger:
+    elif param.kind == Trigger or param.kind == Bool:
       value = if newValue == 1: 1 else: 0
 
   pattern.rows[currentStep][currentColumn] = value
@@ -460,6 +470,8 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
 
   let pattern = s.patterns[s.currentPattern]
 
+  if scancode == SDL_SCANCODE_R and ctrl and down:
+    s.recording = not s.recording
   if scancode == SDL_SCANCODE_L and ctrl and down:
     # toggle loop
     if s.looping:
@@ -592,11 +604,19 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
     param.value = s.ticksPerBeat.float
     param.onchange(param.value, voice)
     return true
-  elif key.keysym.scancode == SDL_SCANCODE_BACKSPACE and down:
+  elif (key.keysym.scancode == SDL_SCANCODE_BACKSPACE or key.keysym.scancode == SDL_SCANCODE_DELETE) and down:
+    s.setValue(Blank)
+  elif key.keysym.scancode == SDL_SCANCODE_T and ctrl and down:
     var menu = newMenu(point2d(
       (s.currentColumn * 16 + 12).float,
       8.float
     ), "bind machine")
+
+    if s.bindings[s.currentColumn].machine != nil:
+      menu.items.add(newMenuItem("- unbind -") do():
+        s.bindings[s.currentColumn].machine = nil
+        popMenu()
+      )
 
     for i in 0..machines.high:
       if machines[i] == self.machine:
@@ -811,3 +831,23 @@ method loadExtraData(self: Sequencer, data: string) =
         pattern.rows.setLen(pattern.rows.len+1)
         for i,col in pairs(sline.split(",")):
           pattern.rows[pattern.rows.high][i] = parseInt(col)
+
+method getMenu*(self: Sequencer, mv: Point2d): Menu =
+  result = procCall getMenu(Machine(self), mv)
+  if not self.recording:
+    result.items.add(newMenuItem("record") do():
+      self.recording = true
+      popMenu()
+    )
+  else:
+    result.items.add(newMenuItem("stop record") do():
+      self.recording = false
+      popMenu()
+    )
+
+method midiEvent*(self: Sequencer, event: MidiEvent) =
+  if recording:
+    if event.command == 1:
+      patterns[currentPattern].rows[currentStep][currentColumn] = event.data1.int
+      if currentStep < patterns[currentPattern].rows.high:
+        currentStep += 1

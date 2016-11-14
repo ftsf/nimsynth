@@ -8,9 +8,14 @@ import pico
 import basemachine
 
 type
+  LFOMode = enum
+    MinMax
+    CenterAmp
   LFO = ref object of Machine
     osc: LFOOsc
     min,max: float
+    center,amp: float
+    mode: LFOMode
     freq: float
     bpmSync: bool
 
@@ -45,6 +50,11 @@ method init(self: LFO) =
       else:
         return $value.formatFloat(ffDecimal, 2) & " hZ"
     ),
+    Parameter(name: "mode", kind: Int, min: 0, max: LFOMode.high.float, default: MinMax.float, onchange: proc(newValue: float, voice: int) =
+      self.mode = newValue.LFOMode
+    , getValueString: proc(value: float, voice: int): string =
+      return $value.LFOMode
+    ),
     Parameter(name: "shape", kind: Int, min: OscKind.low.float, max: OscKind.high.float, default: Sin.float, onchange: proc(newValue: float, voice: int) =
       self.osc.kind = newValue.OscKind
     , getValueString: proc(value: float, voice: int): string =
@@ -70,6 +80,21 @@ method init(self: LFO) =
       else:
         return value.formatFloat(ffDecimal, 2)
     ),
+    Parameter(name: "center", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+      self.center = newValue
+    , getValueString: proc(value: float, voice: int): string =
+      var binding = self.bindings[0]
+      if binding.machine != nil:
+        var (voice, param) = binding.machine.getParameter(binding.param)
+        return param[].valueString(lerp(param.min, param.max, value))
+      else:
+        return value.formatFloat(ffDecimal, 2)
+    ),
+    Parameter(name: "amp", kind: Float, min: 0.0, max: 1.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
+      self.amp = newValue
+    , getValueString: proc(value: float, voice: int): string =
+        return (value * 100.0).formatFloat(ffDecimal, 2) & "%"
+    ),
     Parameter(name: "bpmsync", kind: Bool, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.bpmSync = newValue.bool
       self.setFreq()
@@ -86,10 +111,14 @@ method process(self: LFO) {.inline.} =
   for binding in bindings:
     if binding.machine != nil:
       var (voice, param) = binding.machine.getParameter(binding.param)
-      param.value = lerp(param.min, param.max, lerp(min, max, invLerp(-1.0, 1.0, oscVal)))
+      case mode:
+      of MinMax:
+        param.value = lerp(param.min, param.max, lerp(min, max, invLerp(-1.0, 1.0, oscVal)))
+      of CenterAmp:
+        param.value = lerp(param.min, param.max, lerp(center - amp, center + amp, invLerp(-1.0, 1.0, oscVal)))
       param.onchange(param.value, voice)
 
-  globalParams[5].value = osc.phase
+  globalParams[9].value = osc.phase
 
 method getAABB*(self: LFO): AABB =
   result.min.x = pos.x - 16

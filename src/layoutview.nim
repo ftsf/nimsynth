@@ -11,6 +11,8 @@ import basemachine
 import machineview
 import menu
 
+import locks
+
 ### Layout View
 # Draw a graph of the machine connections
 
@@ -218,7 +220,8 @@ method event*(self: LayoutView, event: Event): bool =
                 echo "inserting ", mtype.name
                 m.pos = mv
                 pauseAudio(1)
-                machines.add(m)
+                withLock machineLock:
+                  machines.add(m)
                 self.currentMachine = m
                 # connect it
                 if connectMachines(m, machine):
@@ -377,7 +380,7 @@ method event*(self: LayoutView, event: Event): bool =
       of SDL_SCANCODE_S:
         if down and ctrl:
           # TODO: ask for filename
-          var menu = newMenu(point2d(0,0), "save layout")
+          var menu = newMenu(mouse(), "save song")
           var te = newMenuItemText("name", if self.name == nil: "" else: self.name)
           menu.items.add(te)
           menu.items.add(newMenuItem("save") do():
@@ -402,7 +405,7 @@ method event*(self: LayoutView, event: Event): bool =
       of SDL_SCANCODE_O:
         if down and ctrl:
           # TODO: show list of layout files
-          var menu = newMenu(point2d(0,0), "select file to load")
+          var menu = newMenu(mouse(), "select file to load")
 
           for i,layout in getLayouts():
             (proc() =

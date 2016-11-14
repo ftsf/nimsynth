@@ -310,9 +310,9 @@ method init(self: FilterMachine) =
       self.filterL.cutoff = exp(lerp(-8.0, -0.8, newValue))
       self.filterR.cutoff = exp(lerp(-8.0, -0.8, newValue))
     , getValueString: proc(value: float, voice: int): string =
-      return $(value * sampleRate).int
+      return $(exp(lerp(-8.0, -0.8, value)) * sampleRate).int & " hZ"
     ),
-    Parameter(name: "resonance", kind: Float, min: 0.0, max: 5.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "resonance", kind: Float, min: 0.0, max: 10.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
       self.filterL.resonance = newValue
       self.filterR.resonance = newValue
     ),
@@ -340,13 +340,13 @@ method process(self: FilterMachine) {.inline.} =
 
   if outputSampleId mod 2 == 0:
     let oc = self.filterR.cutoff
-    self.filterL.cutoff += lfoL.process() * lfoAmount
+    self.filterL.cutoff += (1.0 + lfoL.process()) * lfoAmount
     self.filterL.calc()
     outputSamples[0] = self.filterL.process(outputSamples[0])
     self.filterL.cutoff = oc
   else:
     let oc = self.filterR.cutoff
-    self.filterR.cutoff += lfoR.process() * lfoAmount
+    self.filterR.cutoff += (1.0 + lfoR.process()) * lfoAmount
     self.filterR.calc()
     outputSamples[0] = self.filterR.process(outputSamples[0])
     self.filterR.cutoff = oc

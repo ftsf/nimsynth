@@ -1,6 +1,10 @@
+import locks
+
 var sampleRate* = 48000.0
 var nyquist* = sampleRate / 2.0
 var invSampleRate* = 1.0/sampleRate
+
+var machineLock*: Lock
 
 import sdl2
 import sdl2.audio
@@ -545,7 +549,8 @@ proc loadLayout*(name: string) =
         m.hideBindings = machine.hideBindings
         while m.voices.len < machine.voices:
           m.addVoice()
-        machines.add(m)
+        withLock machineLock:
+          machines.add(m)
         m.loadMarshaledParams(machine.parameters)
         machineMap.add(m)
         break

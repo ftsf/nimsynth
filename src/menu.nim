@@ -63,13 +63,12 @@ proc getAABB*(self: Menu): AABB =
   result.min.x = pos.x - 2
   result.min.y = pos.y - 2
 
-  var maxLength = label.len
-  for i in items:
-    if i.label.len > maxLength:
-      maxLength = i.label.len
+  result.max.y = min(pos.y + items.len.float * 9.0 + 10.0, screenHeight.float - 8.0)
 
-  result.max.x = pos.x + max(maxLength * 4, 64).float + 1.0
-  result.max.y = pos.y + items.len.float * 9.0 + 10.0
+  let rows = (result.max.y - result.min.y).int div 9
+  result.max.y = result.min.y + rows.float * 9.0 + 2.0
+  let cols = 1 + items.len div rows
+  result.max.x = result.min.x + cols.float * 64.0 + 4
 
 method draw*(self: MenuItem, x,y,w: int, selected: bool): int =
   if selected:
@@ -89,7 +88,7 @@ method draw*(self: MenuItemText, x,y,w: int, selected: bool): int =
 
 proc draw*(self: Menu) =
   let camera = getCamera()
-  var aabb = self.getAABB()
+  let aabb = self.getAABB()
 
   let w = (aabb.max.x - aabb.min.x).int
   let h = (aabb.max.y - aabb.min.y).int
@@ -102,9 +101,6 @@ proc draw*(self: Menu) =
   let x = pos.x.int
   let y = pos.y.int
 
-  if y + items.len * 9 >= screenHeight - 8:
-    aabb.max.x += 64.0
-
   setColor(1)
   rectfill(aabb)
   var yv = y + 2
@@ -115,8 +111,8 @@ proc draw*(self: Menu) =
     yv += 9
   let starty = yv
   for i,item in items:
-    yv += item.draw(xv, yv, w, selected == i)
-    if yv >= screenHeight - 8:
+    yv += item.draw(xv, yv, 64, selected == i)
+    if yv >= aabb.max.y:
       yv = starty
       xv += 64
 
@@ -129,8 +125,14 @@ proc event*(self: Menu, event: Event): bool =
     let mv = mouse()
     let aabb = self.getAABB()
     if pointInAABB(mv, self.getAABB()):
-      #let rows = (aabb.max.y - aabb.min.y) div 9
-      let item = (mv.y - pos.y).int div 9 - (if label != nil: 1 else: 0)
+      let rows = (aabb.max.y - aabb.min.y) div 9 - (if label != nil: 1 else: 0)
+      let column = (mv.x - pos.x).int div 64
+      let row = (mv.y - pos.y).int div 9 - (if label != nil: 1 else: 0)
+      if row < 0:
+        return true
+      if row >= rows:
+        return true
+      let item = row + (column * rows)
       if item >= 0 and item < items.len:
         selected = item
       return true

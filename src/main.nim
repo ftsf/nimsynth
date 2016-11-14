@@ -27,6 +27,7 @@ import dc
 import paramrecorder
 import gate
 import arp
+import karp
 import eq
 import probgate
 import probpick
@@ -35,6 +36,8 @@ import transposer
 import keyboard
 import dummy
 import filerec
+
+import locks
 
 when defined(jack):
   import jack.types
@@ -76,9 +79,10 @@ when defined(jack):
       sampleId += 1
 
       if midiEvent.time == time.int and eventIndex < nMidiEvents:
-        for machine in mitems(machines):
-          if machine.useMidi and machine.midiChannel == midiEvent.channel:
-            machine.midiEvent(midiEvent)
+        withLock machineLock:
+          for machine in mitems(machines):
+            if machine.useMidi and machine.midiChannel == midiEvent.channel:
+              machine.midiEvent(midiEvent)
 
         eventIndex += 1
         if eventIndex < nMidiEvents:
@@ -91,9 +95,10 @@ when defined(jack):
         inputSample = inputR[time]
 
       # update all machines
-      for machine in mitems(machines):
-        if machine.stereo or sampleId mod 2 == 0:
-          machine.process()
+      withLock machineLock:
+        for machine in mitems(machines):
+          if machine.stereo or sampleId mod 2 == 0:
+            machine.process()
 
       if i mod 2 == 0:
         samplesL[time] = masterMachine.outputSamples[0]
@@ -148,8 +153,14 @@ proc eventFunc(event: Event): bool =
         return true
       of SDL_SCANCODE_Q:
         if ctrl:
-          # TODO: ask if ok to exit
-          shutdown()
+          var menu = newMenu(mouse(), "quit?")
+          menu.items.add(newMenuItem("no") do():
+            popMenu()
+          )
+          menu.items.add(newMenuItem("yes") do():
+            shutdown()
+          )
+          pushMenu(menu)
           return true
       else:
         discard
@@ -201,6 +212,15 @@ proc init() =
     # attempt to connect system input to our input
     discard jack_connect(J, "system:capture_1", "nimsynth:in_1")
     discard jack_connect(J, "system:capture_2", "nimsynth:in_2")
+
+    # attempt to make all midi outputs connect to us
+    var ports = cast[ptr array[int.high, cstring]](jack_get_ports(J, nil, JACK_DEFAULT_MIDI_TYPE, JackPortIsOutput.culong))
+    if ports != nil:
+      var i = 0
+      while ports[i] != nil:
+        discard jack_connect(J, ports[i], "nimsynth:midi_in")
+        i += 1
+      jack_free(ports)
   else:
     setAudioCallback(2, audioCallback)
 
