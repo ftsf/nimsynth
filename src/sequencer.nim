@@ -36,6 +36,7 @@ type
     ciStep
     ciLinear
     ciCubic
+
   Sequencer* = ref object of Machine
     patterns*: seq[Pattern]
     columnDetails*: array[colsPerPattern, tuple[mode: ColumnMode, interpolation: ColumnInterpolation]]

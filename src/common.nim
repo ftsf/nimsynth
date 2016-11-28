@@ -99,6 +99,8 @@ var currentView*: View
 var vLayoutView*: View
 var masterMachine*: Machine
 
+var shortcuts*: array[10, Machine]
+
 {.this:self.}
 
 when defined(jack):
@@ -761,3 +763,6 @@ proc ctrl*(): bool =
     return (getModState() and KMOD_GUI) != 0
   else:
     return (getModState() and KMOD_CTRL) != 0
+
+proc shift*(): bool =
+  return (getModState() and KMOD_SHIFT) != 0

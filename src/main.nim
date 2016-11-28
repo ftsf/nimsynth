@@ -3,6 +3,9 @@ import sdl2
 
 import strutils
 
+
+import os
+
 import common
 import menu
 import machineview
@@ -129,8 +132,38 @@ else:
       if i mod 2 == 0 and i < 2048:
         sampleBuffer[i div 2] = samples[i]
 
+import basemachine
+
+proc setShortcut(shortcut: range[0..9], machine: Machine) =
+  if shortcut == 0:
+    return
+  shortcuts[shortcut] = machine
+
+proc switchToShortcut(shortcut: range[0..9]) =
+  if shortcut == 0:
+    currentView = vLayoutView
+    return
+  if shortcuts[shortcut] != nil:
+    currentView = shortcuts[shortcut].getMachineView()
+  elif currentView of MachineView:
+    setShortcut(shortcut, MachineView(currentView).machine)
+
+proc handleShortcutKey(shortcut: range[0..9]) =
+  let ctrl = ctrl()
+  let shift = shift()
+  if ctrl and shift:
+    if currentView of MachineView:
+      setShortcut(shortcut, MachineView(currentView).machine)
+    elif currentView of LayoutView:
+      let lv = LayoutView(currentView)
+      if lv.currentMachine != nil:
+        setShortcut(shortcut, lv.currentMachine)
+  elif ctrl:
+    switchToShortcut(shortcut)
+
 proc eventFunc(event: Event): bool =
   let ctrl = ctrl()
+  let shift = shift()
   case event.kind:
   of KeyDown, KeyUp:
     let down = event.kind == KeyDown
@@ -138,13 +171,37 @@ proc eventFunc(event: Event): bool =
     let scancode = event.key.keysym.scancode
     if down:
       case scancode:
-      of SDL_SCANCODE_F1:
-        currentView = vLayoutView
-        return true
       of SDL_SCANCODE_1:
-        if ctrl:
-          currentView = vLayoutView
-          return true
+        handleShortcutKey(0)
+        return true
+      of SDL_SCANCODE_2:
+        handleShortcutKey(1)
+        return true
+      of SDL_SCANCODE_3:
+        handleShortcutKey(2)
+        return true
+      of SDL_SCANCODE_4:
+        handleShortcutKey(3)
+        return true
+      of SDL_SCANCODE_5:
+        handleShortcutKey(4)
+        return true
+      of SDL_SCANCODE_6:
+        handleShortcutKey(5)
+        return true
+      of SDL_SCANCODE_7:
+        handleShortcutKey(6)
+        return true
+      of SDL_SCANCODE_8:
+        handleShortcutKey(7)
+        return true
+      of SDL_SCANCODE_9:
+        handleShortcutKey(8)
+        return true
+      of SDL_SCANCODE_0:
+        handleShortcutKey(9)
+        return true
+
       of SDL_SCANCODE_SLASH:
         baseOctave -= 1
         return true
@@ -240,6 +297,10 @@ proc init() =
   vLayoutView = newLayoutView()
   currentView = vLayoutView
 
+  let arguments = commandLineParams()
+  if arguments.len > 0:
+    loadLayout(arguments[0])
+
 proc update(dt: float) =
   if currentView != nil:
     currentView.update(dt)
@@ -247,6 +308,29 @@ proc update(dt: float) =
 proc draw() =
   if currentView != nil:
     currentView.draw()
+
+  # draw shortcut bar
+  for i, v in shortcuts:
+    if i == 0 or v != nil:
+      setColor(1)
+    else:
+      setColor(0)
+    rectfill(i * 32, screenHeight - 10, i * 32 + 30, screenHeight - 1)
+
+    if (i == 0 and currentView == vLayoutView) or (currentView of MachineView and v == MachineView(currentView).machine):
+      setColor(7)
+    elif i == 0 or v != nil:
+      setColor(13)
+    else:
+      setColor(1)
+
+    if i == 0 or v != nil:
+      if i == 0:
+        print("layout", i * 32 + 2, screenHeight - 8)
+      else:
+        print(v.name, i * 32 + 2, screenHeight - 8)
+
+    rect(i * 32, screenHeight - 10, i * 32 + 30, screenHeight - 1)
 
   setCamera()
 
