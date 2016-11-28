@@ -44,13 +44,17 @@ type
     currentStep*: int
     currentColumn*: int
     subColumn*: int
+
     playingPattern*: int
+    nextPattern*: int
+
     step*: int
     ticksPerBeat*: int
     playing: bool
     subTick: float
     looping: bool
     recording: bool
+
   SequencerView* = ref object of MachineView
     clipboard: Pattern
 
@@ -89,7 +93,7 @@ method init*(self: Sequencer) =
 
   globalParams.add([
     Parameter(kind: Int, name: "pattern", min: 0.0, max: 63.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
-      self.playingPattern = clamp(newValue.int, 0, self.patterns.high)
+      self.playingPattern = clamp(newValue.int, 0, maxPatterns)
       if self.patterns[self.playingPattern] == nil:
         self.subTick = 0.0
         self.step = 0
@@ -98,6 +102,16 @@ method init*(self: Sequencer) =
         self.subTick = 0.0
         self.step = 0
         self.playing = true
+        self.globalParams[1].value = self.playingPattern.float
+        self.globalParams[1].onchange(self.playingPattern.float)
+    , getValueString: proc(value: float, voice: int): string =
+      if self.patterns[value.int] != nil:
+        return $value.int & ": " & self.patterns[value.int].name
+      else:
+        return $value.int & ": empty"
+    ),
+    Parameter(kind: Int, name: "next", min: 0.0, max: 63.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.nextPattern = clamp(newValue.int, 0, maxPatterns)
     , getValueString: proc(value: float, voice: int): string =
       if self.patterns[value.int] != nil:
         return $value.int & ": " & self.patterns[value.int].name
@@ -125,7 +139,10 @@ method init*(self: Sequencer) =
           self.step = (newValue * self.patterns[self.playingPattern].rows.high.float).int
           self.subTick = 0.0
     , getValueString: proc(value: float, voice: int): string =
-      return $(value * self.patterns[self.playingPattern].rows.high.float).int
+      if self.patterns[self.playingPattern] == nil:
+        return ""
+      else:
+        return $(value * self.patterns[self.playingPattern].rows.high.float).int
     ),
   ])
 
@@ -284,15 +301,15 @@ proc drawPatternSelector(self: Sequencer, x,y,w,h: int) =
         if pattern == nil: 0 else:
           case pattern.color:
           of Green:
-            if patId == playingPattern and playing: 11 else: 3
+            if (patId == playingPattern and playing) or (patId == nextPattern and frame mod 30 < 15): 11 else: 3
           of Blue:
-            if patId == playingPattern and playing: 12 else: 1
+            if (patId == playingPattern and playing) or (patId == nextPattern and frame mod 30 < 15): 12 else: 1
           of Red:
-            if patId == playingPattern and playing: 8 else: 2
+            if (patId == playingPattern and playing) or (patId == nextPattern and frame mod 30 < 15): 8 else: 2
           of Yellow:
-            if patId == playingPattern and playing: 9 else: 4
+            if (patId == playingPattern and playing) or (patId == nextPattern and frame mod 30 < 15): 9 else: 4
           of White:
-            if patId == playingPattern and playing: 7 else: 5
+            if (patId == playingPattern and playing) or (patId == nextPattern and frame mod 30 < 15): 7 else: 5
       )
       rectfill(x + col * (squareSize + padding), y + row * (squareSize + padding), x + col * (squareSize + padding) + (squareSize - 1), y + row * (squareSize + padding) + (squareSize - 1))
 
@@ -377,12 +394,16 @@ method draw*(self: SequencerView) =
         let value = mapSeqValueToParamValue(value, param)
         print("value: " & param[].valueString(value), 1, screenHeight - 8)
       if param.kind == Note:
-        printr("oct: " & $baseOctave, colsPerPattern * 17, screenHeight - 8)
+        # draw keyboard
+        sspr(0,91,49,127-91, screenWidth - 100, screenHeight - 76, 98, 76)
+        # draw octaves
+        setColor(7)
+        print($baseOctave, screenWidth - 110, screenHeight - 24, 2)
+        print($(baseOctave + 1), screenWidth - 110, screenHeight - 56, 2)
+
 
   drawParams(screenWidth - 128, 8, 126, screenHeight - 100)
 
-  # draw keyboard
-  sspr(0,91,49,127-91, screenWidth - 100, screenHeight - 76, 100, 76)
 
 method process*(self: Sequencer) =
   let pattern = patterns[playingPattern]
@@ -420,11 +441,17 @@ method process*(self: Sequencer) =
       step += 1
       subTick = 0.0
       if step > pattern.rows.high or (pattern.loopEnd != pattern.loopStart and step > pattern.loopEnd):
-        step = pattern.loopStart
-        if not looping:
-          playing = false
+        # reached end of pattern
+        if nextPattern != playingPattern:
+          playingPattern = nextPattern
+          let pattern = patterns[playingPattern]
+          step = pattern.loopStart
+        else:
+          step = pattern.loopStart
+          if not looping:
+            playing = false
 
-    globalParams[4].value = step.float / pattern.rows.high.float
+    globalParams[5].value = step.float / pattern.rows.high.float
 
 proc setValue(self: Sequencer, newValue: int) =
   var pattern = patterns[currentPattern]
@@ -476,11 +503,11 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
   if scancode == SDL_SCANCODE_L and ctrl and down:
     # toggle loop
     if s.looping:
-      s.globalParams[2].value = 0.0
-      s.globalParams[2].onchange(0.0)
+      s.globalParams[3].value = 0.0
+      s.globalParams[3].onchange(0.0)
     else:
-      s.globalParams[2].value = 1.0
-      s.globalParams[2].onchange(1.0)
+      s.globalParams[3].value = 1.0
+      s.globalParams[3].onchange(1.0)
     return true
   elif scancode == SDL_SCANCODE_B and ctrl and down:
     pattern.loopStart = s.currentStep
@@ -594,13 +621,15 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
     s.currentStep = pattern.rows.high
     return true
   elif key.keysym.scancode == SDL_SCANCODE_MINUS and down:
-    var (voice, param) = s.getParameter(1)
+    # lower tpb
+    var (voice, param) = s.getParameter(2)
     s.ticksPerBeat -= 1
     param.value = s.ticksPerBeat.float
     param.onchange(param.value, voice)
     return true
   elif key.keysym.scancode == SDL_SCANCODE_EQUALS and down:
-    var (voice, param) = s.getParameter(1)
+    # increase tpb
+    var (voice, param) = s.getParameter(2)
     s.ticksPerBeat += 1
     param.value = s.ticksPerBeat.float
     param.onchange(param.value, voice)
@@ -744,6 +773,7 @@ method event(self: SequencerView, event: Event): bool =
   of MouseButtonDown, MouseButtonUp:
     let mv = mouse()
     let down = event.kind == MouseButtonDown
+    let ctrl = ctrl()
 
     # select pattern cell
     if mv.y > 24 and mv.x <= (colsPerPattern * 17) + 9:
@@ -755,7 +785,7 @@ method event(self: SequencerView, event: Event): bool =
         return true
 
     # if mouse is in pattern selector, select pattern
-    elif mv.y > 24 and mv.x > colsPerPattern * 17 + 9 and mv.x < screenWidth - 128:
+    elif down and mv.y > 24 and mv.x > colsPerPattern * 17 + 9 and mv.x < screenWidth - 128:
       const squareSize = 12
       const padding = 2
       let y = clamp((mv.y - 24) div (squareSize + padding), 0, 7)
@@ -763,12 +793,18 @@ method event(self: SequencerView, event: Event): bool =
       let patId = clamp(y * 8 + x, 0, 63)
 
       if event.button.button == 1:
-        s.currentPattern = patId
-        if s.currentPattern > s.patterns.high:
-          s.patterns.setLen(s.currentPattern+1)
-          if s.patterns[s.currentPattern] == nil:
-            s.patterns[s.currentPattern] = newPattern()
-        return
+        if ctrl:
+          if s.patterns[patId] != nil:
+            s.nextPattern = patId
+            s.globalParams[1].value = s.nextPattern.float
+          return
+        else:
+          s.currentPattern = patId
+          if s.currentPattern > s.patterns.high:
+            s.patterns.setLen(s.currentPattern+1)
+            if s.patterns[s.currentPattern] == nil:
+              s.patterns[s.currentPattern] = newPattern()
+          return
       elif event.button.button == 3 and down:
         if s.patterns[patId] == nil:
           s.patterns[patId] = newPattern()
