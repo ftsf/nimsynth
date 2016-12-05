@@ -77,7 +77,7 @@ method draw*(self: LayoutView) =
         break
       let y0 = (sampleBuffer[x-1] * 64).int + screenHeight div 2
       let y1 = (sampleBuffer[x] * 64).int + screenHeight div 2
-      setColor(if abs(sampleBuffer[x-1]) > 1.0: 2 else: 1)
+      setColor(if abs(sampleBuffer[x-1]) > 1.0: 2 else: 3)
       line(x-1,y0,x,y1)
 
   setCamera(camera)

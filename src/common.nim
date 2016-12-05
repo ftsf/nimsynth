@@ -37,6 +37,9 @@ const MidiStatusNoteOn =  0x00000001
 const MidiStatusControlChange = 0x00000011
 
 type
+  InvalidParamException = object of Exception
+
+type
   # used for connecting a machine to another machine's parameter
   Binding* = tuple[machine: Machine, param: int]
   ParameterKind* = enum
@@ -138,11 +141,12 @@ method rename*(self: Machine, newName: string) {.base.} =
   self.name = newName
 
 method addVoice*(self: Machine) {.base.} =
-  pauseAudio(1)
-  var voice = new(Voice)
-  self.voices.add(voice)
-  voice.init(self)
-  pauseAudio(0)
+  withLock machineLock:
+    pauseAudio(1)
+    var voice = new(Voice)
+    self.voices.add(voice)
+    voice.init(self)
+    pauseAudio(0)
 
 method setDefaults*(self: Machine) {.base.} =
   for param in mitems(self.globalParams):
@@ -258,24 +262,28 @@ proc swapMachines*(a,b: Machine) =
     pauseAudio(0)
 
 proc delete*(self: Machine) =
-  pauseAudio(1)
-  # remove all connections and references to it
-  for machine in mitems(machines):
-    if machine != self:
-      for i,input in machine.inputs:
-        if input.machine == self:
-          disconnectMachines(self, machine)
-  # remove all bindings to this machine
-  for machine in mitems(machines):
-    if machine != self:
-      if machine.bindings != nil:
-        for i, binding in mpairs(machine.bindings):
-          if binding.machine == self:
-            removeBinding(machine, i)
+  withLock machineLock:
+    pauseAudio(1)
+    # remove all connections and references to it
+    for machine in mitems(machines):
+      if machine != self:
+        for i,input in machine.inputs:
+          if input.machine == self:
+            disconnectMachines(self, machine)
+    # remove all bindings to this machine
+    for machine in mitems(machines):
+      if machine != self:
+        if machine.bindings != nil:
+          for i, binding in mpairs(machine.bindings):
+            if binding.machine == self:
+              removeBinding(machine, i)
+    for i,shortcut in mpairs(shortcuts):
+      if shortcut == self:
+        shortcuts[i] = nil
 
-  machines.del(machines.find(self))
+    machines.del(machines.find(self))
 
-  pauseAudio(0)
+    pauseAudio(0)
 
 type MachineType* = tuple[name: string, factory: proc(): Machine]
 
@@ -334,7 +342,12 @@ method getParameterCount*(self: Machine): int {.base.} =
   return self.globalParams.len + (self.voiceParams.len * self.voices.len)
 
 method getParameter*(self: Machine, paramId: int): (int, ptr Parameter) {.base.} =
+
+  if paramId > globalParams.len + (voiceParams.len * voices.len):
+    raise newException(InvalidParamException, "invalid ParamId: " & $paramId & ". " & self.name & " only has " & $getParameterCount() & " params.")
+
   let voice = if paramId <= globalParams.high: -1 else: (paramId - globalParams.len) div voiceParams.len
+
   if voice == -1:
     return (voice, addr(self.globalParams[paramId]))
   elif voice > self.voices.high or voice < -1:
@@ -573,20 +586,22 @@ proc getPatches*(self: Machine): seq[string] =
     result.add(file[prefix.len..file.high-5])
 
 method popVoice*(self: Machine) {.base.} =
-  pauseAudio(1)
-  # find anything bound to this voice
-  for machine in mitems(machines):
-    if machine != self:
+  echo "popVoice"
+  withLock machineLock:
+    pauseAudio(1)
+    # find anything bound to this voice
+    for machine in mitems(machines):
       if machine.bindings != nil:
         for i,binding in mpairs(machine.bindings):
           if binding.machine == self:
-            var (voice,param) = machine.getParameter(binding.param)
+            echo machine.name & " is bound to " & self.name & ":" & $binding.param
+            var (voice,param) = self.getParameter(binding.param)
             if voice == self.voices.high:
+              echo "voice matches: " & $voice
               removeBinding(machine, i)
-  discard self.voices.pop()
-  pauseAudio(0)
 
-
+    discard self.voices.pop()
+    pauseAudio(0)
 
 method process*(self: Machine) {.base.} =
   discard

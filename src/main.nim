@@ -148,18 +148,74 @@ proc switchToShortcut(shortcut: range[0..9]) =
   elif currentView of MachineView:
     setShortcut(shortcut, MachineView(currentView).machine)
 
-proc handleShortcutKey(shortcut: range[0..9]) =
-  let ctrl = ctrl()
+proc handleShortcutKey(shortcut: range[0..9]): bool =
   let shift = shift()
-  if ctrl and shift:
+  if shift:
     if currentView of MachineView:
       setShortcut(shortcut, MachineView(currentView).machine)
+      return true
     elif currentView of LayoutView:
       let lv = LayoutView(currentView)
       if lv.currentMachine != nil:
         setShortcut(shortcut, lv.currentMachine)
-  elif ctrl:
+        return true
+  else:
     switchToShortcut(shortcut)
+    return true
+
+proc handleShortcutKeys(event: Event): bool =
+  let down = event.kind == KeyDown
+  let ctrl = ctrl()
+  let scancode = event.key.keysym.scancode
+  if down and ctrl:
+    case scancode:
+    of SDL_SCANCODE_1:
+      return handleShortcutKey(0)
+    of SDL_SCANCODE_2:
+      return handleShortcutKey(1)
+    of SDL_SCANCODE_3:
+      return handleShortcutKey(2)
+    of SDL_SCANCODE_4:
+      return handleShortcutKey(3)
+    of SDL_SCANCODE_5:
+      return handleShortcutKey(4)
+    of SDL_SCANCODE_6:
+      return handleShortcutKey(5)
+    of SDL_SCANCODE_7:
+      return handleShortcutKey(6)
+    of SDL_SCANCODE_8:
+      return handleShortcutKey(7)
+    of SDL_SCANCODE_9:
+      return handleShortcutKey(8)
+    of SDL_SCANCODE_0:
+      return handleShortcutKey(9)
+    else:
+      return false
+  elif down:
+    case scancode:
+    of SDL_SCANCODE_F1:
+      return handleShortcutKey(0)
+    of SDL_SCANCODE_F2:
+      return handleShortcutKey(1)
+    of SDL_SCANCODE_F3:
+      return handleShortcutKey(2)
+    of SDL_SCANCODE_F4:
+      return handleShortcutKey(3)
+    of SDL_SCANCODE_F5:
+      return handleShortcutKey(4)
+    of SDL_SCANCODE_F6:
+      return handleShortcutKey(5)
+    of SDL_SCANCODE_F7:
+      return handleShortcutKey(6)
+    of SDL_SCANCODE_F8:
+      return handleShortcutKey(7)
+    of SDL_SCANCODE_F9:
+      return handleShortcutKey(8)
+    of SDL_SCANCODE_F10:
+      return handleShortcutKey(9)
+    else:
+      return false
+  return false
 
 proc eventFunc(event: Event): bool =
   let ctrl = ctrl()
@@ -169,39 +225,9 @@ proc eventFunc(event: Event): bool =
     let down = event.kind == KeyDown
     # handle global keys
     let scancode = event.key.keysym.scancode
-    if down:
-      case scancode:
-      of SDL_SCANCODE_1:
-        handleShortcutKey(0)
-        return true
-      of SDL_SCANCODE_2:
-        handleShortcutKey(1)
-        return true
-      of SDL_SCANCODE_3:
-        handleShortcutKey(2)
-        return true
-      of SDL_SCANCODE_4:
-        handleShortcutKey(3)
-        return true
-      of SDL_SCANCODE_5:
-        handleShortcutKey(4)
-        return true
-      of SDL_SCANCODE_6:
-        handleShortcutKey(5)
-        return true
-      of SDL_SCANCODE_7:
-        handleShortcutKey(6)
-        return true
-      of SDL_SCANCODE_8:
-        handleShortcutKey(7)
-        return true
-      of SDL_SCANCODE_9:
-        handleShortcutKey(8)
-        return true
-      of SDL_SCANCODE_0:
-        handleShortcutKey(9)
-        return true
-
+    if handleShortcutKeys(event):
+      return true
+    case scancode:
       of SDL_SCANCODE_SLASH:
         baseOctave -= 1
         return true

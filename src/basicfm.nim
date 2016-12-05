@@ -7,6 +7,8 @@ import filter
 import env
 import master
 
+import locks
+
 # 3 osc FM synth
 
 const nOperators = 3
@@ -82,11 +84,12 @@ method init(self: BasicFMSynthVoice, machine: BasicFMSynth) =
   pitchEnv.init()
 
 method addVoice*(self: BasicFMSynth) =
-  pauseAudio(1)
-  var voice = new(BasicFMSynthVoice)
-  voices.add(voice)
-  voice.init(self)
-  pauseAudio(0)
+  withLock machineLock:
+    pauseAudio(1)
+    var voice = new(BasicFMSynthVoice)
+    voices.add(voice)
+    voice.init(self)
+    pauseAudio(0)
 
 proc initNote(self: BasicFMSynth, voiceId: int, note: int) =
   var voice = BasicFMSynthVoice(voices[voiceId])
