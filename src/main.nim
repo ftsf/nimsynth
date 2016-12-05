@@ -227,26 +227,27 @@ proc eventFunc(event: Event): bool =
     let scancode = event.key.keysym.scancode
     if handleShortcutKeys(event):
       return true
-    case scancode:
-      of SDL_SCANCODE_SLASH:
-        baseOctave -= 1
-        return true
-      of SDL_SCANCODE_APOSTROPHE:
-        baseOctave += 1
-        return true
-      of SDL_SCANCODE_Q:
-        if ctrl:
-          var menu = newMenu(mouse(), "quit?")
-          menu.items.add(newMenuItem("no") do():
-            popMenu()
-          )
-          menu.items.add(newMenuItem("yes") do():
-            shutdown()
-          )
-          pushMenu(menu)
+    if down:
+      case scancode:
+        of SDL_SCANCODE_SLASH:
+          baseOctave -= 1
           return true
-      else:
-        discard
+        of SDL_SCANCODE_APOSTROPHE:
+          baseOctave += 1
+          return true
+        of SDL_SCANCODE_Q:
+          if ctrl:
+            var menu = newMenu(mouse(), "quit?")
+            menu.items.add(newMenuItem("no") do():
+              popMenu()
+            )
+            menu.items.add(newMenuItem("yes") do():
+              shutdown()
+            )
+            pushMenu(menu)
+            return true
+        else:
+          discard
 
   else:
     discard
