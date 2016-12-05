@@ -395,6 +395,7 @@ type
   LayoutMarhsal = object of RootObj
     name: string
     machines: seq[MachineMarshal]
+    shortcuts: array[10,int]
 
 import marshal
 import streams
@@ -508,6 +509,7 @@ proc saveLayout*(name: string) =
   var l: LayoutMarhsal
   l.name = name
   l.machines = newSeq[MachineMarshal]()
+  l.shortcuts = [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1]
   for i, machine in machines:
     var m: MachineMarshal
     m.name = machine.name
@@ -520,6 +522,9 @@ proc saveLayout*(name: string) =
     m.voices = machine.voices.len
     m.extraData = machine.saveExtraData()
     l.machines.add(m)
+    let j = shortcuts.find(machine)
+    if j != -1:
+      l.shortcuts[j] = i
 
   createDir("layouts")
 
@@ -540,6 +545,7 @@ proc getLayouts*(): seq[string] =
 
 proc loadLayout*(name: string) =
   var l: LayoutMarhsal
+  l.shortcuts = [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1]
   var fp = newFileStream("layouts/" & name & ".json", fmRead)
   fp.load(l)
   fp.close()
@@ -576,6 +582,10 @@ proc loadLayout*(name: string) =
     m.loadMarshaledBindings(machine.bindings)
     m.loadMarshaledInputs(machine.inputs)
     m.loadExtraData(machine.extraData)
+
+  for i, shortcut in l.shortcuts:
+    if shortcut != -1:
+      shortcuts[i] = machines[shortcut]
 
   echo "loaded layout: ", name
 
