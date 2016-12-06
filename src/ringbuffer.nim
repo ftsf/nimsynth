@@ -3,7 +3,7 @@ import macros
 type
   RingBuffer*[T] = object
     data: seq[T]
-    head, tail: int
+    head*, tail*: int
     size*, length*: int
 
 
