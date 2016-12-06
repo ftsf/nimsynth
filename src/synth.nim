@@ -156,12 +156,12 @@ method init*(self: Synth) =
     , getValueString: proc(value: float, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
-    Parameter(name: "env2 a", kind: Float, separator: true, min: 0.0, max: 1.0, default: 0.001, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env2 a", kind: Float, separator: true, min: 0.0, max: 5.0, default: 0.001, onchange: proc(newValue: float, voice: int) =
       self.env[1].a = exp(newValue) - 1.0
     , getValueString: proc(value: float, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
-    Parameter(name: "env2 d", kind: Float, min: 0.0, max: 1.0, default: 0.05, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env2 d", kind: Float, min: 0.0, max: 5.0, default: 0.05, onchange: proc(newValue: float, voice: int) =
       self.env[1].d = exp(newValue) - 1.0
     , getValueString: proc(value: float, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
@@ -172,7 +172,7 @@ method init*(self: Synth) =
     Parameter(name: "env2 s", kind: Float, min: 0.0, max: 1.0, default: 0.25, onchange: proc(newValue: float, voice: int) =
       self.env[1].s = newValue
     ),
-    Parameter(name: "env2 r", kind: Float, min: 0.0, max: 1.0, default: 0.001, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env2 r", kind: Float, min: 0.0, max: 5.0, default: 0.001, onchange: proc(newValue: float, voice: int) =
       self.env[1].r = exp(newValue) - 1.0
     , getValueString: proc(value: float, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
@@ -180,12 +180,12 @@ method init*(self: Synth) =
     Parameter(name: "env2 cut", kind: Float, min: -10.0, max: 10.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
       self.env2CutoffMod = newValue
     ),
-    Parameter(name: "env3 a", kind: Float, separator: true, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env3 a", kind: Float, separator: true, min: 0.0, max: 5.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.env[2].a = exp(newValue) - 1.0
     , getValueString: proc(value: float, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
-    Parameter(name: "env3 d", kind: Float, min: 0.0, max: 1.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env3 d", kind: Float, min: 0.0, max: 5.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
       self.env[2].d = exp(newValue) - 1.0
     , getValueString: proc(value: float, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
@@ -196,7 +196,7 @@ method init*(self: Synth) =
     Parameter(name: "env3 s", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.env[2].s = newValue
     ),
-    Parameter(name: "env3 r", kind: Float, min: 0.0, max: 1.0, default: 0.001, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env3 r", kind: Float, min: 0.0, max: 5.0, default: 0.001, onchange: proc(newValue: float, voice: int) =
       self.env[2].r = exp(newValue) - 1.0
     , getValueString: proc(value: float, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"

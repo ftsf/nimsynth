@@ -71,9 +71,11 @@ proc rotated*(v: Vector2d, angle: float): Vector2d =
   return v
 
 proc lerp*[T](a, b: T, t: float): T {.inline.} =
+  # lerp takes a and b and returns a if t == 0, b if t == 1
   return a + (b - a) * t
 
 proc invLerp*[T](a, b: T, t: T): float {.inline.} =
+  # invLerp takes a and b and returns 0 if t == a and 1 if t == b
   assert(b!=a)
   return (t - a) / (b - a)
 
@@ -399,6 +401,12 @@ proc wrapAngle*(angle: float): float =
     angle += TAU
   return angle
 
+proc vline*(x, y0, y1: cint) =
+  line(x, y0, x, y1)
+
+proc hline*(x0, y, x1: cint) =
+  line(x0, y, x1, y)
+
 proc wrapAngleTAU*(angle: float): float =
   var angle = angle
   while angle > TAU:
@@ -423,6 +431,8 @@ suite "util":
   test "invLerp":
     check(invLerp(-1.0,  1.0, 0.0) == 0.5)
     check(invLerp( 1.0, -1.0, 0.0) == 0.5)
+    check(invLerp(100.0, 0.0, 100.0) == 0.0)
+    check(invLerp(0.0, 100.0, 100.0) == 1.0)
   test "angleDiff":
     check(angleDiff(0,0) == 0)
     check(angleDiff(TAU,0) == 0)
