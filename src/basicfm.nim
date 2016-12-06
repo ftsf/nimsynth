@@ -175,17 +175,23 @@ method init(self: BasicFMSynth) =
         Parameter(name: $(opId+1) & ":MULT", kind: Float, min: 0.5, max: 8.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
           self.multipliers[opId] = newValue
         ),
-        Parameter(name: $(opId+1) & ":A", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
-          self.envSettings[opId].a = newValue
+        Parameter(name: $(opId+1) & ":A", kind: Float, min: 0.0, max: 5.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+          self.envSettings[opId].a = exp(newValue) - 1.0
+        , getValueString: proc(value: float, voice: int): string =
+          return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
         ),
-        Parameter(name: $(opId+1) & ":D", kind: Float, min: 0.0, max: 10.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
-          self.envSettings[opId].d = newValue
+        Parameter(name: $(opId+1) & ":D", kind: Float, min: 0.0, max: 5.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+          self.envSettings[opId].d = exp(newValue) - 1.0
+        , getValueString: proc(value: float, voice: int): string =
+          return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
         ),
         Parameter(name: $(opId+1) & ":S", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
           self.envSettings[opId].s = newValue
         ),
-        Parameter(name: $(opId+1) & ":R", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
-          self.envSettings[opId].r = newValue
+        Parameter(name: $(opId+1) & ":R", kind: Float, min: 0.0, max: 5.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+          self.envSettings[opId].r = exp(newValue) - 1.0
+        , getValueString: proc(value: float, voice: int): string =
+          return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
         ),
       ])
     )()
