@@ -357,13 +357,19 @@ method event*(self: LayoutView, event: Event): bool =
               var target = machine
               var source = currentMachine
               if source.nBindings > 1:
-                pushMenu(currentMachine.getSlotMenu(mv + -camera) do(slotId: int):
-                  popMenu()
-                  pushMenu(target.getParameterMenu(mv + -self.camera, "select param") do(paramId: int):
-                    createBinding(source, slotId, target, paramId)
-                    popMenu()
+                proc bindParamMenu() =
+                  pushMenu(currentMachine.getSlotMenu(mv + -camera) do(slotId: int):
+                    pushMenu(target.getParameterMenu(mv + -self.camera, "slot " & $slotId & " -> ") do(paramId: int):
+                      createBinding(source, slotId, target, paramId)
+                      popMenu()
+                      if not shift():
+                        popMenu()
+                      else:
+                        popMenu()
+                        bindParamMenu()
+                    )
                   )
-                )
+                bindParamMenu()
               else:
                 pushMenu(machine.getParameterMenu(mv + -camera, "select param") do(paramId: int):
                   createBinding(source, 0, target, paramId)
