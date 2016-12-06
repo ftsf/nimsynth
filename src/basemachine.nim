@@ -129,6 +129,10 @@ method getMenu*(self: Machine, mv: Point2d): Menu =
       self.mute = not self.mute
       popMenu()
     ))
+    menu.items.add(newMenuItem("monitor", proc() =
+      sampleMachine = self
+      popMenu()
+    ))
   if nInputs > 0 and nOutputs > 0:
     menu.items.add(newMenuItem("bypass", proc() =
       self.bypass = not self.bypass

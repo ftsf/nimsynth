@@ -40,6 +40,7 @@ import keyboard
 import dummy
 import filerec
 
+import ringbuffer
 import locks
 
 when defined(jack):
@@ -105,8 +106,8 @@ when defined(jack):
 
       if i mod 2 == 0:
         samplesL[time] = masterMachine.outputSamples[0]
-        if i < 2048:
-          sampleBuffer[time] = samplesL[time]
+        if sampleMachine != nil:
+          sampleBuffer.add([sampleMachine.outputSamples[0]])
       else:
         samplesR[time] = masterMachine.outputSamples[0]
 
@@ -320,6 +321,9 @@ proc init() =
 
   masterMachine = newMaster()
   machines.add(masterMachine)
+
+  sampleBuffer = newRingBuffer[float32](1024)
+  sampleMachine = masterMachine
 
   vLayoutView = newLayoutView()
   currentView = vLayoutView

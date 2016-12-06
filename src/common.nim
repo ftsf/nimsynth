@@ -20,7 +20,10 @@ export pauseAudio
 var baseOctave* = 4
 
 var sampleId*: int
-var sampleBuffer*: array[1024, float32]
+
+import ringbuffer
+
+var sampleBuffer*: RingBuffer[float32]
 
 var inputSample*: float32
 
@@ -101,6 +104,7 @@ var machines*: seq[Machine]
 var currentView*: View
 var vLayoutView*: View
 var masterMachine*: Machine
+var sampleMachine*: Machine
 
 var shortcuts*: array[10, Machine]
 
@@ -282,6 +286,9 @@ proc delete*(self: Machine) =
         shortcuts[i] = nil
 
     machines.del(machines.find(self))
+
+    if sampleMachine == self:
+      sampleMachine = masterMachine
 
     pauseAudio(0)
 
