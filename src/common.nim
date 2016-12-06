@@ -12,6 +12,7 @@ import math
 import basic2d
 import strutils
 import math
+import pico
 
 export sdl2
 
@@ -27,13 +28,18 @@ var sampleBuffer*: RingBuffer[float32]
 
 var inputSample*: float32
 
-var statusMessage: string
+var statusMessage: string = "ready to rok"
+var statusUpdateTime: int = 0
 
 proc setStatus*(text: string) =
   statusMessage = text
+  statusUpdateTime = time()
 
 proc getStatus*(): string =
   return statusMessage
+
+proc getStatusUpdateTime*(): int =
+  return statusUpdateTime
 
 const MidiStatusNoteOff = 0x00000000
 const MidiStatusNoteOn =  0x00000001

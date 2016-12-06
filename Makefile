@@ -4,10 +4,10 @@ DATE=$(shell date +%Y-%m-%d)
 #NIMC= /opt/nim/0.15.0/nim/bin/nim --lib:/opt/nim/0.15.0/nim/lib/
 NIMC= /opt/nim/0.15.0-test/nim/bin/nim --lib:/opt/nim/0.15.0-test/nim/lib/
 #NIMC= /opt/nim/devel/nim/bin/nim --lib:/opt/nim/devel/nim/lib/
-#NIMC=nim
+NIMC=nim
 
 synth: $(SOURCES)
-	${NIMC} c -d:release -o:$@ --threads:on -d:jack --tlsEmulation:off src/main.nim
+	${NIMC} c -d:release -o:$@ --threads:on --tlsEmulation:off src/main.nim
 
 clang: $(SOURCES)
 	${NIMC} cpp --cc:clang --verbosity:2 -d:release -o:$@ --threads:on --tlsEmulation:off src/main.nim

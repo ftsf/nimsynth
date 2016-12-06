@@ -357,11 +357,16 @@ proc draw() =
 
     if i == 0 or v != nil:
       if i == 0:
-        print("layout", i * 32 + 2, screenHeight - 8)
+        print($(i+1) & ":layout", i * 32 + 2, screenHeight - 8)
       else:
-        print(v.name, i * 32 + 2, screenHeight - 8)
+        print($(i+1) & ":" & v.name, i * 32 + 2, screenHeight - 8)
 
     rect(i * 32, screenHeight - 10, i * 32 + 30, screenHeight - 1)
+
+  let lastUpdated = getStatusUpdateTime()
+  let now = time()
+  setColor(if lastUpdated > now - 2: 7 elif lastUpdated > now - 10: 6 else: 1)
+  printr(getStatus(), screenWidth - 1, screenHeight - 9)
 
   setCamera()
 

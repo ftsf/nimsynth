@@ -129,6 +129,9 @@ proc fps*(fps: int) =
 proc fps*(): int =
   return frameRate
 
+proc time*(): int =
+  return getTicks().int
+
 proc speed*(speed: int) =
   frameMult = speed
 
@@ -1043,7 +1046,6 @@ proc appHandleEvent(evt: Event) =
   elif evt.kind == MouseWheel:
     mouseWheelState = evt.wheel.y
   elif evt.kind == MouseButtonDown:
-    discard captureMouse(true)
     if evt.button.button == BUTTON_LEFT:
       mouseButtonState = mouseButtonState or 1
       mouseButtonPState = mouseButtonPState or 1
@@ -1055,7 +1057,6 @@ proc appHandleEvent(evt: Event) =
       mouseButtonPState = mouseButtonPState or 4
 
   elif evt.kind == MouseButtonUp:
-    discard captureMouse(false)
     if evt.button.button == BUTTON_LEFT:
       mouseButtonState = mouseButtonState and not 1
     elif evt.button.button == BUTTON_RIGHT:

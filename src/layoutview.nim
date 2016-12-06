@@ -12,7 +12,6 @@ import machineview
 import menu
 
 import ringbuffer
-
 import locks
 
 ### Layout View
@@ -81,6 +80,8 @@ method draw*(self: LayoutView) =
       let y1 = (sampleBuffer[x] * 64.0).int + screenHeight div 2
       setColor(if abs(sampleBuffer[x-1]) > 1.0: 2 else: 3)
       line(x-1,y0,x,y1)
+      if sampleBuffer.head == x:
+        circfill(x,y1,1)
 
   setCamera(camera)
 
