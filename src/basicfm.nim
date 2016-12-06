@@ -7,6 +7,8 @@ import filter
 import env
 import master
 
+import strutils
+
 import locks
 
 # 3 osc FM synth
