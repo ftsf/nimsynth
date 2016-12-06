@@ -242,9 +242,11 @@ proc eventFunc(event: Event): bool =
             menu.items.add(newMenuItem("no") do():
               popMenu()
             )
+            menu.items[menu.items.high].status = Primary
             menu.items.add(newMenuItem("yes") do():
               shutdown()
             )
+            menu.items[menu.items.high].status = Danger
             pushMenu(menu)
             return true
         else:

@@ -6,9 +6,16 @@ import common
 {.this:self.}
 
 type
+  MenuItemStatus* = enum
+    Default
+    Primary
+    Warning
+    Danger
+    Disabled
   MenuItem* = ref object of RootObj
     label*: string
     action*: proc()
+    status*: MenuItemStatus
   MenuItemText* = ref object of MenuItem
     default*: string
     value*: string
@@ -43,10 +50,11 @@ proc newMenu*(pos: Point2d, label: string = nil): Menu =
   result.selected = -1
   result.hasSetTextFunc = -1
 
-proc newMenuItem*(label: string, action: proc() = nil): MenuItem =
+proc newMenuItem*(label: string, action: proc() = nil, status: MenuItemStatus = Default): MenuItem =
   result = new(MenuItem)
   result.label = label
   result.action = action
+  result.status = status
 
 proc newMenuItemText*(label: string, default: string = ""): MenuItemText =
   var mi = new(MenuItemText)
@@ -71,8 +79,25 @@ proc getAABB*(self: Menu): AABB =
   result.max.x = result.min.x + cols.float * 64.0 + 4
 
 method draw*(self: MenuItem, x,y,w: int, selected: bool): int =
+  setColor(
+    case self.status:
+    of Default: 1
+    of Primary: 3
+    of Warning: 4
+    of Danger: 2
+    of Disabled: 0
+  )
+  rectfill(x, y-1, x+w, y + 5)
   if selected:
-    setColor(13)
+    setColor(
+      case self.status:
+      of Default: 13
+      of Primary: 11
+      of Warning: 9
+      of Danger: 8
+      of Disabled: 0
+    )
+
     rectfill(x, y-1, x+w, y + 5)
   setColor(if selected: 7 else: 6)
   print(label, x + 2, y)
