@@ -328,7 +328,7 @@ proc init() =
   machines = newSeq[Machine]()
   menuStack = newSeq[Menu]()
 
-  masterMachine = newMaster()
+  masterMachine = createMachine("master")
   machines.add(masterMachine)
 
   sampleBuffer = newRingBuffer[float32](1024)

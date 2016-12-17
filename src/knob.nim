@@ -112,7 +112,7 @@ method handleClick(self: Knob, mouse: Point2d): bool =
     return true
   return false
 
-method event(self: Knob, event: Event): (bool, bool) =
+method event(self: Knob, event: Event, camera: Point2d): (bool, bool) =
   case event.kind:
   of MouseButtonUp:
     if event.button.button == 1:

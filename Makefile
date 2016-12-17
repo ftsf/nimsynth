@@ -1,9 +1,5 @@
 SOURCES=$(shell ls src/*.nim)
 DATE=$(shell date +%Y-%m-%d)
-#NIMC= /opt/nim/0.14.2/bin/nim --lib:/opt/nim/0.14.2/lib/
-#NIMC= /opt/nim/0.15.0/nim/bin/nim --lib:/opt/nim/0.15.0/nim/lib/
-NIMC= /opt/nim/0.15.0-test/nim/bin/nim --lib:/opt/nim/0.15.0-test/nim/lib/
-#NIMC= /opt/nim/devel/nim/bin/nim --lib:/opt/nim/devel/nim/lib/
 NIMC=nim
 
 synth: $(SOURCES)

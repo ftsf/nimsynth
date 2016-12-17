@@ -20,8 +20,8 @@ method init(self: ParamLP) =
 
   name = "PARAMlp"
 
-  filter.init()
   filter.kind = Lowpass
+  filter.init()
 
   globalParams.add([
     Parameter(name: "input", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =

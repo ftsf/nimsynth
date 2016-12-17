@@ -70,6 +70,22 @@ proc addMachineMenu(self: LayoutView, mv: Point2d, title: string, action: proc(m
 method draw*(self: LayoutView) =
   cls()
 
+  when true:
+    # draw oscilliscope
+    setColor(1)
+    line(0, screenHeight div 2, screenWidth, screenHeight div 2)
+
+    for x in 1..<screenWidth:
+      let s0 = (sampleBuffer.length div screenWidth) * (x - 1)
+      let s1 = (sampleBuffer.length div screenWidth) * x
+      let y0 = (sampleBuffer[s0] * 64.0).int + screenHeight div 2
+      let y1 = (sampleBuffer[s1] * 64.0).int + screenHeight div 2
+
+      setColor(if abs(sampleBuffer[s1]) > 1.0: 2 else: 3)
+      line(x-1,y0,x,y1)
+      if sampleBuffer.head == s1:
+        circfill(x,y1,2)
+
   setCamera(camera)
 
   var mv = mouse() + camera
@@ -135,7 +151,7 @@ method draw*(self: LayoutView) =
 method event*(self: LayoutView, event: Event): bool =
   let ctrl = ctrl()
   if stolenInput != nil:
-    var (handled,keep) = stolenInput.event(event)
+    var (handled,keep) = stolenInput.event(event, camera)
     if not keep:
       stolenInput = nil
     if handled:
@@ -250,6 +266,13 @@ method event*(self: LayoutView, event: Event): bool =
                         popMenu()
                       ))
                   )()
+                menu.items.add(newMenuItem(""))
+                menu.items.add(newMenuItem("remove all") do():
+                  for slot,binding in sourceMachine.bindings:
+                    if binding.machine == targetMachine:
+                      removeBinding(sourceMachine, slot)
+                  popMenu()
+                )
                 pushMenu(menu)
                 return
 
@@ -343,8 +366,8 @@ method event*(self: LayoutView, event: Event): bool =
               var target = machine
               var source = currentMachine
               if source.nBindings > 1:
-                proc bindParamMenu() =
-                  pushMenu(currentMachine.getSlotMenu(mv + -camera) do(slotId: int):
+                pushMenu(currentMachine.getSlotMenu(mv + -camera) do(slotId: int):
+                  proc bindParamMenu(slotId: int) =
                     pushMenu(target.getParameterMenu(mv + -self.camera, "slot " & $slotId & " -> ") do(paramId: int):
                       createBinding(source, slotId, target, paramId)
                       popMenu()
@@ -352,10 +375,10 @@ method event*(self: LayoutView, event: Event): bool =
                         popMenu()
                       else:
                         popMenu()
-                        bindParamMenu()
+                        bindParamMenu(slotId + 1)
                     )
-                  )
-                bindParamMenu()
+                  bindParamMenu(slotId)
+                )
               else:
                 pushMenu(machine.getParameterMenu(mv + -camera, "select param") do(paramId: int):
                   createBinding(source, 0, target, paramId)

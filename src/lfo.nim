@@ -41,7 +41,7 @@ method init(self: LFO) =
   osc.pulseWidth = 0.5
 
   globalParams.add([
-    Parameter(name: "freq", kind: Float, min: 0.0001, max: 10.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "freq", kind: Float, min: 0.0, max: 10.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
       self.freq = newValue
       self.setFreq()
     , getValueString: proc(value: float, voice: int): string =
@@ -107,6 +107,8 @@ method init(self: LFO) =
   setDefaults()
 
 method process(self: LFO) {.inline.} =
+  if freq == 0.0:
+    return
   let oscVal = osc.process()
   for binding in bindings:
     if binding.machine != nil:

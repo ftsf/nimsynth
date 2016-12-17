@@ -1,6 +1,8 @@
 import common
 import math
 import util
+import pico
+import machineview
 
 {.this:self.}
 
@@ -30,6 +32,7 @@ type
     freq: float
     wave: int
     phase: float
+    waveRam: array[16, array[32, uint8]]
 
   GBNoiseOsc = object
     freq: float
@@ -44,8 +47,8 @@ const pulseRom = [
 ]
 
 const waveRom = [
-  [0,1,2,3, 4,5,6,7, 8,9,10,11, 12,13,14,15, 15,14,13,12, 11,10,9,8, 7,6,5,4, 3,2,1,0], # tri
-  [0,0,1,1, 2,2,3,3, 4,4,5,5, 6,6,7,7, 8,8,9,9, 10,10,11,11, 12,12,13,13, 14,14,15,15], # saw
+  [0'u8,1,2,3, 4,5,6,7, 8,9,10,11, 12,13,14,15, 15,14,13,12, 11,10,9,8, 7,6,5,4, 3,2,1,0], # tri
+  [0'u8,0,1,1, 2,2,3,3, 4,4,5,5, 6,6,7,7, 8,8,9,9, 10,10,11,11, 12,12,13,13, 14,14,15,15], # saw
 ]
 
 proc process(self: var GBPulseOsc): float32 =
@@ -57,7 +60,13 @@ proc process(self: var GBWaveOsc): float32 =
   phase += (freq * invSampleRate) * TAU
   if phase >= TAU:
     phase -= TAU
-  result = (waveRom[wave][floor(invLerp(0.0, TAU, phase) * 32.0).int].float / 7.5) - 1.0
+  result = (waveRam[wave][floor(invLerp(0.0, TAU, phase) * 32.0).int].float / 7.5) - 1.0
+
+proc gbFreqToHz(n: int): float =
+  return (4194304/(4*2^3*(2048-n))).float
+
+proc hzToGbFreq(hz: float): int =
+  return 2048 - 2^17 div hz.int
 
 type
   GBSynthVoice = object
@@ -67,6 +76,8 @@ type
     sweepTime: int
     sweepMode: int
     sweepShift: int
+    freqShadowRegister: int
+    sweepEnabled: bool
 
     envInit: int
     envMode: int
@@ -90,6 +101,8 @@ type
     gbOsc2: GBWaveOsc
     gbOsc3: GBNoiseOsc
 
+  GBSynthView = ref object of MachineView
+
 method init*(self: GBSynth) =
   procCall init(Machine(self))
 
@@ -101,6 +114,9 @@ method init*(self: GBSynth) =
   gbOsc0.pulse = 2
   gbOsc1.pulse = 1
   gbOsc3.lfsr.lfsr = 0xfeed
+
+  gbOsc2.waveRam[0] = waveRom[0]
+  gbOsc2.waveRam[1] = waveRom[1]
 
   for i in 0..3:
     (proc() =
@@ -116,7 +132,9 @@ method init*(self: GBSynth) =
             case voiceId:
             of 0:
               self.gbOsc0.freq = noteToHz(newValue)
-              v.nextSweepUpdate = 375 * v.sweepTime
+              v.freqShadowRegister = hzToGbFreq(self.gbOsc0.freq)
+              v.nextSweepUpdate = (0.0078 * sampleRate.float * v.sweepTime.float).int
+              v.sweepEnabled = v.sweepShift > 0 or v.sweepTime > 0
             of 1:
               self.gbOsc1.freq = noteToHz(newValue)
             of 2:
@@ -127,7 +145,7 @@ method init*(self: GBSynth) =
             else:
               discard
 
-            v.nextEnvUpdate = 750
+            v.nextEnvUpdate = sampleRate.int div 64
             v.samplesLeft = v.noteLength
             v.volume = if voice == 2: 15 else: v.envInit
             v.enabled = true
@@ -169,7 +187,7 @@ method init*(self: GBSynth) =
       else:
         # wave select
         self.globalParams.add([
-          Parameter(name: $voiceId & ":wave", kind: Int, min: 0.0, max: waveRom.high.float, default: 0.0, onchange: proc(newValue: float, voice: int) =
+          Parameter(name: $voiceId & ":wave", kind: Int, min: 0.0, max: 15.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
             self.gbOsc2.wave = newValue.int
           ),
         ])
@@ -232,13 +250,20 @@ method process*(self: GBSynth) {.inline.} =
           if v.envMode == 1:
             v.volume += v.envChange
           v.volume = clamp(v.volume, 0, 15)
-          v.nextEnvUpdate = 750
+          v.nextEnvUpdate = sampleRate.int div 64
 
         if i == 0 and v.sweepTime > 0:
             v.nextSweepUpdate -= 1
             if v.nextSweepUpdate <= 0:
-              # TODO: adjust frequency
-              v.nextSweepUpdate = 375 * v.sweepTime
+              v.nextSweepUpdate = (0.0078 * sampleRate.float * v.sweepTime.float).int
+              if v.sweepEnabled and v.sweepShift > 0:
+                var x = v.freqShadowRegister shr v.sweepShift
+                if v.sweepMode == 1:
+                  x = -x
+                let newFreq = v.freqShadowRegister + x
+                if newFreq > 2047 or newFreq == 0:
+                  v.sweepEnabled = false
+                gbOsc0.freq = gbFreqToHz(newFreq)
 
         if i == 3:
           gbOsc3.nextclick -= 1
@@ -272,9 +297,59 @@ method process*(self: GBSynth) {.inline.} =
   # convert to 4 bit audio
   outputSamples[0] = to4bit(outputSamples[0])
 
+method drawExtraData(self: GBSynth, x,y,w,h: int) =
+  var yv = y
+  let wave = gbOsc2.waveRam[gbOsc2.wave]
+  setColor(1)
+  rectfill(x, yv + 4, x + 32 * 4, yv + 64 + 4)
+  setColor(6)
+  for s in 0..31:
+    let amp = wave[s].int
+    rectfill(x + s * 4, yv + 64 - amp * 4, x + s * 4 + 3, yv + 64 - amp * 4 + 3)
+  yv += 8
+
+proc newGBSynthView(machine: Machine): View =
+  var v = new(GBSynthView)
+  v.machine = machine
+  return v
+
+method getMachineView*(self: GBSynth): View =
+  return newGBSynthView(self)
+
+method event(self: GBSynthView, e: Event): bool =
+  var gb = GBSynth(self.machine)
+  case e.kind:
+  of MouseButtonDown, MouseButtonUp:
+    let mv = intPoint2d(e.button.x, e.button.y)
+    let paramWidth = screenWidth div 3 + paramNameWidth
+    if mv.x > paramWidth:
+      let x = mv.x - paramWidth
+      let s = x div 4
+      if s >= 0 and s < 16:
+        gb.gbOsc2.waveRam[gb.gbOsc2.wave][s] = ((64 - mv.y) div 4).uint8
+      return true
+  of MouseMotion:
+    discard
+  else:
+    discard
+  echo "fallback"
+  return procCall event(MachineView(self), e)
+
 proc newGBSynth(): Machine =
   var gbs = new(GBSynth)
   gbs.init()
   return gbs
 
 registerMachine("gb", newGBSynth, "generator")
+
+import unittest
+
+suite "gbsynth":
+  test "freq":
+    check(gbFreqToHz(0) == 64.0)
+    check(gbFreqToHz(1024) == 128.0)
+    check(gbFreqToHz(2047) == 131072.0)
+  test "freq":
+    check(hzToGbFreq(64.0) == 0)
+    check(hzToGbFreq(128.0) == 1024)
+    check(hzToGbFreq(131072.0) == 2047)

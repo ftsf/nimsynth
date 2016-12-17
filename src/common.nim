@@ -31,12 +31,16 @@ var inputSample*: float32
 var statusMessage: string = "ready to rok"
 var statusUpdateTime: int = 0
 
+var nextMachineId = 0
+
 proc setStatus*(text: string) =
   statusMessage = text
   statusUpdateTime = time()
 
 proc getStatus*(): string =
   return statusMessage
+
+proc clearLayout*()
 
 proc getStatusUpdateTime*(): int =
   return statusUpdateTime
@@ -52,13 +56,22 @@ type
   # used for connecting a machine to another machine's parameter
   Binding* = tuple[machine: Machine, param: int]
   ParameterKind* = enum
-    Float
-    Bool
+    Float # 0x0000 - 0xffff (min - max)
+    Bool # 0 - 1
     Int
-    Note
-    Trigger
+    Note # 8 bits
+    Trigger # 0 - 1
+  ParameterSequencerKind* = enum
+    skAuto
+    skBool
+    skInt4 # 0x0 - 0xf
+    skInt8 # 0x00 - 0xff
+    skInt16 # 0x0000 - 0xffff (min - max)
+    skNote # 0 - 0xff (off)
+    skPattern
   Parameter* = object of RootObj
     kind*: ParameterKind
+    seqkind*: ParameterSequencerKind
     name*: string
     min*,max*: float
     value*: float
@@ -80,6 +93,7 @@ type
   Voice* = ref object of RootObj
     parameters*: seq[Parameter]
   Machine* = ref object of RootObj
+    id*: int
     name*: string
     className*: string
     pos*: Point2d
@@ -115,6 +129,10 @@ var sampleMachine*: Machine
 var shortcuts*: array[10, Machine]
 
 {.this:self.}
+
+var sortingEnabled = true
+
+proc sortMachines()
 
 when defined(jack):
   import jack.midiport
@@ -170,9 +188,13 @@ method createBinding*(self: Machine, slot: int, target: Machine, paramId: int) {
   bindings[slot].machine = target
   bindings[slot].param = paramId
 
+  sortMachines()
+
 method removeBinding*(self: Machine, slot: int) {.base.} =
   bindings[slot].machine = nil
   bindings[slot].param = 0
+
+  sortMachines()
 
 method onBPMChange*(self: Machine, bpm: int) {.base.} =
   discard
@@ -184,6 +206,18 @@ proc getAdjacent(self: Machine): seq[Machine] =
   result = newSeq[Machine]()
   for input in mitems(inputs):
     result.add(input.machine)
+
+proc getAdjacentWithBindings(self: Machine): seq[Machine] =
+  result = newSeq[Machine]()
+  for input in mitems(inputs):
+    result.add(input.machine)
+
+  for m in machines:
+    if m != self:
+      if m.nBindings > 0:
+        for binding in m.bindings:
+          if binding.machine == self:
+            result.add(m)
 
 proc DFS[T](current: T, white: var seq[T], grey: var seq[T], black: var seq[T]): bool =
   grey.add(current)
@@ -208,9 +242,40 @@ proc hasCycle[T](G: seq[T]): bool =
 
   while white.len > 0:
     var current = white.pop()
-    if(DFS(current, white, grey, black)):
+    if DFS(current, white, grey, black):
       return true
   return false
+
+proc findLeaves(m: Machine, machines: var seq[Machine]) =
+
+  var adj = m.getAdjacentWithBindings()
+
+  for a in adj:
+    a.findLeaves(machines)
+
+  if not (m in machines):
+    machines.add(m)
+
+proc sortMachines() =
+  if not sortingEnabled:
+    return
+
+  withLock machineLock:
+    # sort by depth from master
+    var newMachines = newSeq[Machine]()
+
+    masterMachine.findLeaves(newMachines)
+
+    # add any detached machines at the end
+    for machine in mitems(machines):
+      if not (machine in newMachines):
+        newMachines.add(machine)
+
+    echo "sorted machines"
+    for i,m in newMachines:
+      echo(i, " -> ", m.id, ": ", m.name)
+
+    machines = newMachines
 
 proc connectMachines*(source, dest: Machine, gain: float = 1.0, inputId: int = 0, outputId: int = 0): bool =
   echo "connecting: ", source.name, ": ", outputId, " -> ", dest.name, ": ", inputId
@@ -238,6 +303,8 @@ proc connectMachines*(source, dest: Machine, gain: float = 1.0, inputId: int = 0
     discard dest.inputs.pop()
     echo "would create a cycle"
     return false
+
+  sortMachines()
   return true
 
 proc disconnectMachines*(source, dest: Machine) =
@@ -246,6 +313,7 @@ proc disconnectMachines*(source, dest: Machine) =
     if input.machine == source:
       dest.inputs.del(i)
       break
+  sortMachines()
   pauseAudio(0)
 
 proc swapMachines*(a,b: Machine) =
@@ -269,34 +337,36 @@ proc swapMachines*(a,b: Machine) =
       v.input.machine = b
     for v in bOutputs:
       v.input.machine = a
+    sortMachines()
     pauseAudio(0)
 
 proc delete*(self: Machine) =
-  withLock machineLock:
-    pauseAudio(1)
-    # remove all connections and references to it
-    for machine in mitems(machines):
-      if machine != self:
-        for i,input in machine.inputs:
-          if input.machine == self:
-            disconnectMachines(self, machine)
-    # remove all bindings to this machine
-    for machine in mitems(machines):
-      if machine != self:
-        if machine.bindings != nil:
-          for i, binding in mpairs(machine.bindings):
-            if binding.machine == self:
-              removeBinding(machine, i)
-    for i,shortcut in mpairs(shortcuts):
-      if shortcut == self:
-        shortcuts[i] = nil
+  pauseAudio(1)
+  # remove all connections and references to it
+  for machine in mitems(machines):
+    if machine != self:
+      for i,input in machine.inputs:
+        if input.machine == self:
+          disconnectMachines(self, machine)
+  # remove all bindings to this machine
+  for machine in mitems(machines):
+    if machine != self:
+      if machine.bindings != nil:
+        for i, binding in mpairs(machine.bindings):
+          if binding.machine == self:
+            removeBinding(machine, i)
+  for i,shortcut in mpairs(shortcuts):
+    if shortcut == self:
+      shortcuts[i] = nil
 
+  withLock machineLock:
     machines.del(machines.find(self))
 
-    if sampleMachine == self:
-      sampleMachine = masterMachine
+  if sampleMachine == self:
+    sampleMachine = masterMachine
 
-    pauseAudio(0)
+  pauseAudio(0)
+  sortMachines()
 
 type MachineType* = tuple[name: string, factory: proc(): Machine]
 
@@ -308,18 +378,41 @@ type MachineCategory = Table[string, seq[MachineType]]
 
 var machineTypesByCategory* = initTable[string, seq[MachineType]]()
 
+proc clearLayout*() =
+  # removes all machines and resets thing to init
+  machines = newSeq[Machine]()
+  nextMachineId = 0
+  baseOctave = 4
+  sampleId = 0
+  sampleBuffer = newRingBuffer[float32](1024)
+  statusMessage = "ready to rok"
+  statusUpdateTime = 0
+  currentView = vLayoutView
+  for i in 0..shortcuts.high:
+    shortcuts[i] = nil
+
 proc registerMachine*(name: string, factory: proc(): Machine, category: string = "na") =
 
   var mCreator = proc(): Machine =
     var m = factory()
+    m.id = nextMachineId
+    nextMachineId += 1
     m.className = name
     return m
 
   machineTypes.add((name: name, factory: mCreator))
 
-  if not machineTypesByCategory.hasKey(category):
-    machineTypesByCategory.add(category, newSeq[MachineType]())
-  machineTypesByCategory[category].add((name: name, factory: mCreator))
+  if category != nil:
+    if not machineTypesByCategory.hasKey(category):
+      machineTypesByCategory.add(category, newSeq[MachineType]())
+    machineTypesByCategory[category].add((name: name, factory: mCreator))
+
+proc createMachine*(name: string): Machine =
+  for mt in machineTypes:
+    if mt.name == name:
+      result = mt.factory()
+  if result == nil:
+    raise newException(Exception, "no machine type named: " & name)
 
 proc getInput*(self: Machine, inputId: int = 0): float32
 
@@ -388,14 +481,19 @@ type
     parameters: seq[ParamMarshal]
     extraData: string
   BindMarshal = object of RootObj
+    slotId: int
     targetMachineId: int
+    targetMachineName: string
     paramId: int
+    paramName: string
+    paramVoice: int
   InputMarshal = object of RootObj
     targetMachineId: int
     outputId: int
     gain: float
     inputId: int
   MachineMarshal = object of RootObj
+    id: int
     name: string
     className: string # needs to match the name used to create it
     pos: Point2d
@@ -437,12 +535,19 @@ proc getMarshaledBindings(self: Machine): seq[BindMarshal] =
       var bm: BindMarshal
       var binding = bindings[i]
       if binding.machine != nil:
-        bm.targetMachineId = machines.find(binding.machine)
+        bm.slotId = i
+        bm.targetMachineId = binding.machine.id
+        bm.targetMachineName = binding.machine.name
+        var (voice,param) = binding.getParameter()
         bm.paramId = binding.param
+        bm.paramName = param.name
+        bm.paramVoice = voice
         result.add(bm)
       else:
+        bm.slotId = i
         bm.targetMachineId = -1
         bm.paramId = -1
+        bm.paramVoice = -1
         result.add(bm)
 
 proc getMarshaledInputs(self: Machine): seq[InputMarshal] =
@@ -450,7 +555,7 @@ proc getMarshaledInputs(self: Machine): seq[InputMarshal] =
   for i in 0..inputs.high:
     var im: InputMarshal
     var input = inputs[i]
-    im.targetMachineId = machines.find(input.machine)
+    im.targetMachineId = input.machine.id
     im.outputId = input.output
     im.gain = input.gain
     im.inputId = input.inputId
@@ -489,22 +594,33 @@ proc loadMarshaledParams(self: Machine, parameters: seq[ParamMarshal], setDefaul
     else:
       echo "parameter name does not match: " & param.name & " vs " & p.name
 
+proc getMachineById(machineId: int): Machine =
+  withLock machineLock:
+    for m in machines:
+      if m.id == machineId:
+        result = m
+        break
+  if result == nil:
+    raise newException(Exception, "no machine with id: " & $machineId)
+
 proc loadMarshaledBindings(self: Machine, bindings: seq[BindMarshal]) =
   for i,binding in bindings:
     if binding.targetMachineId != -1:
-      self.createBinding(i, machines[binding.targetMachineId], binding.paramId)
+      echo "binding ", self.name, " to ", binding.targetMachineName, ": ", binding.paramName
+      try:
+        self.createBinding(i, getMachineById(binding.targetMachineId), binding.paramId)
+      except InvalidParamException:
+        echo "failed binding: ", binding.targetMachineName, ": ", binding.paramName
+        discard
 
 proc loadMarshaledInputs(self: Machine, inputs: seq[InputMarshal]) =
   for i,input in inputs:
-    if input.targetMachineId > machines.high or input.targetMachineId < 0:
-      echo "invalid targetMachineId: ", input.targetMachineId
-    else:
-      var ip: Input
-      ip.machine = machines[input.targetMachineId]
-      ip.output = input.outputId
-      ip.gain = input.gain
-      ip.inputId = input.inputId
-      self.inputs.add(ip)
+    var ip: Input
+    ip.machine = getMachineById(input.targetMachineId)
+    ip.output = input.outputId
+    ip.gain = input.gain
+    ip.inputId = input.inputId
+    self.inputs.add(ip)
 
 proc loadPatch*(machine: Machine, name: string) =
   var fp = newFileStream("patches/" & machine.name & "/" & name & ".json", fmRead)
@@ -519,12 +635,14 @@ proc loadPatch*(machine: Machine, name: string) =
   machine.loadExtraData(p.extraData)
 
 proc saveLayout*(name: string) =
+  sortMachines()
   var l: LayoutMarhsal
   l.name = name
   l.machines = newSeq[MachineMarshal]()
   l.shortcuts = [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1]
   for i, machine in machines:
     var m: MachineMarshal
+    m.id = machine.id
     m.name = machine.name
     m.className = machine.className
     m.pos = machine.pos
@@ -557,6 +675,8 @@ proc getLayouts*(): seq[string] =
     result.add(file[prefix.len..file.high-5])
 
 proc loadLayout*(name: string) =
+  clearLayout()
+  sortingEnabled = false
   var l: LayoutMarhsal
   l.shortcuts = [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1]
   var fp = newFileStream("layouts/" & name & ".json", fmRead)
@@ -564,32 +684,22 @@ proc loadLayout*(name: string) =
   fp.close()
 
   # first clear out layout
-  machines.setLen(1)
-
   var machineMap = newSeq[Machine]()
 
   for i, machine in l.machines:
-    if machine.className == "master":
-      machineMap.add(masterMachine)
-      masterMachine.loadMarshaledParams(machine.parameters)
-      masterMachine.loadMarshaledInputs(machine.inputs)
-      masterMachine.pos = machine.pos
-      continue
-    for mt in machineTypes:
-      if mt.name == machine.className:
-        var m = mt.factory()
-        m.pos = machine.pos
-        m.name = machine.name
-        m.hideBindings = machine.hideBindings
-        while m.voices.len < machine.voices:
-          m.addVoice()
-        withLock machineLock:
-          machines.add(m)
-        m.loadMarshaledParams(machine.parameters)
-        machineMap.add(m)
-        break
-    # TODO: throw warning if couldn't find machineType
+    var m = createMachine(machine.className)
+    m.id = machine.id
+    m.pos = machine.pos
+    m.name = machine.name
+    m.hideBindings = machine.hideBindings
+    while m.voices.len < machine.voices:
+      m.addVoice()
+    machines.add(m)
+    m.loadMarshaledParams(machine.parameters)
+    machineMap.add(m)
+    echo "loaded machine: ", m.id, ": ", m.name
 
+  echo "loaded machines, binding them"
   for i, machine in l.machines:
     var m = machineMap[i]
     m.loadMarshaledBindings(machine.bindings)
@@ -599,6 +709,9 @@ proc loadLayout*(name: string) =
   for i, shortcut in l.shortcuts:
     if shortcut != -1:
       shortcuts[i] = machines[shortcut]
+
+  sortingEnabled = true
+  sortMachines()
 
   echo "loaded layout: ", name
 
@@ -647,7 +760,7 @@ method updateExtraData*(self: Machine, x,y,w,h: int) {.base.} =
 method event*(self: View, event: Event): bool {.base.} =
   return false
 
-method event*(self: Machine, event: Event): (bool, bool) {.base.} =
+method event*(self: Machine, event: Event, camera: Point2d): (bool, bool) {.base.} =
   return (false, false)
 
 const OffNote* = -2

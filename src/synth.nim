@@ -71,6 +71,7 @@ method init*(self: SynthVoice, machine: Synth) =
   filter.setCutoff(440.0)
   filter.resonance = 1.0
   filter.init()
+  glissando.kind = Lowpass
   glissando.init()
   pitch = 0.0
 
@@ -249,7 +250,7 @@ method init*(self: Synth) =
         return noteToNoteName(value.int)
 
     ),
-    Parameter(name: "vel", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "vel", kind: Float, min: 0.0, max: 1.0, seqkind: skInt8, default: 1.0, onchange: proc(newValue: float, voice: int) =
       var voice: SynthVoice = SynthVoice(self.voices[voice])
       voice.velocity = newValue
     ),

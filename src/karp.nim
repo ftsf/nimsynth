@@ -11,21 +11,15 @@ type KArpMode = enum
   UpDown
   Random
 
+const maxSteps = 16
+
 type
-  KArpVoice = ref object of Voice
-    note: int
   KArp = ref object of Machine
     speed: float # tpb
     mode: KArpMode
 
+    steps: array[maxSteps, int]
     step: float
-
-method addVoice*(self: KArp) =
-  pauseAudio(1)
-  var voice = new(KArpVoice)
-  voices.add(voice)
-  voice.init(self)
-  pauseAudio(0)
 
 method init(self: KArp) =
   procCall init(Machine(self))
@@ -38,6 +32,9 @@ method init(self: KArp) =
 
   setDefaults()
 
+  for i in 0..<maxSteps:
+    steps[i] = OffNote
+
   globalParams.add([
     Parameter(kind: Int, name: "mode", min: mode.low.float, max: mode.high.float, default: Up.float, onchange: proc(newValue: float, voice: int) =
       self.mode = newValue.KArpMode
@@ -47,12 +44,15 @@ method init(self: KArp) =
     Parameter(kind: Int, name: "speed", min: 1.0, max: 16.0, default: 4.0, onchange: proc(newValue: float, voice: int) =
       self.speed = newValue
     ),
+    Parameter(kind: Trigger, name: "reset", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.step = 0.0
+    ),
+
   ])
 
   voiceParams.add([
     Parameter(kind: Note, name: "note", min: OffNote, max: 256.0, default: OffNote, onchange: proc(newValue: float, voice: int) =
-      var voice = KArpVoice(self.voices[voice])
-      voice.note = newValue.int
+      self.steps[voice] = newValue.int
     ),
   ])
 
@@ -64,29 +64,40 @@ method process(self: KArp) =
 
   var nSteps = 0
   for i in 0..voices.high:
-    if KArpVoice(voices[i]).note != OffNote:
+    if steps[i] != OffNote:
       nSteps += 1
 
   let lastStep = step.int
-  step += (beatsPerSecond() * speed) * invSampleRate
-  step = step mod voices.len.float
-  let i = step.int
 
-  var whichVoice = 0
-  var note: int = OffNote
-  for j in 0..voices.high:
-    if KArpVoice(voices[j]).note != OffNote:
-      whichVoice += 1
-      if whichVoice == i:
-        note = KArpVoice(voices[j]).note
-        break
+  if nSteps > 0:
+    var trigger = false
+    step += (beatsPerSecond() * speed) * invSampleRate
+    if step.int != lastStep:
+      trigger = true
+    step = step mod nSteps.float
+    let i = step.int
+    if trigger:
+      if bindings[0].machine != nil:
+        var k = 0
+        for j in 0..voices.high:
+          if steps[j] != OffNote:
+            if k == i:
+              var (voice, param) = bindings[0].getParameter()
+              param.value = steps[j].float
+              param.onchange(param.value, voice)
+              break
+            k += 1
+  else:
+    step = 0.0
 
-  if bindings[0].machine != nil:
-    if lastStep != i:
-      var (voice, param) = bindings[0].getParameter()
-
-      param.value = note.float
-      param.onchange(param.value, voice)
+method drawExtraData(self: KArp, x,y,w,h: int) =
+  var yv = y
+  for i in 0..voices.high:
+    let note = steps[i]
+    if note != OffNote:
+      setColor(if step.int == i: 8 else: 7)
+      print($i & ": " & noteToNoteName(note), x + 1, yv)
+      yv += 8
 
 proc newKArp(): Machine =
   var arp = new(KArp)

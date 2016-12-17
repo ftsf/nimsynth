@@ -9,6 +9,7 @@ import common
 
 type
   FilterKind* = enum
+    Bypass
     Lowpass
     Highpass
     Bandpass
@@ -145,6 +146,8 @@ method calc*(self: var BiquadFilter) =
         a2 = (1 - sqrt(2.0) * K + K * K) * norm
         b1 = 2 * (K * K - V) * norm
         b2 = (V - sqrt(2.0*V) * K + K * K) * norm
+  of Bypass:
+    discard
 
 method normalize*(self: var BiquadFilter) =
   if a0 != 0.0:
@@ -167,9 +170,12 @@ method reset*(self: var BiquadFilter) =
   calc()
 
 method process*(self: var BiquadFilter, sample: float32): float32 =
-  result = sample * a0 + z1
-  z1 = sample * a1 + z2 - b1 * result
-  z2 = sample * a2 - b2 * result
+  if kind == Bypass:
+    result = sample
+  else:
+    result = sample * a0 + z1
+    z1 = sample * a1 + z2 - b1 * result
+    z2 = sample * a2 - b2 * result
 
 ############
 # MoogFilter

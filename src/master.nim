@@ -38,9 +38,10 @@ method process*(self: Master) =
     outputSamples[0] += input.getSample()
   outputSamples[0] *= gain
 
-proc newMaster*(): Master =
+proc newMaster(): Machine =
   result = new(Master)
   result.init()
+  masterMachine = result
 
 proc beatsPerMinute*(): float =
   var m = Master(masterMachine)
@@ -49,3 +50,5 @@ proc beatsPerMinute*(): float =
 proc beatsPerSecond*(): float =
   var m = Master(masterMachine)
   return m.beatsPerMinute / 60.0
+
+registerMachine("master", newMaster, nil)

@@ -19,7 +19,7 @@ type MachineView* = ref object of View
 
 const maxPatchSlots = 64
 
-const paramNameWidth = 64
+const paramNameWidth* = 64
 
 proc newMachineView*(machine: Machine): MachineView =
   result = new(MachineView)
