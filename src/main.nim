@@ -130,8 +130,8 @@ else:
         if machine.stereo or sampleId mod 2 == 0:
           machine.process()
       samples[i] = masterMachine.outputSamples[0]
-      if i mod 2 == 0 and i < 2048:
-        sampleBuffer[i div 2] = samples[i]
+      if i mod 2 == 0:
+        sampleBuffer.add([sampleMachine.outputSamples[0]])
 
 import basemachine
 
