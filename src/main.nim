@@ -39,11 +39,16 @@ import transposer
 import keyboard
 import dummy
 import filerec
+import delay
+import distortion
 
 import mod_osc
 import mod_adsr
 import mod_note
 import mod_filter
+import mod_a2e
+import mod_e2a
+import mod_split
 
 import ringbuffer
 import locks

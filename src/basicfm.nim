@@ -67,7 +67,7 @@ type
     multipliers: array[nOperators, float] # multiplies the base pitch
     amps: array[nOperators, float]
     fixed: array[nOperators, bool]
-    envSettings: array[nOperators, tuple[a,d,s,r: float]]
+    envSettings: array[nOperators, tuple[a,d,decayExp,s,r: float]]
     pitchEnvSettings: tuple[a,d,s,r: float]
     pitchEnvMod: float
     algorithm: int # 0..31 which layout of operators to use
@@ -236,15 +236,26 @@ proc newBasicFMSynth(): Machine =
 
 import pico
 
-method drawExtraData(self: BasicFMSynth, x,y,w,h: int) =
+import machineview
+type BasicFMSynthView = ref object of MachineView
+
+method drawExtraData(self: BasicFMSynthView, x,y,w,h: int) =
+  let s = BasicFMSynth(machine)
   # draw algorithm layout
-  let algorithm = algorithms[algorithm]
+  let algorithm = algorithms[s.algorithm]
 
   const rectSize = 13
   const padding = 8
   var carrier = 0
   var modulator = 0
   var modDepth = 0
+
+  var (voice,param) = getCurrentParam()
+  var currentOp = try:
+    parseInt(param.name[0..0])
+  except:
+    0
+
 
   var ops = newSeq[tuple[id: int, x,y: int, targets: seq[int]]]()
   # find carriers
@@ -274,8 +285,10 @@ method drawExtraData(self: BasicFMSynth, x,y,w,h: int) =
       for target in op.targets:
         if target == op.id:
           # feedback
+          setColor(if s.amps[op.id-1] > 0 and s.feedback > 0: 7 else: 1)
           pico.rect(op.x - rectSize div 3, op.y - rectSize div 3, op.x + rectSize div 2, op.y + rectSize div 2)
         else:
+          setColor(if s.amps[op.id-1] > 0: 7 else: 1)
           for op2 in ops:
             if op2.id == target:
               line(op.x + rectSize div 2, op.y + rectSize div 2, op2.x + rectSize div 2, op2.y + rectSize div 2)
@@ -285,11 +298,24 @@ method drawExtraData(self: BasicFMSynth, x,y,w,h: int) =
   for op in ops:
     setColor(0)
     rectfill(op.x, op.y, op.x + rectSize, op.y + rectSize)
-    setColor(7)
+    setColor(if s.amps[op.id-1] > 0: 7 else: 1)
     pico.rect(op.x, op.y, op.x + rectSize, op.y + rectSize)
+    setColor(if s.amps[op.id-1] > 0: 7 else: 1)
+
+    setColor(if currentOp == op.id: 8 else: 7)
     printc($op.id, op.x + 6, op.y + 6)
 
+  y += 64
 
+  # draw envelopes
+  drawEnvs(s.envSettings, x,y,w,48)
 
+proc newBasicFMSynthView(self: Machine): MachineView =
+  var v = new(BasicFMSynthView)
+  v.machine = self
+  return v
+
+method getMachineView(self: BasicFMSynth): View =
+  return newBasicFMSynthView(self)
 
 registerMachine("BASICfm", newBasicFMSynth, "generator")

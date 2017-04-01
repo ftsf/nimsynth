@@ -111,6 +111,7 @@ type
     outputSamples*: seq[float32]
     mute*: bool
     bypass*: bool
+    disabled*: bool # mute and don't call process
     useMidi*: bool
     midiChannel*: int
   View* = ref object of RootObj
@@ -271,10 +272,6 @@ proc sortMachines() =
       if not (machine in newMachines):
         newMachines.add(machine)
 
-    echo "sorted machines"
-    for i,m in newMachines:
-      echo(i, " -> ", m.id, ": ", m.name)
-
     machines = newMachines
 
 proc connectMachines*(source, dest: Machine, gain: float = 1.0, inputId: int = 0, outputId: int = 0): bool =
@@ -413,6 +410,12 @@ proc createMachine*(name: string): Machine =
       result = mt.factory()
   if result == nil:
     raise newException(Exception, "no machine type named: " & name)
+
+proc newLayout*() =
+  clearLayout()
+  masterMachine = createMachine("master")
+  machines.add(masterMachine)
+  sampleMachine = masterMachine
 
 proc getInput*(self: Machine, inputId: int = 0): float32
 
@@ -686,9 +689,13 @@ proc loadLayout*(name: string) =
   # first clear out layout
   var machineMap = newSeq[Machine]()
 
+  var highestId = 0
+
   for i, machine in l.machines:
     var m = createMachine(machine.className)
     m.id = machine.id
+    if m.id > highestId:
+      highestId = m.id
     m.pos = machine.pos
     m.name = machine.name
     m.hideBindings = machine.hideBindings
@@ -712,6 +719,9 @@ proc loadLayout*(name: string) =
 
   sortingEnabled = true
   sortMachines()
+
+  nextMachineId = highestId + 1
+  sampleMachine = masterMachine
 
   echo "loaded layout: ", name
 

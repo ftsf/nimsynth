@@ -195,7 +195,7 @@ proc key*(self: MachineView, key: KeyboardEventPtr, down: bool): bool =
 
   return false
 
-method event(self: MachineView, event: Event): bool =
+method event*(self: MachineView, event: Event): bool =
   case event.kind:
   of MouseWheel:
     scroll -= event.wheel.y
@@ -240,3 +240,6 @@ method event(self: MachineView, event: Event): bool =
   else:
     discard
   return false
+
+proc getCurrentParam*(self: MachineView): (int, ptr Parameter) =
+  return self.machine.getParameter(self.currentParam)

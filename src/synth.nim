@@ -4,15 +4,11 @@ import sdl2
 import util
 import basic2d
 import strutils
-import ringbuffer
 import sdl2.audio
 
 import osc
 import filter
 import env
-import distortion
-import delay
-import sequencer
 
 import common
 
@@ -314,9 +310,8 @@ method process*(self: Synth) {.inline.} =
 
 method drawExtraData(self: Synth, x,y,w,h: int) =
   var y = y
-  for i in 0..2:
-    setColor(1)
-    line(x, y + 48, x + w, y + 48)
-    setColor(5)
-    drawEnv(env[i].a, env[i].d, env[i].decayExp, env[i].s, env[i].r, x,y,w,48)
-    y += 64
+  setColor(1)
+  line(x, y + 48, x + w, y + 48)
+  setColor(5)
+  drawEnvs(env, x,y,w,48)
+  y += 64
