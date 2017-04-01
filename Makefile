@@ -1,6 +1,6 @@
 SOURCES=$(shell ls src/*.nim)
 DATE=$(shell date +%Y-%m-%d)
-NIMC=nim
+NIMC=nim -p=src
 
 synth: $(SOURCES)
 	${NIMC} c -d:release -d:jack -o:$@ --threads:on --tlsEmulation:off src/main.nim
