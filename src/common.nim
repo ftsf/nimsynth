@@ -1,4 +1,7 @@
 import locks
+import math
+import math
+import strutils
 
 var sampleRate* = 48000.0
 var nyquist* = sampleRate / 2.0
@@ -8,21 +11,20 @@ var machineLock*: Lock
 
 import sdl2
 import sdl2.audio
-import math
 import basic2d
-import strutils
-import math
 import pico
+
+import core.ringbuffer
+
 
 export sdl2
 
 export pauseAudio
 
+
 var baseOctave* = 4
 
 var sampleId*: int
-
-import ringbuffer
 
 var oscilliscopeBuffer*: RingBuffer[float32]
 
@@ -373,7 +375,7 @@ import tables
 
 type MachineCategory = Table[string, seq[MachineType]]
 
-var machineTypesByCategory* = initTable[string, seq[MachineType]]()
+var machineTypesByCategory* = initOrderedTable[string, seq[MachineType]]()
 
 proc clearLayout*() =
   # removes all machines and resets thing to init

@@ -1,64 +1,62 @@
-import pico
-import sdl2
-
+import locks
+import os
 import strutils
 
+import sdl2
 
-import os
+import pico
 
 import common
-import menu
-import machineview
-import layoutview
+import core.ringbuffer
+import ui.menu
+import ui.machineview
+import ui.layoutview
 
-import master
-import sequencer
-import synth
-import tb303
-import gbsynth
-import organ
-import fmsynth
-import basicfm
-import kit
-import noise
-import lfo
-import knob
-import button
-import flanger
-import compressor
-import dc
-import paramrecorder
-import gate
-import arp
-import karp
-import eq
-import probgate
-import probpick
-import paramlp
-import transposer
-import keyboard
-import dummy
-import filerec
-import delay
-import distortion
+import machines.master
+import machines.converters.a2e
+import machines.converters.e2a
+import machines.converters.n2f
+import machines.fx.adsr
+import machines.fx.compressor
+import machines.fx.delay
+import machines.fx.distortion
+import machines.fx.eq
+#import machines.fx.filter
+import machines.fx.flanger
+import machines.fx.gate
+import machines.generators.fmsynth
+import machines.generators.gbsynth
+import machines.generators.kit
+import machines.generators.noise
+import machines.generators.organ
+import machines.generators.osc
+import machines.generators.synth
+import machines.generators.tb303
+import machines.io.filerec
+import machines.io.keyboard
+import machines.math.operators
+import machines.ui.button
+import machines.ui.knob
+import machines.util.arp
+import machines.util.dc
+import machines.util.karp
+import machines.util.lfo
+import machines.util.paramlp
+import machines.util.paramrecorder
+import machines.util.probgate
+import machines.util.probpath
+import machines.util.probpick
+import machines.util.sequencer
+import machines.util.split
+import machines.util.transposer
 
-import mod_osc
-import mod_adsr
-import mod_note
-import mod_filter
-import mod_a2e
-import mod_e2a
-import mod_split
-
-import ringbuffer
-import locks
+when defined(jack):
+  import machines.io.audioin
 
 when defined(jack):
   import jack.types
   import jack.jack
   import jack.midiport
-
-  import audioin
 
 when defined(jack):
   var J: ptr JackClient
@@ -143,7 +141,7 @@ else:
       if i mod 2 == 0 and sampleMachine != nil:
         oscilliscopeBuffer.add([sampleMachine.outputSamples[0]])
 
-import basemachine
+import core.basemachine
 
 proc setShortcut(shortcut: range[0..9], machine: Machine) =
   if shortcut == 0:
@@ -351,6 +349,7 @@ proc update(dt: float) =
     currentView.update(dt)
 
 proc draw() =
+  var shortcut_w = (screenWidth - 64) / shortcuts.len;
   if currentView != nil:
     currentView.draw()
 
@@ -360,7 +359,7 @@ proc draw() =
       setColor(1)
     else:
       setColor(0)
-    rectfill(i * 32, screenHeight - 10, i * 32 + 30, screenHeight - 1)
+    rectfill(i * shortcut_w, screenHeight - 10, i * shortcut_w + (shortcut_w - 2), screenHeight - 1)
 
     if (i == 0 and currentView == vLayoutView) or (currentView of MachineView and v == MachineView(currentView).machine):
       setColor(7)
@@ -371,16 +370,16 @@ proc draw() =
 
     if i == 0 or v != nil:
       if i == 0:
-        print($(i+1) & ":layout", i * 32 + 2, screenHeight - 8)
+        print($(i+1) & ":layout", i * shortcut_w + 2, screenHeight - 8)
       else:
-        print($(i+1) & ":" & v.name, i * 32 + 2, screenHeight - 8)
+        print($(i+1) & ":" & v.name, i * shortcut_w + 2, screenHeight - 8)
 
-    rect(i * 32, screenHeight - 10, i * 32 + 30, screenHeight - 1)
+    rect(i * shortcut_w, screenHeight - 10, i * shortcut_w + (shortcut_w - 2), screenHeight - 1)
 
   let lastUpdated = getStatusUpdateTime() div 1000
   let now = time() div 1000
   setColor(if lastUpdated > now - 1: 7 elif lastUpdated > now - 5: 6 else: 1)
-  printr(getStatus(), screenWidth - 1, screenHeight - 9)
+  printr(getStatus(), screenWidth - 1, screenHeight - 8)
 
   setCamera()
 

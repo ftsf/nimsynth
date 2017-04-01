@@ -285,9 +285,9 @@ when not defined(emscripten):
     import sdl2.mixer
 
 import math
-import stb_image
+import stb.stb_image
 
-const screenScale* = 2
+const screenScale* = 4
 
 var window: WindowPtr
 var spriteSheet: SurfacePtr
