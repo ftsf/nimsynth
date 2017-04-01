@@ -70,21 +70,6 @@ proc addMachineMenu(self: LayoutView, mv: Point2d, title: string, action: proc(m
 method draw*(self: LayoutView) =
   cls()
 
-  when true:
-    setColor(1)
-    line(0, screenHeight div 2, screenWidth, screenHeight div 2)
-
-    for x in 0..<screenWidth:
-      let s0 = (sampleBuffer.length div screenWidth) * (x - 1)
-      let s1 = (sampleBuffer.length div screenWidth) * x
-      let y0 = (sampleBuffer[s0] * 64.0).int + screenHeight div 2
-      let y1 = (sampleBuffer[s1] * 64.0).int + screenHeight div 2
-
-      setColor(if abs(sampleBuffer[s1]) > 1.0: 2 else: 3)
-      line(x-1,y0,x,y1)
-      if sampleBuffer.head == x:
-        circfill(x,y1,1)
-
   setCamera(camera)
 
   var mv = mouse() + camera

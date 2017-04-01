@@ -40,6 +40,11 @@ import keyboard
 import dummy
 import filerec
 
+import mod_osc
+import mod_adsr
+import mod_note
+import mod_filter
+
 import ringbuffer
 import locks
 
@@ -308,7 +313,9 @@ proc init() =
         discard jack_connect(J, ports[i], "nimsynth:midi_in")
         i += 1
       jack_free(ports)
+    echo "connected to jack"
   else:
+    echo "using SDL audio"
     setAudioCallback(2, audioCallback)
 
     proc signalHandler() {.noconv.} =

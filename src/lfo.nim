@@ -118,7 +118,7 @@ method process(self: LFO) {.inline.} =
         param.value = lerp(param.min, param.max, lerp(center - amp, center + amp, invLerp(-1.0, 1.0, oscVal)))
       param.onchange(param.value, voice)
 
-  globalParams[9].value = osc.phase
+  globalParams[8].value = osc.phase
 
 method getAABB*(self: LFO): AABB =
   result.min.x = pos.x - 16

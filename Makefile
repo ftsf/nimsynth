@@ -7,7 +7,7 @@ NIMC= /opt/nim/0.15.0-test/nim/bin/nim --lib:/opt/nim/0.15.0-test/nim/lib/
 NIMC=nim
 
 synth: $(SOURCES)
-	${NIMC} c -d:release -o:$@ --threads:on --tlsEmulation:off src/main.nim
+	${NIMC} c -d:release -d:jack -o:$@ --threads:on --tlsEmulation:off src/main.nim
 
 clang: $(SOURCES)
 	${NIMC} cpp --cc:clang --verbosity:2 -d:release -o:$@ --threads:on --tlsEmulation:off src/main.nim
