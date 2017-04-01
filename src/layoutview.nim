@@ -70,20 +70,20 @@ proc addMachineMenu(self: LayoutView, mv: Point2d, title: string, action: proc(m
 method draw*(self: LayoutView) =
   cls()
 
-  when true:
+  if sampleMachine != nil:
     # draw oscilliscope
     setColor(1)
     line(0, screenHeight div 2, screenWidth, screenHeight div 2)
 
     for x in 1..<screenWidth:
-      let s0 = (sampleBuffer.length div screenWidth) * (x - 1)
-      let s1 = (sampleBuffer.length div screenWidth) * x
-      let y0 = (sampleBuffer[s0] * 64.0).int + screenHeight div 2
-      let y1 = (sampleBuffer[s1] * 64.0).int + screenHeight div 2
+      let s0 = (oscilliscopeBuffer.length div screenWidth) * (x - 1)
+      let s1 = (oscilliscopeBuffer.length div screenWidth) * x
+      let y0 = (oscilliscopeBuffer[s0] * 64.0).int + screenHeight div 2
+      let y1 = (oscilliscopeBuffer[s1] * 64.0).int + screenHeight div 2
 
-      setColor(if abs(sampleBuffer[s1]) > 1.0: 2 else: 3)
+      setColor(if abs(oscilliscopeBuffer[s1]) > 1.0: 2 else: 3)
       line(x-1,y0,x,y1)
-      if sampleBuffer.head == s1:
+      if oscilliscopeBuffer.head == s1:
         circfill(x,y1,2)
 
   setCamera(camera)

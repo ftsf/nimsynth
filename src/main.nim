@@ -106,9 +106,8 @@ when defined(jack):
       # update all machines
       withLock machineLock:
         for machine in mitems(machines):
-          if not machine.disabled:
-            if machine.stereo or sampleId mod 2 == 0:
-              machine.process()
+          if machine.stereo or sampleId mod 2 == 0:
+            machine.process()
 
       if i mod 2 == 0:
         samplesL[time] = masterMachine.outputSamples[0]
@@ -135,9 +134,9 @@ else:
       for machine in mitems(machines):
         if machine.stereo or sampleId mod 2 == 0:
           machine.process()
-      samples[i] = masterMachine.outputSamples[0]
-      if i mod 2 == 0:
-        sampleBuffer.add([sampleMachine.outputSamples[0]])
+
+      if i mod 2 == 0 and sampleMachine != nil:
+        oscilliscopeBuffer.add([sampleMachine.outputSamples[0]])
 
 import basemachine
 
@@ -332,7 +331,7 @@ proc init() =
   masterMachine = createMachine("master")
   machines.add(masterMachine)
 
-  sampleBuffer = newRingBuffer[float32](1024)
+  oscilliscopeBuffer = newRingBuffer[float32](1024)
   sampleMachine = masterMachine
 
   vLayoutView = newLayoutView()
@@ -373,9 +372,9 @@ proc draw() =
 
     rect(i * 32, screenHeight - 10, i * 32 + 30, screenHeight - 1)
 
-  let lastUpdated = getStatusUpdateTime()
-  let now = time()
-  setColor(if lastUpdated > now - 2: 7 elif lastUpdated > now - 10: 6 else: 1)
+  let lastUpdated = getStatusUpdateTime() div 1000
+  let now = time() div 1000
+  setColor(if lastUpdated > now - 1: 7 elif lastUpdated > now - 5: 6 else: 1)
   printr(getStatus(), screenWidth - 1, screenHeight - 9)
 
   setCamera()

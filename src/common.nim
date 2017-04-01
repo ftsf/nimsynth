@@ -24,7 +24,7 @@ var sampleId*: int
 
 import ringbuffer
 
-var sampleBuffer*: RingBuffer[float32]
+var oscilliscopeBuffer*: RingBuffer[float32]
 
 var inputSample*: float32
 
@@ -384,7 +384,7 @@ proc clearLayout*() =
   nextMachineId = 0
   baseOctave = 4
   sampleId = 0
-  sampleBuffer = newRingBuffer[float32](1024)
+  oscilliscopeBuffer = newRingBuffer[float32](1024)
   statusMessage = "ready to rok"
   statusUpdateTime = 0
   currentView = vLayoutView
