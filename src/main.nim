@@ -106,13 +106,14 @@ when defined(jack):
       # update all machines
       withLock machineLock:
         for machine in mitems(machines):
-          if machine.stereo or sampleId mod 2 == 0:
-            machine.process()
+          if not machine.disabled:
+            if machine.stereo or sampleId mod 2 == 0:
+              machine.process()
 
       if i mod 2 == 0:
         samplesL[time] = masterMachine.outputSamples[0]
         if sampleMachine != nil:
-          sampleBuffer.add([sampleMachine.outputSamples[0]])
+          oscilliscopeBuffer.add([sampleMachine.outputSamples[0]])
       else:
         samplesR[time] = masterMachine.outputSamples[0]
 
