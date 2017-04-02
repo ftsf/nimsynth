@@ -46,4 +46,13 @@ proc newOscMachine(): Machine =
  m.init()
  return m
 
-registerMachine("osc", newOscMachine, "generator")
+#registerMachine("osc", newOscMachine, "generator")
+
+proc createMachine*(): Machine {.cdecl, exportc, dynlib.} =
+  echo "create machine called"
+  var m = new(OscMachine)
+  m.init()
+  return m
+
+proc processSample*(self: OscMachine) {.cdecl, exportc, dynlib.} =
+  self.process()
