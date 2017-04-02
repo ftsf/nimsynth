@@ -141,6 +141,10 @@ method getMenu*(self: Machine, mv: Point2d): Menu =
       self.bypass = not self.bypass
       popMenu()
     ))
+  menu.items.add(newMenuItem("reset", proc() =
+    self.reset()
+    popMenu()
+  ))
   menu.items.add(newMenuItem("delete", proc() =
     self.delete()
     popMenu()

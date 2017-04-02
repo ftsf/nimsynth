@@ -439,6 +439,9 @@ proc hasInput*(self: Machine, inputId: int = 0): bool =
       return true
   return false
 
+method reset*(self: Machine) {.base.} =
+  discard
+
 method getOutputName*(self: Machine, outputId: int = 0): string {.base.} =
   if stereo:
     return "stereo"

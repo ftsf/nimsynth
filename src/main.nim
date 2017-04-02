@@ -19,6 +19,7 @@ import machines.converters.a2e
 import machines.converters.e2a
 import machines.converters.n2f
 
+import machines.fx.svf
 import machines.fx.compressor
 import machines.fx.delay
 import machines.fx.distortion
@@ -28,6 +29,7 @@ import machines.fx.flanger
 import machines.fx.gate
 import machines.fx.sandh
 import machines.fx.bitcrush
+import machines.fx.mod_amp
 
 import machines.generators.clock
 import machines.generators.adsr
@@ -445,6 +447,7 @@ proc draw() =
   spr(20, mv.x, mv.y)
 
   if glitch > 0.0:
+    glitch = clamp(glitch,0.0,100.0)
     for i in 0..glitch.int:
       glitch(0,0,screenWidth,screenHeight)
 
