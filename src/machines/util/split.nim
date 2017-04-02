@@ -29,6 +29,12 @@ method init(self: SplitMachine) =
 
   setDefaults()
 
+method createBinding(self: SplitMachine, slot: int, target: Machine, paramId: int) =
+  procCall createBinding(Machine(self), slot, target, paramId)
+  var binding = bindings[0].addr
+  var (voice, param) = binding.machine.getParameter(binding.param)
+  globalParams[0].kind = param.kind
+
 proc newSplitMachine(): Machine =
   var m = new(SplitMachine)
   m.init()
