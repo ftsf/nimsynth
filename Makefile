@@ -4,7 +4,7 @@ NIMC=nim -p=src
 
 JACK=0
 
-ifeq($(JACK),1)
+ifeq ($(JACK),1)
 JACK_FLAGS="-d:jack"
 else
 JACK_FLAGS=""
