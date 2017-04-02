@@ -16,7 +16,6 @@ import machines.master
 import machines.converters.a2e
 import machines.converters.e2a
 import machines.converters.n2f
-import machines.fx.adsr
 import machines.fx.compressor
 import machines.fx.delay
 import machines.fx.distortion
@@ -24,6 +23,7 @@ import machines.fx.eq
 import machines.fx.mod_filter
 import machines.fx.flanger
 import machines.fx.gate
+import machines.generators.adsr
 import machines.generators.fmsynth
 import machines.generators.gbsynth
 import machines.generators.kit
