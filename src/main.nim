@@ -279,6 +279,20 @@ proc eventFunc(event: Event): bool =
         of SDL_SCANCODE_APOSTROPHE:
           baseOctave += 1
           return true
+        of SDL_SCANCODE_N:
+          if ctrl:
+            var menu = newMenu(mouse(), "new project?")
+            menu.items.add(newMenuItem("no") do():
+              popMenu()
+            )
+            menu.items[menu.items.high].status = Primary
+            menu.items.add(newMenuItem("yes") do():
+              newLayout()
+              popMenu()
+            )
+            menu.items[menu.items.high].status = Danger
+            pushMenu(menu)
+            return true
         of SDL_SCANCODE_Q:
           if ctrl:
             var menu = newMenu(mouse(), "quit?")
