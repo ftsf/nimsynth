@@ -26,7 +26,7 @@ windows: $(SOURCES)
 .PHONY: windows
 
 synth-debug: $(SOURCES)
-	${NIMC} c -d:debug $(JACK_FLAGS) --lineTrace:on --stackTrace:on -x:on --debugger:native -d:jack -o:$@ --tlsEmulation:off --threads:on src/main.nim
+	${NIMC} c -d:debug $(JACK_FLAGS) --lineTrace:on --stackTrace:on -x:on --debugger:native -o:$@ --tlsEmulation:off --threads:on src/main.nim
 
 web: $(SOURCES)
 	${NIMC} c -d:release -o:web/nimsynth.html --threads:on -d:emscripten src/main.nim
