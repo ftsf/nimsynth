@@ -40,6 +40,23 @@ method init(self: Operator) =
 
   setDefaults()
 
+proc send(self: OperatorE) =
+  if bindings[0].isBound():
+    var (voice,param) = bindings[0].getParameter()
+    case self.operation:
+    of Add:
+      param.value = self.v1 + self.v2
+    of Sub:
+      param.value = self.v1 - self.v2
+    of Mul:
+      param.value = self.v1 * self.v2
+    of Div:
+      if self.v2 != 0:
+        param.value = self.v1 / self.v2
+    of Exp:
+      param.value = pow(self.v1,self.v2)
+    param.onchange(param.value)
+
 method init(self: OperatorE) =
   procCall init(Machine(self))
   name = "."
@@ -58,24 +75,12 @@ method init(self: OperatorE) =
     ),
     Parameter(kind: Float, name: "v1", min: -1000.0, max: 1000.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.v1 = newValue
-      if bindings[0].isBound():
-        var (voice,param) = bindings[0].getParameter()
-        case self.operation:
-        of Add:
-          param.value = self.v1 + self.v2
-        of Sub:
-          param.value = self.v1 - self.v2
-        of Mul:
-          param.value = self.v1 * self.v2
-        of Div:
-          if self.v2 != 0:
-            param.value = self.v1 / self.v2
-        of Exp:
-          param.value = pow(self.v1,self.v2)
-        param.onchange(param.value)
+      self.send()
+
     ),
     Parameter(kind: Float, name: "v2", min: -1000.0, max: 1000.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.v2 = newValue
+      self.send()
     ),
   ])
 
@@ -163,5 +168,5 @@ proc newOperatorE(): Machine =
   m.init()
   return m
 
-registerMachine("op", newOperator, "math")
+registerMachine("op-a", newOperator, "math")
 registerMachine("op-e", newOperatorE, "math")
