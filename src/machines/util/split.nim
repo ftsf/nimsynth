@@ -23,7 +23,7 @@ method init(self: SplitMachine) =
         if bindings[i].isBound():
           var (voice,param) = bindings[i].getParameter()
           param.value = newValue
-          param.onchange(newValue)
+          param.onchange(newValue, voice)
     ),
   ])
 

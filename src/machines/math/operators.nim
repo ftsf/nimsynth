@@ -55,7 +55,7 @@ proc send(self: OperatorE) =
         param.value = self.v1 / self.v2
     of Exp:
       param.value = pow(self.v1,self.v2)
-    param.onchange(param.value)
+    param.onchange(param.value, voice)
 
 method init(self: OperatorE) =
   procCall init(Machine(self))

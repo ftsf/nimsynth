@@ -24,7 +24,7 @@ method init(self: NoteMachine) =
         if bindings[0].isBound():
           var (voice, param) = bindings[0].getParameter()
           param.value = newValue.noteToHz()
-          param.onchange(param.value)
+          param.onchange(param.value, voice)
     , getValueString: proc(value: float, voice: int): string =
       return noteToNoteName(value.int)
     ),

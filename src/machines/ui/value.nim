@@ -45,7 +45,7 @@ method createBinding(self: ValueMachine, slot: int, target: Machine, paramId: in
   # send value
   var (voice,param) = bindings[slot].getParameter()
   param.value = value
-  param.onchange(value)
+  param.onchange(value, voice)
 
 proc inputMenu(self: ValueMachine, mv: Point2d): Menu =
   var menu = newMenu(mv, nil)

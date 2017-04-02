@@ -24,7 +24,7 @@ method process(self: A2EMachine) =
     let value = getInput()
     var (voice, param) = bindings[0].getParameter()
     param.value = value
-    param.onchange(value)
+    param.onchange(value, voice)
 
 proc newA2E(): Machine =
   var m = new(A2EMachine)

@@ -78,7 +78,7 @@ type
     min*,max*: float
     value*: float
     default*: float
-    onchange*: proc(newValue: float, voice: int = -1)
+    onchange*: proc(newValue: float, voice: int)
     getValueString*: proc(value: float, voice: int = -1): string
     deferred*: bool # deferred attributes get changed by a sequencer last
     separator*: bool # put a space above it

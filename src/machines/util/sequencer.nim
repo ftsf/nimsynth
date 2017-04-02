@@ -108,7 +108,7 @@ method init*(self: Sequencer) =
         self.step = 0
         self.playing = true
         self.globalParams[1].value = self.playingPattern.float
-        self.globalParams[1].onchange(self.playingPattern.float)
+        self.globalParams[1].onchange(self.playingPattern.float, -1)
     , getValueString: proc(value: float, voice: int): string =
       if self.patterns[value.int] != nil:
         return $value.int & ": " & self.patterns[value.int].name
@@ -509,10 +509,10 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
     # toggle loop
     if s.looping:
       s.globalParams[3].value = 0.0
-      s.globalParams[3].onchange(0.0)
+      s.globalParams[3].onchange(0.0, -1)
     else:
       s.globalParams[3].value = 1.0
-      s.globalParams[3].onchange(1.0)
+      s.globalParams[3].onchange(1.0, -1)
     return true
   elif scancode == SDL_SCANCODE_B and ctrl and down:
     pattern.loopStart = s.currentStep
@@ -612,7 +612,7 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
         s.subTick = 0.0
     else:
       s.globalParams[0].value = s.currentPattern.float
-      s.globalParams[0].onchange(s.currentPattern.float)
+      s.globalParams[0].onchange(s.currentPattern.float, -1)
       s.playing = true
     return true
   elif key.keysym.scancode == SDL_SCANCODE_HOME and down:
