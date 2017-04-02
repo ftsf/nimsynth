@@ -5,6 +5,7 @@ import strutils
 import sdl2
 
 import pico
+import util
 
 import common
 import core.ringbuffer
@@ -50,13 +51,14 @@ import machines.util.sequencer
 import machines.util.split
 import machines.util.transposer
 
-when defined(jack):
-  import machines.io.audioin
+var glitch = 0.0
 
 when defined(jack):
   import jack.types
   import jack.jack
   import jack.midiport
+
+  import machines.io.audioin
 
 when defined(jack):
   var J: ptr JackClient
@@ -69,6 +71,7 @@ when defined(jack):
 
   proc audioCallbackJack(nframes: jack_nframes, arg: pointer): cint =
     setupForeignThreadGc()
+    glitch = 0.0
     var samplesL = cast[ptr array[int.high, float32]](jack_port_get_buffer(outputPort1, nframes))
     var samplesR = cast[ptr array[int.high, float32]](jack_port_get_buffer(outputPort2, nframes))
 
@@ -109,15 +112,20 @@ when defined(jack):
       # update all machines
       withLock machineLock:
         for machine in mitems(machines):
-          if machine.stereo or sampleId mod 2 == 0:
-            machine.process()
+          if not machine.disabled:
+            if machine.stereo or sampleId mod 2 == 0:
+              machine.process()
 
       if i mod 2 == 0:
         samplesL[time] = masterMachine.outputSamples[0]
+        if samplesL[time] > 1.0 or samplesL[time] < -1.0:
+          glitch += abs(samplesL[time]) - 1.0
         if sampleMachine != nil:
           oscilliscopeBuffer.add([sampleMachine.outputSamples[0]])
       else:
         samplesR[time] = masterMachine.outputSamples[0]
+        if samplesR[time] > 1.0 or samplesR[time] < -1.0:
+          glitch += abs(samplesR[time]) - 1.0
 
   proc setSampleRate(nframes: jack_nframes, arg: pointer): cint =
     echo "sampleRate: ", nframes
@@ -129,6 +137,7 @@ else:
 
   proc audioCallback(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.} =
     setupForeignThreadGc()
+    glitch = 0.0
     var samples = cast[ptr array[int.high,float32]](stream)
     var nSamples = len div sizeof(float32)
     for i in 0..<nSamples:
@@ -138,6 +147,8 @@ else:
         if machine.stereo or sampleId mod 2 == 0:
           machine.process()
       samples[i] = masterMachine.outputSamples[0]
+      if abs(samples[i]) > 1.0:
+        glitch += abs(samples[i]) - 1.0
 
       if i mod 2 == 0 and sampleMachine != nil:
         oscilliscopeBuffer.add([sampleMachine.outputSamples[0]])
@@ -390,6 +401,10 @@ proc draw() =
 
   let mv = mouse()
   spr(20, mv.x, mv.y)
+
+  if glitch > 0.0:
+    for i in 0..glitch.int:
+      glitch(0,0,screenWidth,screenHeight)
 
 pico.init(false)
 pico.run(init, update, draw)
