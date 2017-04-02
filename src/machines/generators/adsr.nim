@@ -63,4 +63,4 @@ proc newADSRMachine(): Machine =
  m.init()
  return m
 
-registerMachine("adsr", newADSRMachine, "generators")
+registerMachine("adsr", newADSRMachine, "generator")
