@@ -2,10 +2,10 @@ import common
 import math
 import util
 
-import osc
-import filter
-import env
-import master
+import core.oscillator
+import core.filter
+import core.envelope
+import machines.master
 
 import strutils
 
@@ -236,7 +236,7 @@ proc newBasicFMSynth(): Machine =
 
 import pico
 
-import machineview
+import ui.machineview
 type BasicFMSynthView = ref object of MachineView
 
 method drawExtraData(self: BasicFMSynthView, x,y,w,h: int) =

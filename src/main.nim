@@ -31,6 +31,7 @@ import machines.fx.bitcrush
 
 import machines.generators.clock
 import machines.generators.adsr
+import machines.generators.basicfm
 import machines.generators.fmsynth
 import machines.generators.gbsynth
 import machines.generators.kit
