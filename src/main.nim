@@ -137,6 +137,7 @@ else:
       for machine in mitems(machines):
         if machine.stereo or sampleId mod 2 == 0:
           machine.process()
+      samples[i] = masterMachine.outputSamples[0]
 
       if i mod 2 == 0 and sampleMachine != nil:
         oscilliscopeBuffer.add([sampleMachine.outputSamples[0]])
