@@ -150,14 +150,16 @@ method draw*(self: LayoutView) =
     print(self.name, 1, 1)
   printr("layout", screenWidth - 1, 1)
 
+proc handleStolenEvent(self: LayoutView, event: Event): bool =
+  var (handled,keep) = stolenInput.event(event, camera)
+  if not keep:
+    stolenInput = nil
+  return handled
 
 method event*(self: LayoutView, event: Event): bool =
   let ctrl = ctrl()
   if stolenInput != nil:
-    var (handled,keep) = stolenInput.event(event, camera)
-    if not keep:
-      stolenInput = nil
-    if handled:
+    if handleStolenEvent(event):
       return true
 
   case event.kind:
@@ -174,7 +176,9 @@ method event*(self: LayoutView, event: Event): bool =
             # handle machines that steal input
             if machine.handleClick(mv):
               stolenInput = machine
-              return true
+              if handleStolenEvent(event):
+                return true
+
             currentMachine = machine
             if event.button.clicks == 2:
               # switch to machineview

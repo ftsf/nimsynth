@@ -14,9 +14,11 @@ import ui.machineview
 import ui.layoutview
 
 import machines.master
+
 import machines.converters.a2e
 import machines.converters.e2a
 import machines.converters.n2f
+
 import machines.fx.compressor
 import machines.fx.delay
 import machines.fx.distortion
@@ -24,6 +26,7 @@ import machines.fx.eq
 import machines.fx.mod_filter
 import machines.fx.flanger
 import machines.fx.gate
+
 import machines.generators.adsr
 import machines.generators.fmsynth
 import machines.generators.gbsynth
@@ -33,11 +36,16 @@ import machines.generators.organ
 import machines.generators.osc
 import machines.generators.synth
 import machines.generators.tb303
+
 import machines.io.filerec
 import machines.io.keyboard
+
 import machines.math.operators
+
 import machines.ui.button
 import machines.ui.knob
+import machines.ui.value
+
 import machines.util.arp
 import machines.util.dc
 import machines.util.karp

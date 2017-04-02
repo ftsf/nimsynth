@@ -19,6 +19,7 @@ type
   MenuItemText* = ref object of MenuItem
     default*: string
     value*: string
+    onchange*: proc(newValue: string)
   Menu* = ref object of RootObj
     label*: string
     pos*: Point2d
@@ -56,15 +57,18 @@ proc newMenuItem*(label: string, action: proc() = nil, status: MenuItemStatus = 
   result.action = action
   result.status = status
 
-proc newMenuItemText*(label: string, default: string = ""): MenuItemText =
+proc newMenuItemText*(label: string, default: string = "", onchange: proc(newValue: string) = nil): MenuItemText =
   var mi = new(MenuItemText)
   mi.label = label
   mi.default = default
   mi.value = default
+  mi.onchange = onchange
   return mi
 
 proc inputText(self: MenuItemText, text: string): bool =
   value &= text
+  if onchange != nil:
+    onchange(value)
   return true
 
 proc getAABB*(self: Menu): AABB =
@@ -190,6 +194,8 @@ proc event*(self: Menu, event: Event): bool =
           )
         if scancode == SDL_SCANCODE_BACKSPACE and down and te.value.len > 0:
           te.value = te.value[0..te.value.high-1]
+          if te.onchange != nil:
+            te.onchange(te.value)
           return true
       else:
         setTextFunc(nil)
