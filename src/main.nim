@@ -26,6 +26,8 @@ import machines.fx.eq
 import machines.fx.mod_filter
 import machines.fx.flanger
 import machines.fx.gate
+import machines.fx.sandh
+import machines.fx.bitcrush
 
 import machines.generators.clock
 import machines.generators.adsr
