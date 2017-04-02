@@ -20,10 +20,11 @@ method init(self: NoteMachine) =
 
   globalParams.add([
     Parameter(kind: Note, name: "note", min: 0, max: 127, onchange: proc(newValue: float, voice: int) =
-      if bindings[0].isBound():
-        var (voice, param) = bindings[0].getParameter()
-        param.value = newValue.noteToHz()
-        param.onchange(param.value)
+      if newValue != OffNote:
+        if bindings[0].isBound():
+          var (voice, param) = bindings[0].getParameter()
+          param.value = newValue.noteToHz()
+          param.onchange(param.value)
     , getValueString: proc(value: float, voice: int): string =
       return noteToNoteName(value.int)
     ),
