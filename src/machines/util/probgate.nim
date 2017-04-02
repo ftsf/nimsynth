@@ -50,4 +50,4 @@ proc newProbGate(): Machine =
   return pg
 
 
-registerMachine("probgate", newProbGate, "util")
+registerMachine("%gate", newProbGate, "util")

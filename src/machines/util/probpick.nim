@@ -88,4 +88,4 @@ proc newProbPick(): Machine =
   return pp
 
 
-registerMachine("probpick", newProbPick, "util")
+registerMachine("%pick", newProbPick, "util")
