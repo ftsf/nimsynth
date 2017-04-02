@@ -16,6 +16,7 @@ type Knob = ref object of Machine
   lastmv: Point2d
   held: bool
   min,max: float
+  sensitivity: float
   center: float
   spring: float
   midicc: int
@@ -37,6 +38,9 @@ method init(self: Knob) =
     ),
     Parameter(name: "max", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
       self.max = newValue
+    ),
+    Parameter(name: "sensitiv", kind: Float, min: 0.0001, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+      self.sensitivity = newValue
     ),
     Parameter(name: "center", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
       self.center = newValue
@@ -133,7 +137,7 @@ method event(self: Knob, event: Event, camera: Point2d): (bool, bool) =
       var (voice,param) = bindings[0].machine.getParameter(bindings[0].param)
       let shift = (getModState() and KMOD_SHIFT) != 0
       let ctrl = ctrl()
-      let move = if ctrl: 0.1 elif shift: 0.001 else: 0.01
+      let move = (if ctrl and shift: 0.0001 elif ctrl: 0.1 elif shift: 0.001 else: 0.01) * sensitivity
 
       let min = lerp(param.min,param.max,min)
       let max = lerp(param.min,param.max,max)
