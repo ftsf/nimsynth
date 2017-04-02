@@ -45,6 +45,7 @@ import machines.io.filerec
 import machines.io.keyboard
 
 import machines.math.operators
+import machines.math.accumulator
 
 import machines.ui.button
 import machines.ui.knob
