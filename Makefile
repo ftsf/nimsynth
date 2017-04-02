@@ -1,4 +1,4 @@
-SOURCES=$(shell ls src/*.nim)
+SOURCES=$(shell find src -name '*.nim')
 DATE=$(shell date +%Y-%m-%d)
 NIMC=nim -p=src
 

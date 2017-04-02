@@ -34,4 +34,4 @@ proc newSplitMachine(): Machine =
   m.init()
   return m
 
-registerMachine("split", newSplitMachine, "components")
+registerMachine("split", newSplitMachine, "util")

@@ -287,7 +287,7 @@ when not defined(emscripten):
 import math
 import stb.stb_image
 
-const screenScale* = 4
+var screenScale* = 2
 
 var window: WindowPtr
 var spriteSheet: SurfacePtr
@@ -1021,6 +1021,13 @@ proc shutdown*() =
   keepRunning = false
 
 proc resize(w,h: int) =
+  var ddpi, hdpi, vdpi: cfloat
+  discard sdl2.getDisplayDPI(0, ddpi.addr, hdpi.addr, vdpi.addr)
+  echo "ddpi: ", ddpi, " hdpi: ", hdpi, " vdpi: ", vdpi
+  if ddpi >= 144:
+    screenScale = 4
+  else:
+    screenScale = 2
   screenWidth = w div screenScale
   screenHeight = h div screenScale
   echo "resize event: ", w, " x ", h, " ( ", screenWidth, " x ", screenHeight, " )"
@@ -1400,7 +1407,7 @@ proc init*(audio = true) =
 
   randomize()
 
-  window = createWindow("NimSynth", 0, 0, (screenWidth+screenPaddingX*2)*screenScale, (screenHeight+screenPaddingY*2)*screenScale, SDL_WINDOW_SHOWN or SDL_WINDOW_RESIZABLE)
+  window = createWindow("NimSynth", 0, 0, (screenWidth+screenPaddingX*2)*screenScale, (screenHeight+screenPaddingY*2)*screenScale, SDL_WINDOW_SHOWN or SDL_WINDOW_RESIZABLE or SDL_WINDOW_ALLOW_HIGHDPI)
   render = createRenderer(window, -1, Renderer_Accelerated or Renderer_PresentVsync or Renderer_TargetTexture)
 
   discard sdl2.setHint("SDL_HINT_RENDER_VSYNC", "1")

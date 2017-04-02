@@ -32,7 +32,7 @@ method init(self: FilterMachine) =
     , getValueString: proc(value: float, voice: int): string =
       return $(exp(lerp(-8.0, -0.8, value)) * sampleRate).int & " hZ"
     ),
-    Parameter(name: "q", kind: Float, min: 0.0, max: 10.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "q", kind: Float, min: 0.00001, max: 10.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
       self.filter.resonance = newValue
     ),
   ])

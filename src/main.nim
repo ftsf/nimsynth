@@ -21,7 +21,7 @@ import machines.fx.compressor
 import machines.fx.delay
 import machines.fx.distortion
 import machines.fx.eq
-#import machines.fx.filter
+import machines.fx.mod_filter
 import machines.fx.flanger
 import machines.fx.gate
 import machines.generators.fmsynth

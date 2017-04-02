@@ -25,7 +25,7 @@ method init(self: ADSRMachine) =
 
   globalParams.add([
     Parameter(kind: Trigger, name: "trigger", min: 0, max: 1, onchange: proc(newValue: float, voice: int) =
-      if newValue == 0.float:
+      if newValue == OffNote:
         env.release()
       else:
         env.trigger()
@@ -63,4 +63,4 @@ proc newADSRMachine(): Machine =
  m.init()
  return m
 
-registerMachine("adsr", newADSRMachine, "fx")
+registerMachine("adsr", newADSRMachine, "generators")
