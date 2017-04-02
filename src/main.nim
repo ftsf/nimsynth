@@ -60,6 +60,7 @@ import machines.util.split
 import machines.util.transposer
 
 var glitch = 0.0
+var panic: bool
 
 when defined(jack):
   import jack.types
@@ -80,11 +81,17 @@ when defined(jack):
   proc audioCallbackJack(nframes: jack_nframes, arg: pointer): cint =
     setupForeignThreadGc()
     glitch = 0.0
+
     var samplesL = cast[ptr array[int.high, float32]](jack_port_get_buffer(outputPort1, nframes))
     var samplesR = cast[ptr array[int.high, float32]](jack_port_get_buffer(outputPort2, nframes))
 
     var inputL = cast[ptr array[int.high, float32]](jack_port_get_buffer(inputPort1, nframes))
     var inputR = cast[ptr array[int.high, float32]](jack_port_get_buffer(inputPort2, nframes))
+
+    if panic:
+      zeroMem(samplesL, nframes.int * sizeof(float32))
+      zeroMem(samplesR, nframes.int * sizeof(float32))
+      return
 
     var midiEvents = jack_port_get_buffer(midiInputPort, nframes)
 
@@ -146,8 +153,14 @@ else:
   proc audioCallback(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.} =
     setupForeignThreadGc()
     glitch = 0.0
+
     var samples = cast[ptr array[int.high,float32]](stream)
     var nSamples = len div sizeof(float32)
+
+    if panic:
+      zeroMem(samples, nSamples * sizeof(float32))
+      return
+
     for i in 0..<nSamples:
       sampleId += 1
       # update all machines
@@ -218,6 +231,8 @@ proc handleShortcutKeys(event: Event): bool =
       return handleShortcutKey(8)
     of SDL_SCANCODE_0:
       return handleShortcutKey(9)
+    of SDL_SCANCODE_M:
+      panic = not panic
     else:
       return false
   elif down:
