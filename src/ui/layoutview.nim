@@ -194,7 +194,7 @@ method event*(self: LayoutView, event: Event): bool =
       currentMachine = nil
     of 2:
       panning = true
-      discard captureMouse(true)
+      discard captureMouse(True32)
       return true
     of 3:
       # right click
@@ -323,7 +323,7 @@ method event*(self: LayoutView, event: Event): bool =
     of 2:
       panning = false
       relmouse(false)
-      discard captureMouse(false)
+      discard captureMouse(False32)
       return true
     of 3:
       relmouse(false)
