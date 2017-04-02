@@ -27,6 +27,7 @@ import machines.fx.mod_filter
 import machines.fx.flanger
 import machines.fx.gate
 
+import machines.generators.clock
 import machines.generators.adsr
 import machines.generators.fmsynth
 import machines.generators.gbsynth
