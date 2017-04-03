@@ -1,6 +1,10 @@
 import fenv
 import math
 import common
+import core.basemachine
+import core.filter
+import pico
+import util
 
 const maxFilters = 8
 
@@ -16,11 +20,33 @@ type
     Q: float
     drive: float
     notch,lp,hp,band: float
+    limit: float
   SVFFilterMachine = ref object of Machine
     filters: array[maxFilters,SVFFilter]
     nFilters: int
+    hasChanged: bool
+    responseGraph: array[1024, float32]
 
 {.this:self.}
+
+proc process(self: var SVFFilter, s: float): float
+proc reset(self: var SVFFilter)
+
+proc graphResponse(self: SVFFilterMachine) =
+  const resolution = 1024
+  var impulse = generateImpulse(resolution)
+
+  var filters = filters
+  for i in 0..<nFilters:
+    filters[i].reset()
+
+  for i in 0..<resolution:
+    for j in 0..<nFilters:
+      impulse[i] = filters[j].process(impulse[i])
+
+  var response = graphResponse(impulse, resolution)
+  for i in 0..<resolution:
+    responseGraph[i] = response[i]
 
 method init(self: SVFFilterMachine) =
   procCall init(Machine(self))
@@ -33,29 +59,37 @@ method init(self: SVFFilterMachine) =
     Parameter(name: "kind", kind: Int, min: LP.float, max: Notch.float, default: LP.float, onchange: proc(newValue: float, voice: int) =
       for i in 0..<maxFilters:
         self.filters[i].kind = newValue.SVFFilterKind
+      self.hasChanged = true
     ),
     Parameter(name: "f", kind: Float, min: 0.00001, max: 0.5, default: 0.25, onchange: proc(newValue: float, voice: int) =
       for i in 0..<maxFilters:
         self.filters[i].Fc = clamp(newValue, 0.00001, 0.5) * sampleRate
+      self.hasChanged = true
     ),
     Parameter(name: "q", kind: Float, min: 0.00001, max: 0.99999, default: 0.5, onchange: proc(newValue: float, voice: int) =
       for i in 0..<maxFilters:
         self.filters[i].Q = newValue
+      self.hasChanged = true
     ),
-    Parameter(name: "drive", kind: Float, min: 0.0, max: 0.1, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "drive", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       for i in 0..<maxFilters:
         self.filters[i].drive = newValue
+      self.hasChanged = true
     ),
-    Parameter(name: "poles", kind: Int, min: 1.0, max: maxFilters.float, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "limit", kind: Float, min: 0.5, max: 0.99999, default: 0.9, onchange: proc(newValue: float, voice: int) =
+      for i in 0..<maxFilters:
+        self.filters[i].limit = clamp(newValue, 0.5, 0.99999)
+      self.hasChanged = true
+    ),
+    Parameter(name: "series", kind: Int, min: 1.0, max: maxFilters.float, default: 1.0, onchange: proc(newValue: float, voice: int) =
       self.nFilters = clamp(newValue.int, 1, maxFilters)
+      self.hasChanged = true
     ),
   ])
 
   setDefaults()
 
-const limit = 0.95;
-
-proc saturate(input: float): float =
+proc saturate(input: float, limit: float): float =
   let x1 = abs(input + limit)
   let x2 = abs(input - limit)
   return 0.5 * (x1 - x2)
@@ -81,7 +115,7 @@ proc process(self: var SVFFilter, s: float): float =
     output = 0.5 * band
   of Notch:
     output = 0.5 * notch
-  output = saturate(output)
+  output = saturate(output, limit)
 
   notch = s - damp * band
   lp = lp + freq * band
@@ -97,7 +131,7 @@ proc process(self: var SVFFilter, s: float): float =
     output += 0.5 * band
   of Notch:
     output += 0.5 * notch
-  output = saturate(output)
+  output = saturate(output, limit)
 
   return output
 
@@ -130,6 +164,33 @@ method getOutputName(self: SVFFilterMachine, outputId: int): string =
     return "notch"
   else:
     return nil
+
+method getAABB*(self: SVFFilterMachine): AABB =
+  result.min.x = pos.x - 16
+  result.min.y = pos.y - 4
+  result.max.x = pos.x + 16
+  result.max.y = pos.y + 16
+
+method drawBox(self: SVFFilterMachine) =
+  setColor(0)
+  rectfill(getAABB())
+  setColor(5)
+  rect(getAABB())
+
+
+  if hasChanged:
+    graphResponse()
+
+  for i in 1..<32:
+    setColor(3)
+    let v0 = responseGraph.getSubsample(((i-1).float / 32.0) * (responseGraph.len.float / 2.0))
+    let v1 = responseGraph.getSubsample((i.float / 32.0) * (responseGraph.len.float / 2.0))
+    line(
+      pos.x + i - 1 - 16,
+      pos.y + 9 - clamp(v0 * 4.0, -6.0, 12.0),
+      pos.x + i - 16,
+      pos.y + 9 - clamp(v1 * 4.0, -6.0, 12.0)
+    )
 
 
 proc newMachine(): Machine =
