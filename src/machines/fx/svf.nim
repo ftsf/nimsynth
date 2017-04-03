@@ -53,6 +53,13 @@ method init(self: SVFFilterMachine) =
 
   setDefaults()
 
+const limit = 0.95;
+
+proc saturate(input: float): float =
+  let x1 = abs(input + limit)
+  let x2 = abs(input - limit)
+  return 0.5 * (x1 - x2)
+
 proc process(self: var SVFFilter, s: float): float =
   let Fs = sampleRate
   let freq = 2.0 * sin(PI * min(0.25, Fc / (Fs*2.0)))
@@ -74,6 +81,7 @@ proc process(self: var SVFFilter, s: float): float =
     output = 0.5 * band
   of Notch:
     output = 0.5 * notch
+  output = saturate(output)
 
   notch = s - damp * band
   lp = lp + freq * band
@@ -89,6 +97,7 @@ proc process(self: var SVFFilter, s: float): float =
     output += 0.5 * band
   of Notch:
     output += 0.5 * notch
+  output = saturate(output)
 
   return output
 
