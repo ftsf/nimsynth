@@ -65,6 +65,7 @@ import machines.util.probpick
 import machines.util.sequencer
 import machines.util.split
 import machines.util.transposer
+import machines.util.spectrogram
 
 var glitch = 0.0
 var panic: bool

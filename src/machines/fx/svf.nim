@@ -2,7 +2,7 @@ import fenv
 import math
 import common
 import core.basemachine
-import core.filter
+import core.fft
 import pico
 import util
 
@@ -180,6 +180,13 @@ method drawBox(self: SVFFilterMachine) =
 
   if hasChanged:
     graphResponse()
+
+  setColor(1)
+  vline(
+    pos.x - 16 + (globalParams[1].value * 64.0),
+    pos.y - 3,
+    pos.y + 15
+  )
 
   for i in 1..<32:
     setColor(3)
