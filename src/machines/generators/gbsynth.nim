@@ -335,7 +335,6 @@ method event(self: GBSynthView, e: Event): bool =
     discard
   else:
     discard
-  echo "fallback"
   return procCall event(MachineView(self), e)
 
 proc newGBSynth(): Machine =
