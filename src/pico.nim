@@ -120,6 +120,10 @@ var frameRate* = 60
 var timeStep* = 1/frameRate
 var frameMult = 1
 
+var audioDeviceId: AudioDeviceID
+var queueAudioCallback: proc(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.} = nil
+var queueAudioBuffer: array[4096, float32]
+
 var basePath*: string
 
 proc fps*(fps: int) =
@@ -1221,7 +1225,14 @@ proc step() {.cdecl.} =
     mouseButtonPState = 0
     mouseWheelState = 0
     acc -= timeStep
-    #delay(0)
+
+    if queueAudioCallback != nil:
+      if getQueuedAudioSize(audioDeviceID) < (timeStep * 48000.float).int * sizeof(float32):
+        queueAudioCallback(nil, cast[ptr uint8](queueAudioBuffer[0].addr), queueAudioBuffer.len * sizeof(float32))
+        let ret = queueAudio(audioDeviceID, queueAudioBuffer[0].addr, queueAudioBuffer.len * sizeof(float32))
+        if ret != 0:
+          echo "error queueing audio: ", sdl2.getError()
+    delay(0)
 
 proc setWindowTitle*(title: string) =
   window.setTitle(title)
@@ -1361,8 +1372,7 @@ else:
     return 0
 
 
-
-proc setAudioCallback*(channels: uint8, newAudioCallback: proc(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.}) =
+proc setAudioCallback*(channels: uint8, newAudioCallback: proc(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.}, threaded: bool = true) =
   audioCallback = newAudioCallback
   if audioCallback != nil:
     # initialise audio
@@ -1373,12 +1383,20 @@ proc setAudioCallback*(channels: uint8, newAudioCallback: proc(userdata: pointer
     audioSpec.channels = channels
     audioSpec.samples = 2048
     audioSpec.padding = 0
-    audioSpec.callback = audioCallback
+    if threaded:
+      audioSpec.callback = audioCallback
+    else:
+      echo "not using audio thread"
+      audioSpec.callback = nil
+      queueAudioCallback = newAudioCallback
     audioSpec.userdata = nil
-    if openAudio(addr(audioSpec), addr(obtained)) != 0:
+    var audioDeviceName: cstring
+    discard sdl2.initSubSystem(INIT_AUDIO)
+    audioDeviceId = openAudioDevice(audioDeviceName, 0, addr(audioSpec), addr(obtained), SDL_AUDIO_ALLOW_FREQUENCY_CHANGE)
+    if audioDeviceId == 0:
       echo "Unable to open audio device." & $getError()
       quit(1)
-    echo "Opened Audio device"
+    echo "Opened Audio device: ", audioDeviceName
     echo $audioSpec
     echo $obtained
     pauseAudio(0)
