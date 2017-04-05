@@ -87,11 +87,9 @@ method init(self: BasicFMSynthVoice, machine: BasicFMSynth) =
 
 method addVoice*(self: BasicFMSynth) =
   withLock machineLock:
-    pauseAudio(1)
     var voice = new(BasicFMSynthVoice)
     voices.add(voice)
     voice.init(self)
-    pauseAudio(0)
 
 proc initNote(self: BasicFMSynth, voiceId: int, note: int) =
   var voice = BasicFMSynthVoice(voices[voiceId])

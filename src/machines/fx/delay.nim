@@ -35,9 +35,7 @@ proc setLen*(self: var SimpleDelay, newLength: int) =
     self.buffer.setLen(abs(newLength))
 
 proc setLen*(self: var Delay, newLength: int) =
-  pauseAudio(1)
   self.buffer.setLen(abs(newLength))
-  pauseAudio(0)
 
 proc process*(self: var SimpleDelay, sample: float32): float32 {.inline.} =
   if self.buffer.length == 0:

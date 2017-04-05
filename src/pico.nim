@@ -1232,7 +1232,7 @@ proc step() {.cdecl.} =
         let ret = queueAudio(audioDeviceID, queueAudioBuffer[0].addr, queueAudioBuffer.len * sizeof(float32))
         if ret != 0:
           echo "error queueing audio: ", sdl2.getError()
-    delay(0)
+    #delay(0)
 
 proc setWindowTitle*(title: string) =
   window.setTitle(title)
@@ -1396,10 +1396,13 @@ proc setAudioCallback*(channels: uint8, newAudioCallback: proc(userdata: pointer
     if audioDeviceId == 0:
       echo "Unable to open audio device." & $getError()
       quit(1)
-    echo "Opened Audio device: ", audioDeviceName
+    echo "Opened Audio device: ", audioDeviceName, " id: ", audioDeviceId.int
     echo $audioSpec
     echo $obtained
-    pauseAudio(0)
+    pauseAudioDevice(audioDeviceId, 0)
+
+proc pauseAudio*(pause: bool) =
+  pauseAudioDevice(audioDeviceId, if pause: 1 else: 0)
 
 var context: GlContextPtr
 
