@@ -158,7 +158,6 @@ when defined(jack):
 else:
 
   proc audioCallback(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.} =
-    setupForeignThreadGc()
     glitch = 0.0
 
     var samples = cast[ptr array[int.high,float32]](stream)
@@ -375,7 +374,7 @@ proc init() =
     echo "connected to jack"
   else:
     echo "using SDL audio"
-    setAudioCallback(2, audioCallback)
+    setAudioCallback(2, audioCallback, false)
 
     proc signalHandler() {.noconv.} =
       echo "signal recved exiting"

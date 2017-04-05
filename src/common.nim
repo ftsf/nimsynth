@@ -19,9 +19,6 @@ import core.ringbuffer
 
 export sdl2
 
-export pauseAudio
-
-
 var baseOctave* = 4
 
 var sampleId*: int
@@ -172,12 +169,9 @@ method rename*(self: Machine, newName: string) {.base.} =
   self.name = newName
 
 method addVoice*(self: Machine) {.base.} =
-  withLock machineLock:
-    pauseAudio(1)
-    var voice = new(Voice)
-    self.voices.add(voice)
-    voice.init(self)
-    pauseAudio(0)
+  var voice = new(Voice)
+  self.voices.add(voice)
+  voice.init(self)
 
 method setDefaults*(self: Machine) {.base.} =
   for param in mitems(self.globalParams):
@@ -263,18 +257,17 @@ proc sortMachines() =
   if not sortingEnabled:
     return
 
-  withLock machineLock:
-    # sort by depth from master
-    var newMachines = newSeq[Machine]()
+  # sort by depth from master
+  var newMachines = newSeq[Machine]()
 
-    masterMachine.findLeaves(newMachines)
+  masterMachine.findLeaves(newMachines)
 
-    # add any detached machines at the end
-    for machine in mitems(machines):
-      if not (machine in newMachines):
-        newMachines.add(machine)
+  # add any detached machines at the end
+  for machine in mitems(machines):
+    if not (machine in newMachines):
+      newMachines.add(machine)
 
-    machines = newMachines
+  machines = newMachines
 
 proc connectMachines*(source, dest: Machine, gain: float = 1.0, inputId: int = 0, outputId: int = 0): bool =
   echo "connecting: ", source.name, ": ", outputId, " -> ", dest.name, ": ", inputId
@@ -307,20 +300,17 @@ proc connectMachines*(source, dest: Machine, gain: float = 1.0, inputId: int = 0
   return true
 
 proc disconnectMachines*(source, dest: Machine) =
-  pauseAudio(1)
   for i,input in dest.inputs:
     if input.machine == source:
       dest.inputs.del(i)
       break
   sortMachines()
-  pauseAudio(0)
 
 proc swapMachines*(a,b: Machine) =
   # check they are compatible
   if a == masterMachine or b == masterMachine:
     return
   if a.nOutputs == b.nOutputs and a.nInputs == b.nInputs:
-    pauseAudio(1)
     swap(a.pos, b.pos)
     swap(a.inputs, b.inputs)
     var aOutputs = newSeq[tuple[machine: Machine, input: ptr Input]]()
@@ -337,10 +327,8 @@ proc swapMachines*(a,b: Machine) =
     for v in bOutputs:
       v.input.machine = a
     sortMachines()
-    pauseAudio(0)
 
 proc delete*(self: Machine) =
-  pauseAudio(1)
   # remove all connections and references to it
   for machine in mitems(machines):
     if machine != self:
@@ -358,13 +346,11 @@ proc delete*(self: Machine) =
     if shortcut == self:
       shortcuts[i] = nil
 
-  withLock machineLock:
-    machines.del(machines.find(self))
+  machines.del(machines.find(self))
 
   if sampleMachine == self:
     sampleMachine = masterMachine
 
-  pauseAudio(0)
   sortMachines()
 
 type MachineType* = tuple[name: string, factory: proc(): Machine]
@@ -603,11 +589,10 @@ proc loadMarshaledParams(self: Machine, parameters: seq[ParamMarshal], setDefaul
       echo "parameter name does not match: " & param.name & " vs " & p.name
 
 proc getMachineById(machineId: int): Machine =
-  withLock machineLock:
-    for m in machines:
-      if m.id == machineId:
-        result = m
-        break
+  for m in machines:
+    if m.id == machineId:
+      result = m
+      break
   if result == nil:
     raise newException(Exception, "no machine with id: " & $machineId)
 
@@ -737,22 +722,18 @@ proc getPatches*(self: Machine): seq[string] =
     result.add(file[prefix.len..file.high-5])
 
 method popVoice*(self: Machine) {.base.} =
-  echo "popVoice"
-  withLock machineLock:
-    pauseAudio(1)
-    # find anything bound to this voice
-    for machine in mitems(machines):
-      if machine.bindings != nil:
-        for i,binding in mpairs(machine.bindings):
-          if binding.machine == self:
-            echo machine.name & " is bound to " & self.name & ":" & $binding.param
-            var (voice,param) = self.getParameter(binding.param)
-            if voice == self.voices.high:
-              echo "voice matches: " & $voice
-              removeBinding(machine, i)
+  # find anything bound to this voice
+  for machine in mitems(machines):
+    if machine.bindings != nil:
+      for i,binding in mpairs(machine.bindings):
+        if binding.machine == self:
+          echo machine.name & " is bound to " & self.name & ":" & $binding.param
+          var (voice,param) = self.getParameter(binding.param)
+          if voice == self.voices.high:
+            echo "voice matches: " & $voice
+            removeBinding(machine, i)
 
-    discard self.voices.pop()
-    pauseAudio(0)
+  discard self.voices.pop()
 
 method process*(self: Machine) {.base.} =
   discard

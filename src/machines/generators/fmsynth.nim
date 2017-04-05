@@ -382,11 +382,9 @@ method init(self: FMSynthVoice, machine: FMSynth) =
     operator.env.d = 1.0
 
 method addVoice*(self: FMSynth) =
-  pauseAudio(1)
   var voice = new(FMSynthVoice)
   voices.add(voice)
   voice.init(self)
-  pauseAudio(0)
 
 proc initNote(self: FMSynth, voiceId: int, note: int) =
   var voice = FMSynthVoice(voices[voiceId])
