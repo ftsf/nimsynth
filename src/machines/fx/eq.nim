@@ -5,6 +5,7 @@ import util
 import pico
 
 import core.filter
+import core.fft
 
 
 {.this:self.}
