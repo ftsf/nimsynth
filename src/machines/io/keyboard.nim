@@ -179,6 +179,8 @@ method handleClick(self: Keyboard, mouse: Point2d): bool =
 method event(self: Keyboard, event: Event, camera: Point2d): (bool, bool) =
 
   case event.kind:
+  of MouseButtonDown:
+    return (true,true)
   of MouseButtonUp:
     # find key under mouse
     let shift = shift()
