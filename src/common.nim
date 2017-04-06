@@ -6,6 +6,7 @@ import strutils
 var sampleRate* = 48000.0
 var nyquist* = sampleRate / 2.0
 var invSampleRate* = 1.0/sampleRate
+const middleC* = 261.625565
 
 var machineLock*: Lock
 
@@ -15,6 +16,7 @@ import basic2d
 import pico
 
 import core.ringbuffer
+
 
 
 export sdl2

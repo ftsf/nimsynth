@@ -79,6 +79,14 @@ proc invLerp*[T](a, b: T, t: T): float {.inline.} =
   assert(b!=a)
   return (t - a) / (b - a)
 
+proc cubic*[T](x0,x1,x2,x3: T, t: float): T {.inline.} =
+  let a0 = x3 - x2 - x0 + x1
+  let a1 = x0 - x1 - a0
+  let a2 = x2 - x0
+  let a3 = x1
+
+  return (a0 * (t * t * t)) + (a1 * (t * t)) + (a2 * t) + a3
+
 proc trifill*(tri: Triangle | Polygon) =
   trifill(tri[0],tri[1],tri[2])
 
@@ -359,7 +367,7 @@ proc modDiff*[T](a,b,m: T): T  =
   let b = b %%/ m
   return min(abs(a-b), m - abs(a-b))
 
-proc modSign[T](a,n: T): T =
+proc modSign*[T](a,n: T): T {.inline.} =
   return (a mod n + n) mod n
 
 proc angleDiff*(a,b: float): float =
@@ -438,6 +446,18 @@ proc glitch*(x,y,w,h: int, i = 1) =
 import unittest
 
 suite "util":
+  test "modSign":
+    check(modSign(0, 10) == 0)
+    check(modSign(-1, 10) == 9)
+    check(modSign(1, 10) == 1)
+    check(modSign(10, 10) == 0)
+    check(modSign(11, 10) == 1)
+    check(modSign(-10, 10) == 0)
+    check(modSign(-10.0, 10.0) == 0.0)
+    check(modSign(-5.0, 10.0) == 5.0)
+    check(-5.0 mod 10.0 == 5.0)
+    check(5.0 mod 10.0 == 5.0)
+    check(-1.0 mod 10.0 == 9.0)
   test "invLerp":
     check(invLerp(-1.0,  1.0, 0.0) == 0.5)
     check(invLerp( 1.0, -1.0, 0.0) == 0.5)

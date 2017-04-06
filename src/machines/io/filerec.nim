@@ -3,7 +3,7 @@ import pico
 import common
 import util
 
-import core.sndfile
+import sndfile
 import core.basemachine
 
 

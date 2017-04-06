@@ -21,7 +21,6 @@ type
     env: Envelope
     useEnv: bool
     gain: float
-    sample: Sample
 
 {.this:self.}
 
@@ -31,6 +30,7 @@ method addVoice*(self: Kit) =
   voices.add(voice)
   voice.init(self)
   voice.env.init()
+  voice.osc.stereo = true
 
   for param in mitems(voice.parameters):
     param.value = param.default
@@ -45,18 +45,17 @@ method init(self: Kit) =
   stereo = true
 
   voiceParams.add([
-    Parameter(name: "trigger", separator: true, deferred: true, kind: Trigger, min: 0.0, max: 1.0, onchange: proc(newValue: float, voice: int) =
-      if newValue != 0.0:
-        var v = KitVoice(self.voices[voice])
-        if v.sample != nil:
-          v.playing = true
-          v.osc.sample = v.sample
-          v.osc.reset()
-          v.env.trigger()
-    ),
-    Parameter(name: "gain", kind: Float, min: 0.0, max: 2.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "trigger", separator: true, deferred: true, kind: Float, min: 0.0, max: 1.0, onchange: proc(newValue: float, voice: int) =
       var v = KitVoice(self.voices[voice])
-      v.gain = newValue
+      if v.osc.sample != nil:
+        v.playing = true
+        v.osc.reset()
+        v.gain = newValue
+        v.env.trigger()
+    ),
+    Parameter(name: "pitch", kind: Float, min: 0.5, max: 2.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+      var v = KitVoice(self.voices[voice])
+      v.osc.speed = newValue
     ),
     Parameter(name: "decay", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
       var v = KitVoice(self.voices[voice])
@@ -74,7 +73,7 @@ method process*(self: Kit) {.inline.} =
   outputSamples[0] = 0.0
   for i in 0..<voices.len:
     var v = KitVoice(voices[i])
-    if v.sample != nil:
+    if v.osc.sample != nil:
       if v.playing:
         outputSamples[0] += v.osc.process() * (if v.useEnv: v.env.process() else: 1.0) * v.gain
         if v.osc.finished:
@@ -87,7 +86,7 @@ method drawExtraData(self: Kit, x,y,w,h: int) =
   yv += 9
   for i in 0..<voices.len:
     var v = KitVoice(voices[i])
-    print($i & ": " & (if v.sample != nil: v.sample.name else: " - "), x, yv)
+    print($i & ": " & (if v.osc.sample != nil: v.osc.sample.name else: " - "), x, yv)
     yv += 9
 
 method updateExtraData(self: Kit, x,y,w,h: int) =
@@ -98,16 +97,15 @@ method updateExtraData(self: Kit, x,y,w,h: int) =
       # open sample selection menu
       pushMenu(newSampleMenu(mv, basePath & "samples/") do(sample: Sample):
         var v = KitVoice(self.voices[voice])
-        v.sample = sample
-        v.parameters[0].name = sample.name
+        v.osc.sample = sample
       )
 
 method saveExtraData(self: Kit): string =
   result = ""
   for voice in mitems(voices):
     var v = KitVoice(voice)
-    if v.sample != nil:
-      result &= v.sample.filename & "|" & v.sample.name & "\n"
+    if v.osc.sample != nil:
+      result &= v.osc.sample.filename & "|" & v.osc.sample.name & "\n"
     else:
       result &= "\n"
 
@@ -121,7 +119,7 @@ method loadExtraData(self: Kit, data: string) =
       voice += 1
       continue
     var v = KitVoice(voices[voice])
-    v.sample = loadSample(sline.split("|")[0], sline.split("|")[1])
+    v.osc.sample = loadSample(sline.split("|")[0], sline.split("|")[1])
     voice += 1
 
 proc newKit(): Machine =
