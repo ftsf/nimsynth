@@ -5,25 +5,10 @@ import util
 import pico
 
 import ui.machineview
+import core.lfsr
 
 
 {.this:self.}
-
-type
-  LFSR = object
-    start: int
-    lfsr: int
-    period: uint
-    output: float32
-
-proc process(self: var LFSR): float32 =
-  let lsb: uint = (lfsr and 1)
-  lfsr = lfsr shr 1
-  if lsb == 1:
-    lfsr = lfsr xor 0xb400;
-  result = if lsb == 1: 1.0 else: -1.0
-  output = result
-
 
 type
   GBPulseOsc = object
@@ -116,7 +101,7 @@ method init*(self: GBSynth) =
 
   gbOsc0.pulse = 2
   gbOsc1.pulse = 1
-  gbOsc3.lfsr.lfsr = 0xfeed
+  gbOsc3.lfsr.init(0xfeed)
 
   gbOsc2.waveRam[0] = waveRom[0]
   gbOsc2.waveRam[1] = waveRom[1]

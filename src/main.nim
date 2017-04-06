@@ -42,6 +42,7 @@ import machines.generators.organ
 import machines.generators.osc
 import machines.generators.synth
 import machines.generators.tb303
+import machines.generators.mod_lfsr
 
 import machines.io.filerec
 import machines.io.keyboard
