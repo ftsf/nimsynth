@@ -1,35 +1,36 @@
-import basic2d
-import pico
+import nico
+import nico/vec
 import math
 import strutils
 
 const metresPerPixel* = 1.0/8.0
 
 type
-  Polygon* = seq[Point2d]
-  Triangle* = array[3, Point2d]
-  Quad* = array[4, Point2d]
-  Line* = array[2, Point2d]
+  Polygon* = seq[Vec2f]
+  Triangle* = tuple[a,b,c: Vec2f]
+  Quad* = array[4, Vec2f]
+  Line* = array[2, Vec2f]
   Rect* = tuple[x,y,w,h: int]
+  ABC = tuple[a,b,c: float32]
 
-proc `*`*(v: Point2d, s: float): Point2d =
-  return point2d(v.x*s,v.y*s)
+proc `*`*(v: Vec2f, s: float): Vec2f =
+  return vec2f(v.x*s,v.y*s)
 
-proc `/`*(a: Point2d,s: float): Point2d =
-  return point2d(a.x/s,a.y/s)
+proc `/`*(a: Vec2f,s: float): Vec2f =
+  return vec2f(a.x/s,a.y/s)
 
-proc `+`*(a,b: Point2d): Point2d =
-  return point2d(a.x+b.x,a.y+b.y)
+proc `+`*(a,b: Vec2f): Vec2f =
+  return vec2f(a.x+b.x,a.y+b.y)
 
-proc `-`*(v: Point2d): Point2d =
-  return point2d(-v.x, -v.y)
+proc `-`*(v: Vec2f): Vec2f =
+  return vec2f(-v.x, -v.y)
 
-proc isZero*(v: Vector2d): bool =
+proc isZero*(v: Vec2f): bool =
   return v.x == 0 and v.y == 0
 
-proc rndVec*(mag: float): Vector2d =
+proc rndVec*(mag: float): Vec2f =
   let hm = mag/2
-  vector2d(
+  vec2f(
     rnd(mag)-hm,
     rnd(mag)-hm
   )
@@ -39,36 +40,14 @@ proc line*(line: Line) =
   let b = line[1]
   line(a.x.int,a.y.int,b.x.int,b.y.int)
 
-proc toVector2d*(p: Point2d): Vector2d =
-  result.x = p.x
-  result.y = p.y
-
-proc toPoint2d*(p: Vector2d): Point2d =
-  result.x = p.x
-  result.y = p.y
-
 proc poly*(verts: Polygon | Triangle | Quad) =
   if verts.len == 1:
-    pset(verts[0])
+    pset(verts[0].x, verts[0].y)
   elif verts.len == 2:
     line(verts[0],verts[1])
   else:
     for i in 0..verts.high:
       line(verts[i],verts[(i+1) mod verts.len])
-
-proc normalized*(v: Vector2d): Vector2d =
-  let m = v.len()
-  if m == 0:
-    return v
-  return vector2d(v.x/m, v.y/m)
-
-proc perpendicular*(v: Vector2d): Vector2d =
-  return vector2d(-v.y, v.x)
-
-proc rotated*(v: Vector2d, angle: float): Vector2d =
-  var v = v
-  v.rotate(angle)
-  return v
 
 proc lerp*[T](a, b: T, t: float): T {.inline.} =
   # lerp takes a and b and returns a if t == 0, b if t == 1
@@ -87,26 +66,29 @@ proc cubic*[T](x0,x1,x2,x3: T, t: float): T {.inline.} =
 
   return (a0 * (t * t * t)) + (a1 * (t * t)) + (a2 * t) + a3
 
+proc trifill*(a,b,c: Vec2f) =
+  trifill(a.x,a.y,b.x,b.y,c.x,c.y)
+
 proc trifill*(tri: Triangle | Polygon) =
   trifill(tri[0],tri[1],tri[2])
 
-proc circfill*(p: Point2d, r: float) =
+proc circfill*(p: Vec2f, r: float) =
   circfill(p.x,p.y,r)
 
-proc rotatePoint*(p: Point2d, angle: float, o = point2d(0,0)): Point2d =
-  point2d(
+proc rotatePoint*(p: Vec2f, angle: float, o = vec2f(0,0)): Vec2f =
+  vec2f(
     cos(angle) * (p.x - o.x) - sin(angle) * (p.y - o.y) + o.x,
     sin(angle) * (p.x - o.x) + cos(angle) * (p.y - o.y) + o.y
   )
 
-proc rotatedPoly*(offset: Point2d, verts: openArray[Point2d], angle: float, origin = point2d(0,0)): Polygon =
-  var p = newSeq[Point2d](verts.len())
+proc rotatedPoly*(offset: Vec2f, verts: openArray[Vec2f], angle: float, origin = vec2f(0,0)): Polygon =
+  var p = newSeq[Vec2f](verts.len())
   for i in 0..verts.high:
     let v = offset + rotatePoint(verts[i],angle,origin)
     p[i] = v
   return p
 
-proc pointInPoly*(p: Point2d, poly: Polygon | Triangle | Quad): bool =
+proc pointInPoly*(p: Vec2f, poly: Polygon | Triangle | Quad): bool =
   let px = p.x
   let py = p.y
   let nvert = poly.len()
@@ -119,7 +101,7 @@ proc pointInPoly*(p: Point2d, poly: Polygon | Triangle | Quad): bool =
       c = not c
   return c
 
-type AABB* = tuple[min: Point2d, max: Point2d]
+type AABB* = tuple[min: Vec2f, max: Vec2f]
 
 proc rectfill*(aabb: AABB) =
   rectfill(aabb.min.x.int, aabb.min.y.int, aabb.max.x.int, aabb.max.y.int)
@@ -127,7 +109,7 @@ proc rectfill*(aabb: AABB) =
 proc rect*(aabb: AABB) =
   rect(aabb.min.x.int, aabb.min.y.int, aabb.max.x.int, aabb.max.y.int)
 
-proc getAABB*(p: Point2d, expand: float): AABB =
+proc getAABB*(p: Vec2f, expand: float): AABB =
   result.min.x = p.x - expand
   result.min.y = p.y - expand
   result.max.x = p.x + expand
@@ -146,7 +128,7 @@ proc getAABB*(poly: Triangle | Polygon): AABB =
     aabb.max.y = max(aabb.max.y, v.y)
   return aabb
 
-proc getAABB*(a, b: Point2d): AABB =
+proc getAABB*(a, b: Vec2f): AABB =
   result.min.x = min(a.x,b.x)
   result.min.y = min(a.y,b.y)
   result.max.x = max(a.x,b.x)
@@ -155,7 +137,7 @@ proc getAABB*(a, b: Point2d): AABB =
 proc getAABB*(l: Line): AABB =
   return getAABB(l[0], l[1])
 
-proc expandAABB*(aabb: AABB, vel: Vector2d): AABB =
+proc expandAABB*(aabb: AABB, vel: Vec2f): AABB =
   result.min.x = aabb.min.x - abs(vel.x)
   result.max.x = aabb.max.x + abs(vel.x)
   result.min.y = aabb.min.y - abs(vel.y)
@@ -180,13 +162,10 @@ proc rnd*[T](x: seq[T]): T =
 proc intersects*(a, b: AABB): bool =
   return not ( a.min.x > b.max.x or a.min.y > b.max.y or a.max.x < b.min.x or a.max.y < b.min.y )
 
-proc sideOfLine*(v1, v2, p: Point2d): float =
+proc sideOfLine*(v1, v2, p: Vec2f): float =
   let px = p.x
   let py = p.y
   return (px - v1.x) * (v2.y - v1.y) - (py - v1.y) * (v2.x - v1.x)
-
-type
-  ABC = tuple[a,b,c: float]
 
 proc lineToABC(line: Line): ABC =
   let x1 = line[0].x
@@ -200,21 +179,21 @@ proc lineToABC(line: Line): ABC =
 
   return (A, B, C)
 
-proc lineLineIntersection*(l1, l2: Line): (bool, Point2d) =
+proc lineLineIntersection*(l1, l2: Line): (bool, Vec2f) =
   let L1 = lineToABC(l1)
   let L2 = lineToABC(l2)
 
   let det = L1.a*L2.b - L2.a*L1.b
   if det == 0:
     # parallel
-    return (false,point2d(0,0))
+    return (false,vec2f(0,0))
   else:
     let x = (L2.b*L1.c - L1.b*L2.c)/det
     let y = (L1.a*L2.c - L2.a*L1.c)/det
     # check if x,y is on line
-    return (true,point2d(x,y))
+    return (true,vec2f(x,y))
 
-proc lineSegmentIntersection*(l1, l2: Line): (bool,Point2d) =
+proc lineSegmentIntersection*(l1, l2: Line): (bool,Vec2f) =
   let ret = lineLineIntersection(l1,l2)
   let p = ret[1]
   let collide = min(l1[0].x,l1[1].x) <= p.x and p.x <= max(l1[0].x,l1[1].x) and
@@ -224,17 +203,16 @@ proc lineSegmentIntersection*(l1, l2: Line): (bool,Point2d) =
   if collide:
     return (collide, p)
   else:
-    return (collide, point2d(0,0))
+    return (collide, vec2f(0,0))
 
-proc normal*(v: var Vector2d) =
+proc normal*(v: var Vec2f) =
   v.normalize()
-  v.rotate90()
+  v = v.perpendicular()
 
-proc normal*(v: Vector2d): Vector2d =
+proc normal*(v: Vec2f): Vec2f =
   var v = v
   v.normalize()
-  v.rotate90()
-  return v
+  return v.perpendicular()
 
 proc printShadowC*(text: string, x, y: int, scale: int = 1) =
   let oldColor = getColor()
@@ -278,19 +256,19 @@ proc printShadow*(text: string, x, y: int, scale: int = 1) =
   setColor(oldColor)
   print(text, x, y, scale)
 
-proc pointInAABB*(p: Point2d, a: AABB): bool =
-  return  p.x > a.min.x and p.x < a.max.x and
-          p.y > a.min.y and p.y < a.max.y
+proc pointInAABB*(p: Vec2f, a: AABB): bool =
+  return p.x >= a.min.x and p.x <= a.max.x and
+         p.y >= a.min.y and p.y <= a.max.y
 
-proc `in`*(p: Point2d, a: AABB): bool =
+proc `in`*(p: Vec2f, a: AABB): bool =
   return pointInAABB(p, a)
 
-proc pointInRect*(p: Point2d, r: Rect): bool =
-  return  p.x > r.x and p.x < r.x + r.w - 1 and
-          p.y > r.y and p.y < r.y + r.h - 1
+proc pointInRect*(p: Vec2f, r: Rect): bool =
+  return p.x >= r.x and p.x <= r.x + r.w - 1 and
+         p.y >= r.y and p.y <= r.y + r.h - 1
 
-proc pointInTile*(p: Point2d, x, y: int): bool =
-  return pointInAABB(p, (point2d(x.float*8.0,y.float*8.0),point2d(x.float*8+7,y.float*8+7)))
+proc pointInTile*(p: Vec2f, x, y: int): bool =
+  return pointInAABB(p, (vec2f(x.float*8.0,y.float*8.0),vec2f(x.float*8+7,y.float*8+7)))
 
 proc floatToTimeStr*(time: float): string =
   let sign = if time < 0: "-" else: ""
@@ -300,64 +278,64 @@ proc floatToTimeStr*(time: float): string =
   let ms = int(time mod 1.0 * 1000)
   return "$1$2:$3.$4".format(sign,($minutes).align(2,'0'),($seconds).align(2,'0'),($ms).align(3,'0'))
 
-proc bezierQuadratic*(s, e, cp: Point2d, mu: float): Point2d =
+proc bezierQuadratic*(s, e, cp: Vec2f, mu: float): Vec2f =
   let mu2 = mu * mu
   let mum1 = 1 - mu
   let mum12 = mum1 * mum1
 
-  return point2d(
+  return vec2f(
     s.x * mum12 + 2 * cp.x * mum1 * mu + e.x * mu2,
     s.y * mum12 + 2 * cp.y * mum1 * mu + e.y * mu2
   )
 
-proc bezierQuadraticLength*(s, e, cp: Point2d, steps: int): float =
+proc bezierQuadraticLength*(s, e, cp: Vec2f, steps: int): float =
   var l = 0.0
   var v = s
-  var next: Point2d
+  var next: Vec2f
   for i in 0..steps-1:
     next = bezierQuadratic(s,e,cp,float(i)/float(steps))
     if i > 0:
-      l += (next - v).len()
+      l += (next - v).magnitude
       v = next
   return l
 
-proc bezierCubic*(p1, p2, p3, p4: Point2d, mu: float): Point2d =
+proc bezierCubic*(p1, p2, p3, p4: Vec2f, mu: float): Vec2f =
   let mum1 = 1 - mu
   let mum13 = mum1 * mum1 * mum1
   let mu3 = mu * mu * mu
 
-  return point2d(
+  return vec2f(
     p1.x * mum13 + 3*mu*mum1*mum1*p2.x + 3*mu*mu*mum1*p3.x + mu3*p4.x,
     p1.y * mum13 + 3*mu*mum1*mum1*p2.y + 3*mu*mu*mum1*p3.y + mu3*p4.y,
   )
 
-proc bezierCubicLength*(s, e, cp1, cp2: Point2d, steps: int): float =
+proc bezierCubicLength*(s, e, cp1, cp2: Vec2f, steps: int): float =
   var l = 0.0
   var v = s
-  var next: Point2d
+  var next: Vec2f
   for i in 0..steps-1:
     next = bezierCubic(s,e,cp1,cp2,float(i)/float(steps))
     if i > 0:
-      l += (next - v).len()
+      l += (next - v).magnitude
       v = next
   return l
 
-proc closestPointOnLine*(line: Line, p: Point2d): Point2d =
-  let l2 = (line[0] - line[1]).sqrLen()
+proc closestPointOnLine*(line: Line, p: Vec2f): Vec2f =
+  let l2 = (line[0] - line[1]).sqrMagnitude
   if l2 == 0.0:
     return line[0]
   let t = max(0.0, min(1.0, dot(p-line[0], line[1] - line[0]) / l2))
   return line[0] + t * (line[1] - line[0])
 
-proc lineSegDistanceSqr*(line: Line, p: Point2d): float =
+proc lineSegDistanceSqr*(line: Line, p: Vec2f): float =
   let proj = closestPointOnLine(line, p)
-  return (p - proj).sqrLen()
+  return (p - proj).sqrMagnitude
 
-proc lineSegDistance*(line: Line, p: Point2d): float =
+proc lineSegDistance*(line: Line, p: Vec2f): float =
   return sqrt(lineSegDistanceSqr(line, p))
 
-template alias*(a,b: expr): expr =
-  template a: expr = b
+template alias*(a,b: untyped): untyped =
+  template a: untyped = b
 
 proc `%%/`*[T](x,m: T): T =
   return (x mod m + m) mod m
@@ -409,12 +387,6 @@ proc wrapAngle*(angle: float): float =
     angle += TAU
   return angle
 
-proc vline*(x, y0, y1: cint) =
-  line(x, y0, x, y1)
-
-proc hline*(x0, y, x1: cint) =
-  line(x0, y, x1, y)
-
 proc wrapAngleTAU*(angle: float): float =
   var angle = angle
   while angle > TAU:
@@ -441,7 +413,15 @@ proc glitch*(x,y,w,h: int, i = 1) =
     let sy = y + rnd(h-1)
     let dx = x + rnd(w-1)
     let dy = y + rnd(h-1)
-    copy(sx,sy, sx+fxw, sy+fxh, dx, dy, dx + fxw, dy + fxh)
+    copy(sx, sy, dx, dy, fxw, fxh)
+
+proc mouseVec*(): Vec2f =
+  let (mx,my) = mouse()
+  return vec2f(mx.float32,my.float32)
+
+proc mouserelVec*(): Vec2f =
+  let (mrelx,mrely) = mouserel()
+  return vec2f(mrelx,mrely)
 
 import unittest
 
@@ -498,37 +478,37 @@ suite "util":
     check(floatToTimeStr(1.01) == "00:01.010")
     check(floatToTimeStr(-1.01) == "-00:01.010")
   test "normal":
-    var v = vector2d(1,0)
+    var v = vec2f(1,0)
     v.normal()
-    check(v == vector2d(0,1))
+    check(v == vec2f(0,1))
   test "normal":
-    var v = vector2d(0,1)
+    var v = vec2f(0,1)
     v.normal()
-    check(v == vector2d(-1,0))
+    check(v == vec2f(-1,0))
   test "lineLineIntersection":
-    var ray = [point2d(0,0),point2d(1,1)]
-    var line = [point2d(0,1),point2d(1,0)]
-    check(lineLineIntersection(ray,line) == (true,point2d(0.5,0.5)))
+    var ray = [vec2f(0,0),vec2f(1,1)]
+    var line = [vec2f(0,1),vec2f(1,0)]
+    check(lineLineIntersection(ray,line) == (true,vec2f(0.5,0.5)))
   test "lineSegmentIntersection":
-    var ray = [point2d(0,0),point2d(1,1)]
-    var line = [point2d(0,1),point2d(1,0)]
-    check(lineSegmentIntersection(ray,line) == (true,point2d(0.5,0.5)))
-    ray = [point2d(0,0),point2d(0,2)]
-    line = [point2d(-1,1),point2d(1,1)]
-    check(lineSegmentIntersection(ray,line) == (true,point2d(0,1)))
-    ray = [point2d(2,0),point2d(2,2)]
-    check(lineSegmentIntersection(ray,line) == (false,point2d(0,0)))
+    var ray = [vec2f(0,0),vec2f(1,1)]
+    var line = [vec2f(0,1),vec2f(1,0)]
+    check(lineSegmentIntersection(ray,line) == (true,vec2f(0.5,0.5)))
+    ray = [vec2f(0,0),vec2f(0,2)]
+    line = [vec2f(-1,1),vec2f(1,1)]
+    check(lineSegmentIntersection(ray,line) == (true,vec2f(0,1)))
+    ray = [vec2f(2,0),vec2f(2,2)]
+    check(lineSegmentIntersection(ray,line) == (false,vec2f(0,0)))
   test "lineSegDistance":
-    var line = [point2d(0,0),point2d(0,10)]
-    var p = point2d(-10,5)
+    var line = [vec2f(0,0),vec2f(0,10)]
+    var p = vec2f(-10,5)
     check(lineSegDistance(line,p) == 10)
-    p = point2d(-5,2)
+    p = vec2f(-5,2)
     check(lineSegDistance(line,p) == 5)
-    p = point2d(5,0)
+    p = vec2f(5,0)
     check(lineSegDistance(line,p) == 5)
-    p = point2d(5,-5)
+    p = vec2f(5,-5)
     check(lineSegDistance(line,p) != 5)
-    p = point2d(0,-5)
+    p = vec2f(0,-5)
     check(lineSegDistance(line,p) == 5)
   test "ordinal":
     check(ordinal(0) == "1ST")

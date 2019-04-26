@@ -3,14 +3,14 @@ import strutils
 
 import common
 import util
-import pico
+import nico
 
-import core.filter
-import core.ringbuffer
-import core.oscillator
-import core.delaybuffer
+import core/filter
+import core/ringbuffer
+import core/oscillator
+import core/delaybuffer
 
-import machines.master
+import machines/master
 
 {.this:self.}
 

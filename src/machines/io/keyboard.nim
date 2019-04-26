@@ -1,11 +1,10 @@
-import basic2d
-
-import pico
+import nico
+import nico/vec
 
 import common
 import util
 
-import core.basemachine
+import core/basemachine
 
 
 const polyphony = 16
@@ -166,7 +165,7 @@ method drawBox*(self: Keyboard) =
       rectfill(x, pos.y - 6, x + scale - 1, pos.y + 6)
     x += scale
 
-method handleClick(self: Keyboard, mouse: Point2d): bool =
+method handleClick(self: Keyboard, mouse: Vec2f): bool =
   if pointInAABB(mouse, getKeyboardAABB()):
     let w = nOctaves * 12 * scale
     let x = mouse.x - (pos.x - w div 2)
@@ -176,25 +175,27 @@ method handleClick(self: Keyboard, mouse: Point2d): bool =
     return true
   return false
 
-method event(self: Keyboard, event: Event, camera: Point2d): (bool, bool) =
-
+method event(self: Keyboard, event: Event, camera: Vec2f): (bool, bool) =
   case event.kind:
-  of MouseButtonDown:
+  of ekMouseButtonDown:
     return (true,true)
-  of MouseButtonUp:
+  of ekMouseButtonUp:
     # find key under mouse
     let shift = shift()
     if not shift:
-      let w = nOctaves * 12 * scale
-      let mouse = mouse() + camera
-      let x = mouse.x - (pos.x - w div 2)
-      let k = x div scale + baseOctave * 12
-      noteOff(k)
+      for i in 0..<noteBuffer.len:
+        if noteBuffer[i].note != OffNote:
+          noteOff(noteBuffer[i].note)
     return (true,false)
 
-  of MouseMotion:
+  of ekMouseMotion:
       # find key under mouse
-      return (true,true)
+      let w = nOctaves * 12 * scale
+      let mouse = mouseVec() - camera
+      let x = mouse.x - (pos.x - w div 2)
+      let k = x div scale + baseOctave * 12
+      noteOn(k, 127)
+      return (false,true)
   else:
     discard
 

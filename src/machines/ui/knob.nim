@@ -1,19 +1,19 @@
-import basic2d
 import math
 import strutils
 
-import pico
+import nico
+import nico/vec
 
 import common
 import util
 
-import core.basemachine
-import ui.layoutview
-import ui.menu
+import core/basemachine
+import ui/layoutview
+import ui/menu
 
 
 type Knob = ref object of Machine
-  lastmv: Point2d
+  lastmv: Vec2f
   held: bool
   min,max: float
   sensitivity: float
@@ -113,38 +113,37 @@ method midiEvent(self: Knob, event: MidiEvent) =
         param.onchange(param.value, voice)
 
 
-method handleClick(self: Knob, mouse: Point2d): bool =
+method handleClick(self: Knob, mouse: Vec2f): bool =
   if pointInAABB(mouse, getKnobAABB()):
-    lastmv = mouse()
-    relmouse(true)
+    let (mx,my) = mouse()
+    lastmv = vec2f(mx,my)
     return true
   return false
 
-method event(self: Knob, event: Event, camera: Point2d): (bool, bool) =
+method event(self: Knob, event: Event, camera: Vec2f): (bool, bool) =
   case event.kind:
-  of MouseButtonUp:
-    if event.button.button == 1:
-      relmouse(false)
+  of ekMouseButtonUp:
+    if event.button == 1:
       held = false
       return (true,false)
 
-  of MouseButtonDown:
+  of ekMouseButtonDown:
     held = true
     return (true,true)
 
-  of MouseMotion:
+  of ekMouseMotion:
     if bindings[0].machine != nil:
       var (voice,param) = bindings[0].machine.getParameter(bindings[0].param)
-      let shift = (getModState() and KMOD_SHIFT) != 0
+      let shift = shift()
       let ctrl = ctrl()
       let move = (if ctrl and shift: 0.0001 elif ctrl: 0.1 elif shift: 0.001 else: 0.01) * sensitivity
 
       let min = lerp(param.min,param.max,min)
       let max = lerp(param.min,param.max,max)
-      param.value -= event.motion.yrel.float * move * (max - min)
+      param.value -= event.yrel * move * (max - min)
       param.value = clamp(param.value, min, max)
       param.onchange(param.value, voice)
-      return (true,true)
+      return (false,true)
   else:
     discard
 
@@ -160,7 +159,7 @@ method process(self: Knob) =
       param.value = clamp(param.value, min, max)
       param.onchange(param.value, voice)
 
-method getMenu*(self: Knob, mv: Point2d): Menu =
+method getMenu*(self: Knob, mv: Vec2f): Menu =
   result = procCall getMenu(Machine(self), mv)
   result.items.add(newMenuItem("midi learn") do():
     self.learning = true

@@ -1,4 +1,3 @@
-import locks
 import math
 import math
 import strutils
@@ -8,18 +7,12 @@ var nyquist* = sampleRate / 2.0
 var invSampleRate* = 1.0/sampleRate
 const middleC* = 261.625565
 
-var machineLock*: Lock
+import nico
+import nico/vec
 
-import sdl2
-import sdl2.audio
-import basic2d
-import pico
+var frame*: uint32 = 0
 
-import core.ringbuffer
-
-
-
-export sdl2
+import core/ringbuffer
 
 var baseOctave* = 4
 
@@ -34,9 +27,11 @@ var statusUpdateTime: int = 0
 
 var nextMachineId = 0
 
+var layoutName*: string = "untitled"
+
 proc setStatus*(text: string) =
   statusMessage = text
-  statusUpdateTime = time()
+  statusUpdateTime = time().int
 
 proc getStatus*(): string =
   return statusMessage
@@ -97,7 +92,7 @@ type
     id*: int
     name*: string
     className*: string
-    pos*: Point2d
+    pos*: Vec2f
     globalParams*: seq[Parameter]
     voiceParams*: seq[Parameter]
     voices*: seq[Voice]
@@ -118,7 +113,7 @@ type
   View* = ref object of RootObj
     discard
   Knob* = ref object of RootObj
-    pos*: Point2d
+    pos*: Vec2f
     machine*: Machine
     paramId*: int
 
@@ -167,6 +162,12 @@ method init*(self: Voice, machine: Machine) {.base.} =
     p.value = p.default
     p.onchange(p.value, machine.voices.high)
 
+method event*(self: Machine, event: Event, camera: Vec2f): (bool, bool) {.base.} =
+  return (false, false)
+
+method event*(self: View, event: Event): bool {.base.} =
+  return false
+
 method rename*(self: Machine, newName: string) {.base.} =
   self.name = newName
 
@@ -198,7 +199,7 @@ method removeBinding*(self: Machine, slot: int) {.base.} =
 method onBPMChange*(self: Machine, bpm: int) {.base.} =
   discard
 
-method handleClick*(self: Machine, mouse: Point2d): bool {.base.} =
+method handleClick*(self: Machine, mouse: Vec2f): bool {.base.} =
   return false
 
 proc getAdjacent(self: Machine): seq[Machine] =
@@ -340,10 +341,9 @@ proc delete*(self: Machine) =
   # remove all bindings to this machine
   for machine in mitems(machines):
     if machine != self:
-      if machine.bindings != nil:
-        for i, binding in mpairs(machine.bindings):
-          if binding.machine == self:
-            removeBinding(machine, i)
+      for i, binding in mpairs(machine.bindings):
+        if binding.machine == self:
+          removeBinding(machine, i)
   for i,shortcut in mpairs(shortcuts):
     if shortcut == self:
       shortcuts[i] = nil
@@ -378,7 +378,7 @@ proc clearLayout*() =
   for i in 0..shortcuts.high:
     shortcuts[i] = nil
 
-proc registerMachine*(name: string, factory: proc(): Machine, category: string = "na") =
+proc registerMachine*(name: string, factory: proc(): Machine, category: string = "") =
 
   var mCreator = proc(): Machine =
     var m = factory()
@@ -389,7 +389,7 @@ proc registerMachine*(name: string, factory: proc(): Machine, category: string =
 
   machineTypes.add((name: name, factory: mCreator))
 
-  if category != nil:
+  if category != "":
     if not machineTypesByCategory.hasKey(category):
       machineTypesByCategory.add(category, newSeq[MachineType]())
     machineTypesByCategory[category].add((name: name, factory: mCreator))
@@ -492,7 +492,7 @@ type
     id: int
     name: string
     className: string # needs to match the name used to create it
-    pos: Point2d
+    pos: Vec2f
     parameters: seq[ParamMarshal]
     bindings: seq[BindMarshal]
     hideBindings: bool
@@ -509,7 +509,7 @@ import streams
 import os
 
 method saveExtraData*(self: Machine): string {.base.} =
-  return nil
+  return ""
 
 method loadExtraData*(self: Machine, data: string) {.base.} =
   discard
@@ -526,25 +526,24 @@ proc getMarshaledParams(self: Machine): seq[ParamMarshal] =
 
 proc getMarshaledBindings(self: Machine): seq[BindMarshal] =
   result = newSeq[BindMarshal]()
-  if bindings != nil:
-    for i in 0..nBindings-1:
-      var bm: BindMarshal
-      var binding = bindings[i]
-      if binding.machine != nil:
-        bm.slotId = i
-        bm.targetMachineId = binding.machine.id
-        bm.targetMachineName = binding.machine.name
-        var (voice,param) = binding.getParameter()
-        bm.paramId = binding.param
-        bm.paramName = param.name
-        bm.paramVoice = voice
-        result.add(bm)
-      else:
-        bm.slotId = i
-        bm.targetMachineId = -1
-        bm.paramId = -1
-        bm.paramVoice = -1
-        result.add(bm)
+  for i in 0..nBindings-1:
+    var bm: BindMarshal
+    var binding = bindings[i]
+    if binding.machine != nil:
+      bm.slotId = i
+      bm.targetMachineId = binding.machine.id
+      bm.targetMachineName = binding.machine.name
+      var (voice,param) = binding.getParameter()
+      bm.paramId = binding.param
+      bm.paramName = param.name
+      bm.paramVoice = voice
+      result.add(bm)
+    else:
+      bm.slotId = i
+      bm.targetMachineId = -1
+      bm.paramId = -1
+      bm.paramVoice = -1
+      result.add(bm)
 
 proc getMarshaledInputs(self: Machine): seq[InputMarshal] =
   result = newSeq[InputMarshal]()
@@ -714,6 +713,7 @@ proc loadLayout*(name: string) =
 
   nextMachineId = highestId + 1
   sampleMachine = masterMachine
+  layoutName = name
 
   echo "loaded layout: ", name
 
@@ -725,8 +725,8 @@ proc getPatches*(self: Machine): seq[string] =
 
 method popVoice*(self: Machine) {.base.} =
   # find anything bound to this voice
-  for machine in mitems(machines):
-    if machine.bindings != nil:
+  if self.voices.len > 0:
+    for machine in mitems(machines):
       for i,binding in mpairs(machine.bindings):
         if binding.machine == self:
           echo machine.name & " is bound to " & self.name & ":" & $binding.param
@@ -734,8 +734,7 @@ method popVoice*(self: Machine) {.base.} =
           if voice == self.voices.high:
             echo "voice matches: " & $voice
             removeBinding(machine, i)
-
-  discard self.voices.pop()
+    discard self.voices.pop()
 
 method process*(self: Machine) {.base.} =
   discard
@@ -755,75 +754,68 @@ method drawExtraData*(self: Machine, x,y,w,h: int) {.base.} =
 method updateExtraData*(self: Machine, x,y,w,h: int) {.base.} =
   discard
 
-method event*(self: View, event: Event): bool {.base.} =
-  return false
-
-method event*(self: Machine, event: Event, camera: Point2d): (bool, bool) {.base.} =
-  return (false, false)
-
 const OffNote* = -2
 const Blank* = -1
 
-proc keyToNote*(key: KeyboardEventPtr): int =
+proc keyToNote*(key: Keycode): int =
   baseOctave = clamp(baseOctave, 0, 8)
-  let scancode = key.keysym.scancode
-  case scancode:
-  of SDL_SCANCODE_Z:
+  case key:
+  of K_Z:
     return baseOctave * 12 + 0
-  of SDL_SCANCODE_S:
+  of K_S:
     return baseOctave * 12 + 1
-  of SDL_SCANCODE_X:
+  of K_X:
     return baseOctave * 12 + 2
-  of SDL_SCANCODE_D:
+  of K_D:
     return baseOctave * 12 + 3
-  of SDL_SCANCODE_C:
+  of K_C:
     return baseOctave * 12 + 4
-  of SDL_SCANCODE_V:
+  of K_V:
     return baseOctave * 12 + 5
-  of SDL_SCANCODE_G:
+  of K_G:
     return baseOctave * 12 + 6
-  of SDL_SCANCODE_B:
+  of K_B:
     return baseOctave * 12 + 7
-  of SDL_SCANCODE_H:
+  of K_H:
     return baseOctave * 12 + 8
-  of SDL_SCANCODE_N:
+  of K_N:
     return baseOctave * 12 + 9
-  of SDL_SCANCODE_J:
+  of K_J:
     return baseOctave * 12 + 10
-  of SDL_SCANCODE_M:
+  of K_M:
     return baseOctave * 12 + 11
-  of SDL_SCANCODE_COMMA:
+  of K_COMMA:
     return baseOctave * 12 + 12
 
-  of SDL_SCANCODE_Q:
+  of K_Q:
     return baseOctave * 12 + 12 + 0
-  of SDL_SCANCODE_2:
+  of K_2:
     return baseOctave * 12 + 12 + 1
-  of SDL_SCANCODE_W:
+  of K_W:
     return baseOctave * 12 + 12 + 2
-  of SDL_SCANCODE_3:
+  of K_3:
     return baseOctave * 12 + 12 + 3
-  of SDL_SCANCODE_E:
+  of K_E:
     return baseOctave * 12 + 12 + 4
-  of SDL_SCANCODE_R:
+  of K_R:
     return baseOctave * 12 + 12 + 5
-  of SDL_SCANCODE_5:
+  of K_5:
     return baseOctave * 12 + 12 + 6
-  of SDL_SCANCODE_T:
+  of K_T:
     return baseOctave * 12 + 12 + 7
-  of SDL_SCANCODE_6:
+  of K_6:
     return baseOctave * 12 + 12 + 8
-  of SDL_SCANCODE_Y:
+  of K_Y:
     return baseOctave * 12 + 12 + 9
-  of SDL_SCANCODE_7:
+  of K_7:
     return baseOctave * 12 + 12 + 10
-  of SDL_SCANCODE_U:
+  of K_U:
     return baseOctave * 12 + 12 + 11
-  of SDL_SCANCODE_I:
+  of K_I:
     return baseOctave * 12 + 12 + 12
-  of SDL_SCANCODE_1:
+  of K_1:
     return OffNote
-  of SDL_SCANCODE_PERIOD:
+  of K_PERIOD:
     return Blank
   else:
     return -3
@@ -909,9 +901,9 @@ proc valueString*(self: Parameter, value: float): string =
 
 proc ctrl*(): bool =
   when defined(osx):
-    return (getModState() and KMOD_GUI) != 0
+    return key(K_GUI)
   else:
-    return (getModState() and KMOD_CTRL) != 0
+    return key(K_LCTRL)
 
 proc shift*(): bool =
-  return (getModState() and KMOD_SHIFT) != 0
+  return key(K_LSHIFT)

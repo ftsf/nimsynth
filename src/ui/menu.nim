@@ -1,7 +1,7 @@
-import basic2d
+import nico
+import nico/vec
+import ../common
 import util
-import pico
-import common
 
 {.this:self.}
 
@@ -22,18 +22,20 @@ type
     onchange*: proc(newValue: string)
   Menu* = ref object of RootObj
     label*: string
-    pos*: Point2d
+    pos*: Vec2f
     items*: seq[MenuItem]
     selected*: int
     back*: proc()
-    hasSetTextFunc: int
+    textInputItem: MenuItemText
 
 var menuStack*: seq[Menu]
 
 proc pushMenu*(menu: Menu) =
   menuStack.add(menu)
+  stopTextInput()
 
 proc popMenu*() =
+  stopTextInput()
   if menuStack.len > 0:
     discard menuStack.pop()
 
@@ -43,13 +45,13 @@ proc hasMenu*(): bool =
 proc getMenu*(): Menu =
   return menuStack[menuStack.high]
 
-proc newMenu*(pos: Point2d, label: string = nil): Menu =
+proc newMenu*(pos: Vec2f, label: string = ""): Menu =
   result = new(Menu)
   result.pos = pos
   result.label = label
   result.items = newSeq[MenuItem]()
   result.selected = -1
-  result.hasSetTextFunc = -1
+  result.textInputItem = nil
 
 proc newMenuItem*(label: string, action: proc() = nil, status: MenuItemStatus = Default): MenuItem =
   result = new(MenuItem)
@@ -77,12 +79,12 @@ proc getAABB*(self: Menu): AABB =
 
   result.max.y = min(pos.y + items.len.float * 9.0 + 10.0, screenHeight.float - 8.0)
 
-  let rows = (result.max.y - result.min.y).int div 9
+  let rows = max((result.max.y - result.min.y).int div 9, 1)
   result.max.y = result.min.y + rows.float * 9.0 + 2.0
   let cols = 1 + items.len div rows
   result.max.x = result.min.x + cols.float * 64.0 + 4
 
-method draw*(self: MenuItem, x,y,w: int, selected: bool): int =
+method draw*(self: MenuItem, x,y,w: int, selected: bool): int {.base.} =
   setColor(
     case self.status:
     of Default: 1
@@ -116,16 +118,16 @@ method draw*(self: MenuItemText, x,y,w: int, selected: bool): int =
   return 9
 
 proc draw*(self: Menu) =
-  let camera = getCamera()
+  let (cx,cy) = getCamera()
   let aabb = self.getAABB()
 
   let w = (aabb.max.x - aabb.min.x).int
   let h = (aabb.max.y - aabb.min.y).int
 
-  if aabb.max.x > screenWidth + camera.x:
-    pos.x = (screenWidth + camera.x - w).float
-  if aabb.max.y > screenHeight + camera.y:
-    pos.y = clamp((screenHeight + camera.y - h).float, 0.0, screenHeight.float - 8.0)
+  if aabb.max.x > screenWidth + cx:
+    pos.x = (screenWidth + cy - w).float32
+  if aabb.max.y > screenHeight + cx:
+    pos.y = clamp((screenHeight + cy - h).float32, 0.0, screenHeight.float32 - 8.0)
 
   let x = pos.x.int
   let y = pos.y.int
@@ -134,7 +136,7 @@ proc draw*(self: Menu) =
   rectfill(aabb)
   var yv = y + 2
   var xv = x
-  if label != nil:
+  if label != "":
     setColor(13)
     print(label, x + 2, yv)
     yv += 9
@@ -150,75 +152,85 @@ proc draw*(self: Menu) =
 
 proc event*(self: Menu, event: Event): bool =
   case event.kind:
-  of MouseMotion:
-    let mv = mouse()
+  of ekMouseMotion:
+    let mv = mouseVec()
     let aabb = self.getAABB()
     if pointInAABB(mv, self.getAABB()):
-      let rows = (aabb.max.y - aabb.min.y) div 9 - (if label != nil: 1 else: 0)
+      let rows = (aabb.max.y - aabb.min.y) div 9 - (if label != "": 1 else: 0)
       let column = (mv.x - pos.x).int div 64
-      let row = (mv.y - pos.y).int div 9 - (if label != nil: 1 else: 0)
+      let row = (mv.y - pos.y).int div 9 - (if label != "": 1 else: 0)
       if row < 0:
-        return true
+        return false
       if row >= rows:
-        return true
+        return false
       let item = row + (column * rows)
       if item >= 0 and item < items.len:
         selected = item
-      return true
+      return false
 
-  of MouseButtonDown:
-    let mv = mouse()
+  of ekMouseButtonDown:
+    let mv = mouseVec()
     if pointInAABB(mv, self.getAABB()):
-      if event.button.button == 1 and selected >= 0:
+      if event.button == 1 and selected >= 0:
         if items[selected].action != nil:
           items[selected].action()
       return true
 
-    elif event.button.button == 1:
+    elif event.button == 1:
       if back != nil:
         back()
       else:
         popMenu()
       return true
 
-  of KeyDown, KeyUp:
-    let down = event.kind == KeyDown
-    let scancode = event.key.keysym.scancode
+  of ekTextInput:
+    if textInputItem != nil:
+      textInputItem.value &= event.text
+      if textInputItem.onchange != nil:
+        textInputItem.onchange(textInputItem.value)
+      return true
+
+  of ekKeyDown, ekKeyUp:
+    let down = event.kind == ekKeyDown
+    let scancode = event.scancode
 
     if down:
       if selected >= 0 and selected < items.len and items[selected] of MenuItemText:
-        var te = MenuItemText(items[selected])
-        if hasSetTextFunc != selected:
-          setTextFunc(proc(text: string): bool =
-            return te.inputText(text)
-          )
-        if scancode == SDL_SCANCODE_BACKSPACE and down and te.value.len > 0:
+        # if pressing a key while text item is selected, take it as text input
+        let te = MenuItemText(items[selected])
+
+        if scancode == SCANCODE_BACKSPACE and te.value.len > 0:
           te.value = te.value[0..te.value.high-1]
           if te.onchange != nil:
             te.onchange(te.value)
           return true
-      else:
-        setTextFunc(nil)
-        hasSetTextFunc = -1
+
+        if not isTextInput():
+          startTextInput()
+          self.textInputItem = te
+
+      elif isTextInput():
+        self.textInputItem = nil
+        stopTextInput()
 
       case scancode:
-      of SDL_SCANCODE_UP:
+      of SCANCODE_UP:
         selected -= 1
         if selected < 0:
           selected = items.high
         return true
-      of SDL_SCANCODE_DOWN:
+      of SCANCODE_DOWN:
         selected += 1
         if selected > items.high:
           selected = 0
         return true
-      of SDL_SCANCODE_RETURN:
+      of SCANCODE_RETURN:
         if selected < 0:
           return true
         if items[selected].action != nil:
           items[selected].action()
         return true
-      of SDL_SCANCODE_ESCAPE:
+      of SCANCODE_ESCAPE:
         if back != nil:
           back()
         else:
@@ -226,6 +238,7 @@ proc event*(self: Menu, event: Event): bool =
         return true
       else:
         discard
+      return true
   else:
     discard
 

@@ -1,72 +1,71 @@
-import locks
 import os
 import strutils
 
-import sdl2
-
-import pico
+import nico
+import nico/vec
 import util
 
 import common
-import core.ringbuffer
-import ui.menu
-import ui.machineview
-import ui.layoutview
+import core/ringbuffer
 
-import machines.master
+import machines/master
 
-import machines.converters.a2e
-import machines.converters.e2a
-import machines.converters.n2f
+import machines/converters/a2e
+import machines/converters/e2a
+import machines/converters/n2f
 
-import machines.fx.svf
-import machines.fx.compressor
-import machines.fx.delay
-import machines.fx.distortion
-import machines.fx.eq
-import machines.fx.mod_filter
-import machines.fx.flanger
-import machines.fx.gate
-import machines.fx.sandh
-import machines.fx.bitcrush
-import machines.fx.mod_amp
+import machines/fx/svf
+import machines/fx/compressor
+import machines/fx/delay
+import machines/fx/distortion
+import machines/fx/eq
+import machines/fx/mod_filter
+import machines/fx/flanger
+import machines/fx/gate
+import machines/fx/sandh
+import machines/fx/bitcrush
+import machines/fx/mod_amp
 
-import machines.generators.clock
-import machines.generators.adsr
-import machines.generators.basicfm
-import machines.generators.fmsynth
-import machines.generators.gbsynth
-import machines.generators.kit
-import machines.generators.noise
-import machines.generators.organ
-import machines.generators.osc
-import machines.generators.synth
-import machines.generators.tb303
-import machines.generators.mod_lfsr
+import machines/generators/clock
+import machines/generators/adsr
+import machines/generators/basicfm
+import machines/generators/fmsynth
+import machines/generators/gbsynth
+import machines/generators/kit
+import machines/generators/noise
+import machines/generators/organ
+import machines/generators/osc
+import machines/generators/synth
+import machines/generators/tb303
+import machines/generators/mod_lfsr
 
-import machines.io.filerec
-import machines.io.keyboard
+import machines/io/filerec
+import machines/io/keyboard
 
-import machines.math.operators
-import machines.math.accumulator
+import machines/math/operators
+import machines/math/accumulator
 
-import machines.ui.button
-import machines.ui.knob
-import machines.ui.value
+import machines/ui/button
+import machines/ui/knob
+import machines/ui/value
 
-import machines.util.arp
-import machines.util.dc
-import machines.util.karp
-import machines.util.lfo
-import machines.util.paramlp
-import machines.util.paramrecorder
-import machines.util.probgate
-import machines.util.probpath
-import machines.util.probpick
-import machines.util.sequencer
-import machines.util.split
-import machines.util.transposer
-import machines.util.spectrogram
+import machines/util/arp
+import machines/util/dc
+import machines/util/karp
+import machines/util/lfo
+import machines/util/paramlp
+import machines/util/paramrecorder
+import machines/util/probgate
+import machines/util/probpath
+import machines/util/probpick
+import machines/util/sequencer
+import machines/util/split
+import machines/util/transposer
+import machines/util/spectrogram
+
+import ui/machineview
+import ui/layoutview
+import ui/menu
 
 var glitch = 0.0
 var panic: bool
@@ -118,10 +117,9 @@ when defined(jack):
       sampleId += 1
 
       if midiEvent.time == time.int and eventIndex < nMidiEvents:
-        withLock machineLock:
-          for machine in mitems(machines):
-            if machine.useMidi and machine.midiChannel == midiEvent.channel:
-              machine.midiEvent(midiEvent)
+        for machine in mitems(machines):
+          if machine.useMidi and machine.midiChannel == midiEvent.channel:
+            machine.midiEvent(midiEvent)
 
         eventIndex += 1
         if eventIndex < nMidiEvents:
@@ -134,11 +132,10 @@ when defined(jack):
         inputSample = inputR[time]
 
       # update all machines
-      withLock machineLock:
-        for machine in mitems(machines):
-          if not machine.disabled:
-            if machine.stereo or sampleId mod 2 == 0:
-              machine.process()
+      for machine in mitems(machines):
+        if not machine.disabled:
+          if machine.stereo or sampleId mod 2 == 0:
+            machine.process()
 
       if i mod 2 == 0:
         samplesL[time] = masterMachine.outputSamples[0]
@@ -159,30 +156,27 @@ when defined(jack):
 
 else:
 
-  proc audioCallback(userdata: pointer, stream: ptr uint8, len: cint) {.cdecl.} =
+  proc audioCallback(): float32 =
     glitch = 0.0
 
-    var samples = cast[ptr array[int.high,float32]](stream)
-    var nSamples = len div sizeof(float32)
-
     if panic:
-      zeroMem(samples, nSamples * sizeof(float32))
-      return
+      return 0.0
 
-    for i in 0..<nSamples:
-      sampleId += 1
-      # update all machines
-      for machine in mitems(machines):
-        if machine.stereo or sampleId mod 2 == 0:
-          machine.process()
-      samples[i] = masterMachine.outputSamples[0]
-      if abs(samples[i]) > 1.0:
-        glitch += abs(samples[i]) - 1.0
+    sampleId += 1
+    # update all machines
+    for machine in mitems(machines):
+      if machine.stereo or sampleId mod 2 == 0:
+        machine.process()
+    var output = masterMachine.outputSamples[0]
+    if abs(output) > 1.0:
+      glitch += abs(output) - 1.0
 
-      if i mod 2 == 0 and sampleMachine != nil:
-        oscilliscopeBuffer.add([sampleMachine.outputSamples[0]])
+    if sampleId mod 2 == 0 and sampleMachine != nil:
+      oscilliscopeBuffer.add([sampleMachine.outputSamples[0]])
 
-import core.basemachine
+    return output
+
+import core/basemachine
 
 proc setShortcut(shortcut: range[0..9], machine: Machine) =
   if shortcut == 0:
@@ -214,82 +208,83 @@ proc handleShortcutKey(shortcut: range[0..9]): bool =
     return true
 
 proc handleShortcutKeys(event: Event): bool =
-  let down = event.kind == KeyDown
+  let down = event.kind == ekKeyDown
   let ctrl = ctrl()
-  let scancode = event.key.keysym.scancode
+  let scancode = event.scancode
   if down and ctrl:
     case scancode:
-    of SDL_SCANCODE_1:
+    of SCANCODE_1:
       return handleShortcutKey(0)
-    of SDL_SCANCODE_2:
+    of SCANCODE_2:
       return handleShortcutKey(1)
-    of SDL_SCANCODE_3:
+    of SCANCODE_3:
       return handleShortcutKey(2)
-    of SDL_SCANCODE_4:
+    of SCANCODE_4:
       return handleShortcutKey(3)
-    of SDL_SCANCODE_5:
+    of SCANCODE_5:
       return handleShortcutKey(4)
-    of SDL_SCANCODE_6:
+    of SCANCODE_6:
       return handleShortcutKey(5)
-    of SDL_SCANCODE_7:
+    of SCANCODE_7:
       return handleShortcutKey(6)
-    of SDL_SCANCODE_8:
+    of SCANCODE_8:
       return handleShortcutKey(7)
-    of SDL_SCANCODE_9:
+    of SCANCODE_9:
       return handleShortcutKey(8)
-    of SDL_SCANCODE_0:
+    of SCANCODE_0:
       return handleShortcutKey(9)
-    of SDL_SCANCODE_M:
+    of SCANCODE_M:
       panic = not panic
     else:
       return false
   elif down:
     case scancode:
-    of SDL_SCANCODE_F1:
+    of SCANCODE_F1:
       return handleShortcutKey(0)
-    of SDL_SCANCODE_F2:
+    of SCANCODE_F2:
       return handleShortcutKey(1)
-    of SDL_SCANCODE_F3:
+    of SCANCODE_F3:
       return handleShortcutKey(2)
-    of SDL_SCANCODE_F4:
+    of SCANCODE_F4:
       return handleShortcutKey(3)
-    of SDL_SCANCODE_F5:
+    of SCANCODE_F5:
       return handleShortcutKey(4)
-    of SDL_SCANCODE_F6:
+    of SCANCODE_F6:
       return handleShortcutKey(5)
-    of SDL_SCANCODE_F7:
+    of SCANCODE_F7:
       return handleShortcutKey(6)
-    of SDL_SCANCODE_F8:
+    of SCANCODE_F8:
       return handleShortcutKey(7)
-    of SDL_SCANCODE_F9:
+    of SCANCODE_F9:
       return handleShortcutKey(8)
-    of SDL_SCANCODE_F10:
+    of SCANCODE_F10:
       return handleShortcutKey(9)
     else:
       return false
   return false
 
+
 proc eventFunc(event: Event): bool =
   let ctrl = ctrl()
   let shift = shift()
   case event.kind:
-  of KeyDown, KeyUp:
-    let down = event.kind == KeyDown
+  of ekKeyDown, ekKeyUp:
+    let down = event.kind == ekKeyDown
     # handle global keys
-    let scancode = event.key.keysym.scancode
+    let scancode = event.scancode
     if handleShortcutKeys(event):
       return true
     if down:
       case scancode:
-        of SDL_SCANCODE_SLASH:
+        of SCANCODE_SLASH:
           baseOctave -= 1
           return true
-        of SDL_SCANCODE_APOSTROPHE:
+        of SCANCODE_APOSTROPHE:
           baseOctave += 1
           return true
-        of SDL_SCANCODE_N:
+        of SCANCODE_N:
           if ctrl:
-            var menu = newMenu(mouse(), "new project?")
+            var menu = newMenu(mouseVec(), "new project?")
             menu.items.add(newMenuItem("no") do():
               popMenu()
             )
@@ -301,9 +296,9 @@ proc eventFunc(event: Event): bool =
             menu.items[menu.items.high].status = Danger
             pushMenu(menu)
             return true
-        of SDL_SCANCODE_Q:
+        of SCANCODE_Q:
           if ctrl:
-            var menu = newMenu(mouse(), "quit?")
+            var menu = newMenu(mouseVec(), "quit?")
             menu.items.add(newMenuItem("no") do():
               popMenu()
             )
@@ -331,7 +326,11 @@ proc eventFunc(event: Event): bool =
   return false
 
 proc init() =
-  loadSpriteSheet("spritesheet.png")
+  loadSpriteSheet(0, "spritesheet.png")
+  setSpritesheet(0)
+
+  loadFont(0, "font.png")
+  setFont(0)
 
   when defined(jack):
     var status: JackStatus
@@ -376,14 +375,14 @@ proc init() =
     echo "connected to jack"
   else:
     echo "using SDL audio"
-    setAudioCallback(2, audioCallback, false)
+    audioCallback(0, audioCallback, true)
 
     proc signalHandler() {.noconv.} =
       echo "signal recved exiting"
       shutdown()
     setControlCHook(signalHandler)
 
-  setEventFunc(eventFunc)
+  addEventListener(eventFunc)
 
   machines = newSeq[Machine]()
   menuStack = newSeq[Menu]()
@@ -401,7 +400,7 @@ proc init() =
   if arguments.len > 0:
     loadLayout(arguments[0])
 
-proc update(dt: float) =
+proc update(dt: float32) =
   if currentView != nil:
     currentView.update(dt)
 
@@ -444,7 +443,7 @@ proc draw() =
     var menu = getMenu()
     menu.draw()
 
-  let mv = mouse()
+  let mv = mouseVec()
   spr(20, mv.x, mv.y)
 
   if glitch > 0.0:
@@ -452,5 +451,6 @@ proc draw() =
     for i in 0..glitch.int:
       glitch(0,0,screenWidth,screenHeight)
 
-pico.init(false)
-pico.run(init, update, draw)
+nico.init("impbox","nimsynth")
+nico.createWindow("nimsynth",1920 div 4,1200 div 4,3,false)
+nico.run(init, update, draw)

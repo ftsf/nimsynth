@@ -1,20 +1,18 @@
 {.this:self.}
 
 import math
-import basic2d
 import strutils
 
-import sdl2
-
-import pico
+import nico
+import nico/vec
 
 import common
 import util
 
-import core.basemachine
-import ui.machineview
-import ui.menu
-import machines.master
+import core/basemachine
+import ui/machineview
+import ui/menu
+import machines/master
 
 
 const colsPerPattern = 8
@@ -140,9 +138,8 @@ method init*(self: Sequencer) =
     ),
     Parameter(kind: Float, name: "tick", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       if self.patterns[self.playingPattern] != nil:
-        if self.patterns[self.playingPattern].rows != nil:
-          self.step = (newValue * self.patterns[self.playingPattern].rows.high.float).int
-          self.subTick = 0.0
+        self.step = (newValue * self.patterns[self.playingPattern].rows.high.float).int
+        self.subTick = 0.0
     , getValueString: proc(value: float, voice: int): string =
       if self.patterns[self.playingPattern] == nil:
         return ""
@@ -324,7 +321,7 @@ proc drawPatternSelector(self: Sequencer, x,y,w,h: int) =
   var y = y + 9 * (squareSize + padding)
   let pattern = patterns[currentPattern]
   setColor(6)
-  print("pattern: " & (if pattern.name != nil: pattern.name else: $currentPattern), x, y)
+  print("pattern " & $currentPattern & ": " & pattern.name, x, y)
   y += 8
   print("ticks: " & $pattern.rows.len, x, y)
   y += 8
@@ -495,17 +492,18 @@ proc setValue(self: Sequencer, newValue: int) =
   if currentStep > pattern.rows.high:
     currentStep = pattern.rows.high
 
-method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
+proc key*(self: SequencerView, event: Event): bool =
   var s = Sequencer(machine)
 
-  let scancode = key.keysym.scancode
-  let ctrl = ctrl()
+  let scancode = event.scancode
+  let ctrl = (event.mods and KMOD_CTRL) != 0
+  let down = event.kind == ekKeyDown
 
   let pattern = s.patterns[s.currentPattern]
 
-  if scancode == SDL_SCANCODE_R and ctrl and down:
+  if scancode == SCANCODE_R and ctrl and down:
     s.recording = not s.recording
-  if scancode == SDL_SCANCODE_L and ctrl and down:
+  if scancode == SCANCODE_L and ctrl and down:
     # toggle loop
     if s.looping:
       s.globalParams[3].value = 0.0
@@ -514,19 +512,19 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
       s.globalParams[3].value = 1.0
       s.globalParams[3].onchange(1.0, -1)
     return true
-  elif scancode == SDL_SCANCODE_B and ctrl and down:
+  elif scancode == SCANCODE_B and ctrl and down:
     pattern.loopStart = s.currentStep
-  elif scancode == SDL_SCANCODE_E and ctrl and down:
+  elif scancode == SCANCODE_E and ctrl and down:
     pattern.loopEnd = s.currentStep
-  elif scancode == SDL_SCANCODE_C and ctrl and down:
+  elif scancode == SCANCODE_C and ctrl and down:
     clipboard = newPattern()
     clipboard.rows = pattern.rows
     return true
-  elif scancode == SDL_SCANCODE_V and ctrl and down:
+  elif scancode == SCANCODE_V and ctrl and down:
     if clipboard != nil:
       pattern.rows = clipboard.rows
     return true
-  elif scancode == SDL_SCANCODE_LEFT and down:
+  elif scancode == SCANCODE_LEFT and down:
     if ctrl:
       # prev pattern
       s.currentPattern -= 1
@@ -554,7 +552,7 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
       if s.currentColumn < 0:
         s.currentColumn = colsPerPattern - 1
       return true
-  elif scancode == SDL_SCANCODE_RIGHT and down:
+  elif scancode == SCANCODE_RIGHT and down:
     if ctrl:
       # next pattern
       s.currentPattern += 1
@@ -579,22 +577,22 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
         if s.currentColumn > colsPerPattern - 1:
           s.currentColumn = 0
       return true
-  elif scancode == SDL_SCANCODE_UP and down:
+  elif scancode == SCANCODE_UP and down:
     s.currentStep -= (if ctrl: s.ticksPerBeat else: 1)
     if s.currentStep < 0:
       s.currentStep = pattern.rows.high
     return true
-  elif scancode == SDL_SCANCODE_DOWN and down:
+  elif scancode == SCANCODE_DOWN and down:
     s.currentStep += (if ctrl: s.ticksPerBeat else: 1)
     if s.currentStep > pattern.rows.high:
       s.currentStep = 0
     return true
-  elif key.keysym.scancode == SDL_SCANCODE_PAGEUP and down:
+  elif scancode == SCANCODE_PAGEUP and down:
     if ctrl:
       let length = s.patterns[s.currentPattern].rows.len
       s.patterns[s.currentPattern].rows.setLen(max(length div 2, 1))
       return true
-  elif key.keysym.scancode == SDL_SCANCODE_PAGEDOWN and down:
+  elif scancode == SCANCODE_PAGEDOWN and down:
     if ctrl:
       let length = s.patterns[s.currentPattern].rows.len
       s.patterns[s.currentPattern].rows.setLen(length * 2)
@@ -603,7 +601,7 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
         for c in 0..colsPerPattern-1:
           s.patterns[s.currentPattern].rows[i][c] = Blank
       return true
-  elif key.keysym.scancode == SDL_SCANCODE_SPACE and down:
+  elif scancode == SCANCODE_SPACE and down:
     if s.currentPattern == s.playingPattern:
       s.playing = not s.playing
       if s.playing:
@@ -615,34 +613,34 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
       s.globalParams[0].onchange(s.currentPattern.float, -1)
       s.playing = true
     return true
-  elif key.keysym.scancode == SDL_SCANCODE_HOME and down:
+  elif scancode == SCANCODE_HOME and down:
     if ctrl:
       s.step = 0
       s.subTick = 0.0
     else:
       s.currentStep = 0
     return true
-  elif key.keysym.scancode == SDL_SCANCODE_END and down:
+  elif scancode == SCANCODE_END and down:
     s.currentStep = pattern.rows.high
     return true
-  elif key.keysym.scancode == SDL_SCANCODE_MINUS and down:
+  elif scancode == SCANCODE_MINUS and down:
     # lower tpb
     var (voice, param) = s.getParameter(2)
     s.ticksPerBeat -= 1
     param.value = s.ticksPerBeat.float
     param.onchange(param.value, voice)
     return true
-  elif key.keysym.scancode == SDL_SCANCODE_EQUALS and down:
+  elif scancode == SCANCODE_EQUALS and down:
     # increase tpb
     var (voice, param) = s.getParameter(2)
     s.ticksPerBeat += 1
     param.value = s.ticksPerBeat.float
     param.onchange(param.value, voice)
     return true
-  elif (key.keysym.scancode == SDL_SCANCODE_BACKSPACE or key.keysym.scancode == SDL_SCANCODE_DELETE) and down:
+  elif (scancode == SCANCODE_BACKSPACE or scancode == SCANCODE_DELETE) and down:
     s.setValue(Blank)
-  elif key.keysym.scancode == SDL_SCANCODE_T and ctrl and down:
-    var menu = newMenu(point2d(
+  elif scancode == SCANCODE_T and ctrl and down:
+    var menu = newMenu(vec2f(
       (s.currentColumn * 16 + 12).float,
       8.float
     ), "bind machine")
@@ -678,7 +676,7 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
     case targetParam.kind:
     of Note:
       if s.subColumn == 0:
-        let note = keyToNote(key)
+        let note = keyToNote(event.keycode)
         if note >= 0 and down:
           s.setValue(note)
           return true
@@ -691,37 +689,37 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
       elif s.subColumn == 1:
         if down:
           case scancode:
-          of SDL_SCANCODE_0:
+          of SCANCODE_0:
             s.setValue(0)
             return true
-          of SDL_SCANCODE_1:
+          of SCANCODE_1:
             s.setValue(1)
             return true
-          of SDL_SCANCODE_2:
+          of SCANCODE_2:
             s.setValue(2)
             return true
-          of SDL_SCANCODE_3:
+          of SCANCODE_3:
             s.setValue(3)
             return true
-          of SDL_SCANCODE_4:
+          of SCANCODE_4:
             s.setValue(4)
             return true
-          of SDL_SCANCODE_5:
+          of SCANCODE_5:
             s.setValue(5)
             return true
-          of SDL_SCANCODE_6:
+          of SCANCODE_6:
             s.setValue(6)
             return true
-          of SDL_SCANCODE_7:
+          of SCANCODE_7:
             s.setValue(7)
             return true
-          of SDL_SCANCODE_8:
+          of SCANCODE_8:
             s.setValue(8)
             return true
-          of SDL_SCANCODE_9:
+          of SCANCODE_9:
             s.setValue(9)
             return true
-          of SDL_SCANCODE_PERIOD:
+          of SCANCODE_PERIOD:
             s.setValue(Blank)
             return true
           else:
@@ -729,37 +727,37 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
     of Int, Float, Trigger, Bool:
       if down:
         case scancode:
-        of SDL_SCANCODE_0:
+        of SCANCODE_0:
           s.setValue(0)
           return true
-        of SDL_SCANCODE_1:
+        of SCANCODE_1:
           s.setValue(1)
           return true
-        of SDL_SCANCODE_2:
+        of SCANCODE_2:
           s.setValue(2)
           return true
-        of SDL_SCANCODE_3:
+        of SCANCODE_3:
           s.setValue(3)
           return true
-        of SDL_SCANCODE_4:
+        of SCANCODE_4:
           s.setValue(4)
           return true
-        of SDL_SCANCODE_5:
+        of SCANCODE_5:
           s.setValue(5)
           return true
-        of SDL_SCANCODE_6:
+        of SCANCODE_6:
           s.setValue(6)
           return true
-        of SDL_SCANCODE_7:
+        of SCANCODE_7:
           s.setValue(7)
           return true
-        of SDL_SCANCODE_8:
+        of SCANCODE_8:
           s.setValue(8)
           return true
-        of SDL_SCANCODE_9:
+        of SCANCODE_9:
           s.setValue(9)
           return true
-        of SDL_SCANCODE_PERIOD:
+        of SCANCODE_PERIOD:
           s.setValue(Blank)
           return true
         else:
@@ -770,19 +768,19 @@ method key*(self: SequencerView, key: KeyboardEventPtr, down: bool): bool =
 method event(self: SequencerView, event: Event): bool =
   var s = Sequencer(self.machine)
   case event.kind:
-  of KeyUp, KeyDown:
-    let down = event.kind == KeyDown
-    if self.key(event.key, down):
+  of ekKeyUp, ekKeyDown:
+    let down = event.kind == ekKeyDown
+    if self.key(event):
       return true
 
-  of MouseButtonDown, MouseButtonUp:
-    let mv = mouse()
-    let down = event.kind == MouseButtonDown
-    let ctrl = ctrl()
+  of ekMouseButtonDown, ekMouseButtonUp:
+    let mv = mouseVec()
+    let down = event.kind == ekMouseButtonDown
+    let ctrl = (event.mods and KMOD_CTRL) != 0
 
     # select pattern cell
     if mv.y > 24 and mv.x <= (colsPerPattern * 17) + 9:
-      if event.button.button == 1 and down:
+      if event.button == 1 and down:
         let row = (mv.y - 24) div 8 - scroll
         s.currentStep = clamp(row, 0, s.patterns[s.currentPattern].rows.high)
         let col = (mv.x - 9) div 17
@@ -797,7 +795,7 @@ method event(self: SequencerView, event: Event): bool =
       let x = clamp((mv.x - (colsPerPattern * 17 + 9 + 12)) div (squareSize + padding), 0, 7)
       let patId = clamp(y * 8 + x, 0, 63)
 
-      if event.button.button == 1:
+      if event.button == 1:
         if ctrl:
           if s.patterns[patId] != nil:
             s.nextPattern = patId
@@ -810,7 +808,7 @@ method event(self: SequencerView, event: Event): bool =
             if s.patterns[s.currentPattern] == nil:
               s.patterns[s.currentPattern] = newPattern()
           return
-      elif event.button.button == 3 and down:
+      elif event.button == 3 and down:
         if s.patterns[patId] == nil:
           s.patterns[patId] = newPattern()
         else:
@@ -819,7 +817,7 @@ method event(self: SequencerView, event: Event): bool =
           else:
             s.patterns[patId].color.inc()
 
-  of MouseMotion:
+  of ekMouseMotion:
     discard
 
   else:
@@ -828,13 +826,12 @@ method event(self: SequencerView, event: Event): bool =
 
 proc `$`(self: Pattern): string =
   result = ""
-  if rows != nil:
-    for row in rows:
-      for i in 0..colsPerPattern-1:
-        result &= $row[i]
-        if i < colsPerPattern-1:
-          result &= ","
-      result &= "\n"
+  for row in rows:
+    for i in 0..colsPerPattern-1:
+      result &= $row[i]
+      if i < colsPerPattern-1:
+        result &= ","
+    result &= "\n"
 
 method saveExtraData(self: Sequencer): string =
   # export pattern data
@@ -874,7 +871,7 @@ method loadExtraData(self: Sequencer, data: string) =
         for i,col in pairs(sline.split(",")):
           pattern.rows[pattern.rows.high][i] = parseInt(col)
 
-method getMenu*(self: Sequencer, mv: Point2d): Menu =
+method getMenu*(self: Sequencer, mv: Vec2f): Menu =
   result = procCall getMenu(Machine(self), mv)
   if not self.recording:
     result.items.add(newMenuItem("record") do():

@@ -1,9 +1,9 @@
 import fenv
 import math
 import common
-import core.basemachine
-import core.fft
-import pico
+import core/basemachine
+import core/fft
+import nico
 import util
 
 const maxFilters = 8
@@ -163,7 +163,7 @@ method getOutputName(self: SVFFilterMachine, outputId: int): string =
   of 3:
     return "notch"
   else:
-    return nil
+    return ""
 
 method getAABB*(self: SVFFilterMachine): AABB =
   result.min.x = pos.x - 16

@@ -1,11 +1,11 @@
 import math
 
-import pico
+import nico
 
 import common
 import util
 
-import core.envelope
+import core/envelope
 
 
 {.this:self.}

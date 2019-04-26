@@ -10,7 +10,7 @@ type
     output*: float32
 
 proc process*(self: var LFSR): float32 =
-  let lsb: uint = (lfsr and 1)
+  let lsb: uint = (lfsr and 1).uint
   lfsr = lfsr shr 1
   if lsb == 1:
     lfsr = lfsr xor 0xb400;

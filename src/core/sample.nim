@@ -1,12 +1,12 @@
 import os
 import math
-import basic2d
 
 import common
 import util
+import nico/vec
 
 import sndfile
-import ui.menu
+import ui/menu
 
 
 # Common Sampler code, load samples etc
@@ -25,6 +25,22 @@ type Sample* = ref object of RootObj
   channels*: int
 
 {.this:self.}
+
+type
+  SF_INSTRUMENT_LOOP = object
+    mode: int
+    start: uint
+    `end`: uint
+    count: uint
+  SF_INSTRUMENT = object
+    gain: int
+    basenote, detune: char
+    velocity_lo, velocity_hi: char
+    key_lo, key_hi: char
+    loop_count: int
+    loops: array[16,SF_INSTRUMENT_LOOP]
+
+
 
 proc loadSample*(filename: string, name: string): Sample =
   result = new(Sample)
@@ -50,7 +66,7 @@ proc loadSample*(filename: string, name: string): Sample =
   result.length = info.frames.int div info.channels
 
   var instrument: SF_INSTRUMENT
-  if fp.command(SFC_GET_INSTRUMENT, instrument.addr, sizeof(SF_INSTRUMENT)) == SF_TRUE:
+  if fp.command(SFC_GET_INSTRUMENT, instrument.addr, sizeof(SF_INSTRUMENT).cint).TBOOL == SF_TRUE:
     echo instrument
     result.rootPitch = noteToHz(instrument.baseNote.float)
 
@@ -89,6 +105,11 @@ proc getInterpolatedSample*(s: Sample, pos: float, channel: int): float32 =
     return 0.0
   let channel = min(channel, s.channels - 1)
   return lerp(s.data[frame * s.channels + channel], s.data[(frame+1) * s.channels + channel], alpha)
+
+proc zeroBeyond(x: int, length: int): int =
+  if x >= length or x < 0:
+    return 0
+  return x
 
 proc getCubicInterpolatedSample*(s: Sample, pos: float, channel: int): float32 =
   let alpha = pos mod 1.0
@@ -138,7 +159,7 @@ proc process*(self: var SampleOsc): float32 =
 #
 # TODO: need a way to save/load sample data in patches
 
-proc newSampleMenu*(mv: Point2d, prefix = "samples/", action: proc(sample: Sample) = nil): Menu =
+proc newSampleMenu*(mv: Vec2f, prefix = "samples/", action: proc(sample: Sample) = nil): Menu =
   var menu = newMenu(mv, "load sample")
   for file in walkFiles(prefix & "*.*"):
     (proc() =

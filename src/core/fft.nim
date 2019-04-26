@@ -1,11 +1,11 @@
 import complex
 import math
 
-proc toComplex(x: float): TComplex = result.re = x
+proc toComplex(x: float): Complex = result.re = x
 
-proc fft[T](x: openarray[T]): seq[TComplex] =
+proc fft[T](x: openarray[T]): seq[Complex] =
   let n = x.len
-  result = newSeq[TComplex]()
+  result = newSeq[Complex]()
   if n <= 1:
     for v in x: result.add toComplex(v)
     return

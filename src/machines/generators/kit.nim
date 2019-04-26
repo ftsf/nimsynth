@@ -1,16 +1,14 @@
 import math
 import strutils
 
-import sdl2
-import sdl2.audio
-
-import pico
+import nico
+import nico/vec
 
 import common
 
-import core.envelope
-import core.sample
-import ui.menu
+import core/envelope
+import core/sample
+import ui/menu
 
 
 type
@@ -25,7 +23,6 @@ type
 {.this:self.}
 
 method addVoice*(self: Kit) =
-  pauseAudio(1)
   var voice = new(KitVoice)
   voices.add(voice)
   voice.init(self)
@@ -35,7 +32,6 @@ method addVoice*(self: Kit) =
   for param in mitems(voice.parameters):
     param.value = param.default
     param.onchange(param.value, voices.high)
-  pauseAudio(0)
 
 method init(self: Kit) =
   procCall init(Machine(self))
@@ -91,11 +87,11 @@ method drawExtraData(self: Kit, x,y,w,h: int) =
 
 method updateExtraData(self: Kit, x,y,w,h: int) =
   if mousebtnp(1):
-    let mv = mouse()
-    let voice = (mv.y - y - 9) div 9
+    let (mx,my) = mouse()
+    let voice = (my - y - 9) div 9
     if voice >= 0 and voice < voices.len:
       # open sample selection menu
-      pushMenu(newSampleMenu(mv, basePath & "samples/") do(sample: Sample):
+      pushMenu(newSampleMenu(vec2f(mx,my), basePath & "samples/") do(sample: Sample):
         var v = KitVoice(self.voices[voice])
         v.osc.sample = sample
       )

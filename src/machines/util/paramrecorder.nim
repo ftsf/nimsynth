@@ -1,7 +1,7 @@
 import common
-import pico
+import nico
+import nico/vec
 import util
-import basic2d
 
 type ParamRecorder = ref object of Machine
   buffer: seq[float]
@@ -97,7 +97,7 @@ method drawBox(self: ParamRecorder) =
       line(x, y + 1, x, y + 7)
 
 
-method handleClick(self: ParamRecorder, mouse: Point2d): bool =
+method handleClick(self: ParamRecorder, mouse: Vec2f): bool =
   if pointInAABB(mouse, getRecordAABB()):
     var (voice,param) = getParameter(1)
     param.value = (not param.value.bool).float

@@ -1,13 +1,13 @@
-import basic2d
 import math
 import strutils
 
-import pico
+import nico
+import nico/vec
 
 import common
 import util
 
-import ui.layoutview
+import ui/layoutview
 
 
 type Button = ref object of Machine
@@ -82,7 +82,7 @@ method drawBox(self: Button) =
   setColor(6)
 
 
-method handleClick(self: Button, mouse: Point2d): bool =
+method handleClick(self: Button, mouse: Vec2f): bool =
   if pointInAABB(mouse, getButtonAABB()):
     return true
   return false

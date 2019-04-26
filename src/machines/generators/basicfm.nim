@@ -9,7 +9,6 @@ import machines.master
 
 import strutils
 
-import locks
 
 # 3 osc FM synth
 
@@ -86,10 +85,9 @@ method init(self: BasicFMSynthVoice, machine: BasicFMSynth) =
   pitchEnv.init()
 
 method addVoice*(self: BasicFMSynth) =
-  withLock machineLock:
-    var voice = new(BasicFMSynthVoice)
-    voices.add(voice)
-    voice.init(self)
+  var voice = new(BasicFMSynthVoice)
+  voices.add(voice)
+  voice.init(self)
 
 proc initNote(self: BasicFMSynth, voiceId: int, note: int) =
   var voice = BasicFMSynthVoice(voices[voiceId])
@@ -232,7 +230,7 @@ proc newBasicFMSynth(): Machine =
   fm.init()
   return fm
 
-import pico
+import nico
 
 import ui.machineview
 type BasicFMSynthView = ref object of MachineView
@@ -261,7 +259,7 @@ method drawExtraData(self: BasicFMSynthView, x,y,w,h: int) =
   var x = x + padding
   for map in algorithm:
     if map[1] == 0:
-      ops.add((id: map[0], x: x + carrier * (rectSize + padding), y: y, targets: nil))
+      ops.add((id: map[0], x: x + carrier * (rectSize + padding), y: y, targets: @[]))
       carrier += 1
     # find modulators
     for map2 in algorithm:
@@ -279,25 +277,24 @@ method drawExtraData(self: BasicFMSynthView, x,y,w,h: int) =
 
   # draw lines
   for op in ops:
-    if op.targets != nil:
-      for target in op.targets:
-        if target == op.id:
-          # feedback
-          setColor(if s.amps[op.id-1] > 0 and s.feedback > 0: 7 else: 1)
-          pico.rect(op.x - rectSize div 3, op.y - rectSize div 3, op.x + rectSize div 2, op.y + rectSize div 2)
-        else:
-          setColor(if s.amps[op.id-1] > 0: 7 else: 1)
-          for op2 in ops:
-            if op2.id == target:
-              line(op.x + rectSize div 2, op.y + rectSize div 2, op2.x + rectSize div 2, op2.y + rectSize div 2)
-              break
+    for target in op.targets:
+      if target == op.id:
+        # feedback
+        setColor(if s.amps[op.id-1] > 0 and s.feedback > 0: 7 else: 1)
+        nico.rect(op.x - rectSize div 3, op.y - rectSize div 3, op.x + rectSize div 2, op.y + rectSize div 2)
+      else:
+        setColor(if s.amps[op.id-1] > 0: 7 else: 1)
+        for op2 in ops:
+          if op2.id == target:
+            line(op.x + rectSize div 2, op.y + rectSize div 2, op2.x + rectSize div 2, op2.y + rectSize div 2)
+            break
 
   # draw boxes
   for op in ops:
     setColor(0)
     rectfill(op.x, op.y, op.x + rectSize, op.y + rectSize)
     setColor(if s.amps[op.id-1] > 0: 7 else: 1)
-    pico.rect(op.x, op.y, op.x + rectSize, op.y + rectSize)
+    nico.rect(op.x, op.y, op.x + rectSize, op.y + rectSize)
     setColor(if s.amps[op.id-1] > 0: 7 else: 1)
 
     setColor(if currentOp == op.id: 8 else: 7)

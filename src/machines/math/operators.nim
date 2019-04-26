@@ -1,11 +1,11 @@
 import math
 
-import pico
+import nico
 
 import common
 import util
 
-import core.filter
+import core/filter
 
 
 {.this:self.}

@@ -1,12 +1,12 @@
-import basic2d
-
 import common
-import util
-import ui.machineview
-import ui.menu
-import ui.layoutview
 
-import pico
+import nico
+import nico/vec
+
+import ui/machineview
+import util
+
+import ui/menu
 
 
 {.this: self.}
@@ -15,10 +15,10 @@ method getMachineView*(self: Machine): View {.base.} =
   return newMachineView(self)
 
 method getAABB*(self: Machine): AABB {.base.} =
-  result.min.x = pos.x - 16
-  result.min.y = pos.y - 4
-  result.max.x = pos.x + 16
-  result.max.y = pos.y + 4
+  result.min.x = (pos.x.int - 16).float32
+  result.min.y = (pos.y.int - 4).float32
+  result.max.x = (pos.x.int + 16).float32
+  result.max.y = (pos.y.int + 4).float32
 
 method drawBox*(self: Machine) {.base.} =
   if nInputs == 0 and nOutputs > 0:
@@ -38,7 +38,7 @@ method drawBox*(self: Machine) {.base.} =
 method layoutUpdate*(self: Machine, layout: View, df: float) {.base.} =
   discard
 
-method getParameterMenu*(self: Machine, mv: Point2d, title: string, onselect: proc(paramId: int)): Menu =
+method getParameterMenu*(self: Machine, mv: Vec2f, title: string, onselect: proc(paramId: int)): Menu {.base.} =
   var menu = newMenu(mv, title)
   for i in 0..getParameterCount()-1:
     (proc =
@@ -53,7 +53,7 @@ method getParameterMenu*(self: Machine, mv: Point2d, title: string, onselect: pr
     )()
   return menu
 
-method getSlotMenu*(self: Machine, mv: Point2d, onselect: proc(slotId: int)): Menu =
+method getSlotMenu*(self: Machine, mv: Vec2f, onselect: proc(slotId: int)): Menu {.base.} =
   var menu = newMenu(mv, "select slot")
   for i in 0..nBindings-1:
     (proc() =
@@ -73,7 +73,7 @@ method getSlotMenu*(self: Machine, mv: Point2d, onselect: proc(slotId: int)): Me
     )()
   return menu
 
-method getBindingMenu*(self: Machine, mv: Point2d, targetMachine: Machine, slotId: int = -1, onselect: proc(slotId, paramId: int)): Menu =
+method getBindingMenu*(self: Machine, mv: Vec2f, targetMachine: Machine, slotId: int = -1, onselect: proc(slotId, paramId: int)): Menu {.base.} =
   if nBindings > 1 and slotId == -1:
     # let them select the slot first
     return self.getSlotMenu(mv) do(slotId: int):
@@ -87,7 +87,7 @@ method getBindingMenu*(self: Machine, mv: Point2d, targetMachine: Machine, slotI
 
   return menu
 
-method getOutputMenu*(self: Machine, mv: Point2d, onselect: proc(outputId: int)): Menu =
+method getOutputMenu*(self: Machine, mv: Vec2f, onselect: proc(outputId: int)): Menu {.base.} =
   var menu = newMenu(mv, "select output")
   for i in 0..nOutputs-1:
     (proc() =
@@ -98,7 +98,7 @@ method getOutputMenu*(self: Machine, mv: Point2d, onselect: proc(outputId: int))
     )()
   return menu
 
-method getInputMenu*(self: Machine, mv: Point2d, onselect: proc(inputId: int)): Menu =
+method getInputMenu*(self: Machine, mv: Vec2f, onselect: proc(inputId: int)): Menu {.base.} =
   var menu = newMenu(mv, "select input")
   for i in 0..nInputs-1:
     (proc() =
@@ -109,7 +109,7 @@ method getInputMenu*(self: Machine, mv: Point2d, onselect: proc(inputId: int)): 
     )()
   return menu
 
-method getMenu*(self: Machine, mv: Point2d): Menu =
+method getMenu*(self: Machine, mv: Vec2f): Menu {.base.} =
   var menu = newMenu(mv, name)
   menu.items.add(newMenuItem("rename", proc() =
     var menu = newMenu(menu.pos, "rename")

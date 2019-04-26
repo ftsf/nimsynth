@@ -3,7 +3,7 @@ import util
 import common
 import filter
 import math
-import pico
+import nico
 
 {.this:self.}
 

@@ -149,7 +149,7 @@ method calc*(self: var BiquadFilter) =
   of Bypass:
     discard
 
-method normalize*(self: var BiquadFilter) =
+proc normalize*(self: var BiquadFilter) =
   if a0 != 0.0:
     a1 /= a0
     a2 /= a0

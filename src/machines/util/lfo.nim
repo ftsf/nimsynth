@@ -1,15 +1,15 @@
 import math
 import strutils
 
-import pico
+import nico
 
 import common
 import util
 
-import core.oscillator
-import core.basemachine
+import core/oscillator
+import core/basemachine
 
-import machines.master
+import machines/master
 
 
 type

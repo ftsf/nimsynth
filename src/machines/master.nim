@@ -51,4 +51,4 @@ proc beatsPerSecond*(): float =
   var m = Master(masterMachine)
   return m.beatsPerMinute / 60.0
 
-registerMachine("master", newMaster, nil)
+registerMachine("master", newMaster)

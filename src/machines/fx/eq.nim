@@ -2,10 +2,10 @@ import math
 
 import common
 import util
-import pico
+import nico
 
-import core.filter
-import core.fft
+import core/filter
+import core/fft
 
 
 {.this:self.}

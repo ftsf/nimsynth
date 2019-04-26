@@ -2,10 +2,10 @@ import math
 
 import common
 import util
-import pico
+import nico
 
-import ui.machineview
-import core.lfsr
+import ui/machineview
+import core/lfsr
 
 
 {.this:self.}
@@ -238,7 +238,7 @@ method process*(self: GBSynth) {.inline.} =
           if v.envMode == 1:
             v.volume += v.envChange
           v.volume = clamp(v.volume, 0, 15)
-          v.nextEnvUpdate = sampleRate.int div 64
+          v.nextEnvUpdate = sampleRate.int div 32
 
         if i == 0 and v.sweepTime > 0:
             v.nextSweepUpdate -= 1
@@ -304,24 +304,24 @@ proc newGBSynthView(machine: Machine): View =
 method getMachineView*(self: GBSynth): View =
   return newGBSynthView(self)
 
-method event(self: GBSynthView, e: Event): bool =
-  var gb = GBSynth(self.machine)
-  case e.kind:
-  of MouseButtonDown, MouseButtonUp:
-    let mv = intPoint2d(e.button.x, e.button.y)
-    let paramWidth = screenWidth div 3 + paramNameWidth
-    if mv.x > paramWidth:
-      let x = mv.x - paramWidth
-      let s = x div 4
-      if s >= 0 and s < 16:
-        gb.gbOsc2.waveRam[gb.gbOsc2.wave][s] = ((64 - mv.y) div 4).uint8
-      return true
-  of MouseMotion:
-    discard
-  else:
-    discard
-  return procCall event(MachineView(self), e)
-
+#method event(self: GBSynthView, e: Event): bool =
+#  var gb = GBSynth(self.machine)
+#  case e.kind:
+#  of MouseButtonDown, MouseButtonUp:
+#    let mv = intPoint2d(e.button.x, e.button.y)
+#    let paramWidth = screenWidth div 3 + paramNameWidth
+#    if mv.x > paramWidth:
+#      let x = mv.x - paramWidth
+#      let s = x div 4
+#      if s >= 0 and s < 16:
+#        gb.gbOsc2.waveRam[gb.gbOsc2.wave][s] = ((64 - mv.y) div 4).uint8
+#      return true
+#  of MouseMotion:
+#    discard
+#  else:
+#    discard
+#  return procCall event(MachineView(self), e)
+#
 proc newGBSynth(): Machine =
   var gbs = new(GBSynth)
   gbs.init()

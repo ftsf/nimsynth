@@ -1,15 +1,15 @@
-import basic2d
 import math
 import strutils
 
-import pico
+import nico
+import nico/vec
 
 import common
 import util
 
-import core.basemachine
-import ui.layoutview
-import ui.menu
+import core/basemachine
+import ui/layoutview
+import ui/menu
 
 
 type ValueMachine = ref object of Machine
@@ -48,8 +48,8 @@ method createBinding(self: ValueMachine, slot: int, target: Machine, paramId: in
   param.value = value
   param.onchange(value, voice)
 
-proc inputMenu(self: ValueMachine, mv: Point2d): Menu =
-  var menu = newMenu(mv, nil)
+proc inputMenu(self: ValueMachine, mv: Vec2f): Menu =
+  var menu = newMenu(mv, "")
   var te = newMenuItemText("value", $value) do(newValue: string):
     try:
       self.setValue(parseFloat(newValue))
@@ -58,23 +58,23 @@ proc inputMenu(self: ValueMachine, mv: Point2d): Menu =
   menu.items.add(te)
   return menu
 
-method handleClick*(self: ValueMachine, mouse: Point2d): bool =
+method handleClick*(self: ValueMachine, mouse: Vec2f): bool =
   if pointInAABB(mouse, getAABB()):
     return true
   return false
 
-method event*(self: ValueMachine, event: Event, camera: Point2d): (bool, bool) =
-  case event.kind:
-  of MouseButtonDown:
-    if event.button.button == 1:
-      if event.button.clicks == 2:
-        pushMenu(self.inputMenu(mouse() + point2d(-4.0, -4.0)))
-        return (true,false)
-      return (false,true)
-  else:
-    return (false,false)
+#method event*(self: ValueMachine, event: Event, camera: Vec2f): (bool, bool) =
+#  case event.kind:
+#  of MouseButtonDown:
+#    if event.button.button == 1:
+#      if event.button.clicks == 2:
+#        pushMenu(self.inputMenu(mouse() + vec2f(-4.0, -4.0)))
+#        return (true,false)
+#      return (false,true)
+#  else:
+#    return (false,false)
 
-method getMenu*(self: ValueMachine, mv: Point2d): Menu =
+method getMenu*(self: ValueMachine, mv: Vec2f): Menu =
   result = procCall getMenu(Machine(self), mv)
   result.items.add(newMenuItem("set value") do():
     popMenu()

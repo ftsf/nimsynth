@@ -1,18 +1,15 @@
-import basic2d
 import math
 import strutils
 
-import sdl2
-import sdl2.audio
-
-import pico
+import nico
+import nico/vec
 
 import common
 import util
 
-import core.oscillator
-import core.filter
-import core.envelope
+import core/oscillator
+import core/filter
+import core/envelope
 
 
 {.this:self.}
@@ -76,11 +73,9 @@ method init*(self: SynthVoice, machine: Synth) =
 
 
 method addVoice*(self: Synth) =
-  pauseAudio(1)
   var voice = new(SynthVoice)
   voices.add(voice)
   voice.init(self)
-  pauseAudio(0)
 
 method init*(self: Synth) =
   procCall init(Machine(self))

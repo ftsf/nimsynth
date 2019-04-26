@@ -6,7 +6,7 @@ type
     writeHead: int
 
 proc setLen*[T](self: var DelayBuffer[T], length: int) =
-  if self.buffer == nil:
+  if self.buffer.len == 0:
     self.buffer = newSeq[T](max(length,1))
   else:
     self.buffer.setLen(max(length,1))

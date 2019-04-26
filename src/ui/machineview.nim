@@ -1,10 +1,9 @@
 import common
-import pico
+import nico
+import nico/vec
 import strutils
 import util
 import menu
-import basic2d
-import sdl2
 
 ### Machine View
 # Draw a single machine's settings
@@ -98,8 +97,7 @@ method draw*(self: MachineView) =
   machine.drawExtraData(paramWidth + 4, 16, screenWidth - paramWidth - 4, screenHeight - 16)
 
 proc updateParams*(self: MachineView, x,y,w,h: int) =
-  discard
-#if mousebtn(0):
+#  if mousebtn(0):
 #  # drag to adjust value
 #  if dragging:
 #    var (voice, param) = machine.getParameter(currentParam)
@@ -109,34 +107,37 @@ proc updateParams*(self: MachineView, x,y,w,h: int) =
 #    param.onchange(param.value, voice)
 #else:
 #  dragging = false
+  discard
 
 
 method update*(self: MachineView, dt: float) =
 
-  let mv = mouse()
+  let (mx,my) = mouse()
 
-  if mv.x > screenWidth div 3 + paramNameWidth:
+  if mx > screenWidth div 3 + paramNameWidth:
     machine.updateExtraData(screenWidth div 3 + paramNameWidth, 16, screenWidth - 1, screenHeight - 1)
   else:
     updateParams(1,1, screenWidth div 3 + paramNameWidth, screenHeight - 1)
 
-proc key*(self: MachineView, key: KeyboardEventPtr, down: bool): bool =
-  let scancode = key.keysym.scancode
-  let ctrl = ctrl()
-  let shift = (int16(key.keysym.modstate) and int16(KMOD_SHIFT)) != 0
+proc key*(self: MachineView, event: Event): bool =
+  let scancode = event.scancode
+  let ctrl = (event.mods and KMOD_CTRL) != 0
+  let shift = (event.mods and KMOD_SHIFT) != 0
 
   let paramsOnScreen = (screenHeight div 8)
+
+  let down = event.kind == ekKeyDown
 
   var globalParams = addr(machine.globalParams)
   var voiceParams =  addr(machine.voiceParams)
   var nParams = globalParams[].len + voiceParams[].len * machine.voices.len
   if down:
     case scancode:
-    of SDL_SCANCODE_S:
+    of SCANCODE_S:
       if ctrl and down:
         var patchName: string = ""
-        var menu = newMenu(point2d(0,0), "save patch")
-        var te = newMenuItemText("name", if patchName == nil: "" else: patchName)
+        var menu = newMenu(vec2f(0,0), "save patch")
+        var te = newMenuItemText("name", patchName)
         menu.items.add(te)
         menu.items.add(newMenuItem("save") do():
           savePatch(self.machine, te.value)
@@ -144,9 +145,9 @@ proc key*(self: MachineView, key: KeyboardEventPtr, down: bool): bool =
         )
         pushMenu(menu)
         return true
-    of SDL_SCANCODE_O:
+    of SCANCODE_O:
       if ctrl and down:
-        var menu = newMenu(point2d(0,0), "load patch")
+        var menu = newMenu(vec2f(0,0), "load patch")
         for patch in machine.getPatches():
           (proc() =
             let patchName = patch
@@ -157,20 +158,20 @@ proc key*(self: MachineView, key: KeyboardEventPtr, down: bool): bool =
           )()
         pushMenu(menu)
         return true
-    of SDL_SCANCODE_UP:
+    of SCANCODE_UP:
       currentParam -= 1
       if currentParam < 0:
         currentParam = nParams - 1
       return true
-    of SDL_SCANCODE_DOWN:
+    of SCANCODE_DOWN:
       currentParam += 1
       if currentParam > nParams - 1:
         currentParam = 0
       return true
-    of SDL_SCANCODE_LEFT, SDL_SCANCODE_RIGHT:
+    of SCANCODE_LEFT, SCANCODE_RIGHT:
       var (voice, param) = machine.getParameter(currentParam)
       let range = param.max - param.min
-      let dir = if scancode == SDL_SCANCODE_LEFT: -1.0 else: 1.0
+      let dir = if scancode == SCANCODE_LEFT: -1.0 else: 1.0
       case param.kind:
       of Int, Trigger, Note, Bool:
         let move = if ctrl: (if param.kind == Note: 12.0 else: 10.0) else: 1.0
@@ -181,10 +182,10 @@ proc key*(self: MachineView, key: KeyboardEventPtr, down: bool): bool =
       if param.onchange != nil:
         param.onchange(param.value, voice)
       return true
-    of SDL_SCANCODE_KP_PLUS, SDL_SCANCODE_EQUALS:
+    of SCANCODE_KP_PLUS, SCANCODE_EQUALS:
       machine.addVoice()
       return true
-    of SDL_SCANCODE_KP_MINUS, SDL_SCANCODE_MINUS:
+    of SCANCODE_KP_MINUS, SCANCODE_MINUS:
       machine.popVoice()
       return true
 
@@ -197,21 +198,21 @@ proc key*(self: MachineView, key: KeyboardEventPtr, down: bool): bool =
 
 method event*(self: MachineView, event: Event): bool =
   case event.kind:
-  of MouseWheel:
-    scroll -= event.wheel.y
+  of ekMouseWheel:
+    scroll -= event.ywheel
     return true
-  of MouseButtonUp:
-    case event.button.button:
+  of ekMouseButtonUp:
+    case event.button:
     of 1:
       dragging = false
       return true
     else:
       discard
-  of MouseButtonDown:
-    case event.button.button:
+  of ekMouseButtonDown:
+    case event.button:
     of 1:
       # check if they clicked on a param bar
-      let mv = intPoint2d(event.button.x, event.button.y)
+      let mv = vec2f(event.x, event.y)
       var y = 0
       let nParams = machine.getParameterCount()
       for i in scroll..nParams-1:
@@ -225,18 +226,18 @@ method event*(self: MachineView, event: Event): bool =
         y += 8
     else:
       discard
-  of MouseMotion:
+  of ekMouseMotion:
     if dragging:
       var (voice, param) = machine.getParameter(currentParam)
       let paramWidth = screenWidth div 3 + paramNameWidth
       let sliderWidth = paramWidth - 64 - 6
-      param.value = lerp(param.min, param.max, clamp(invLerp(paramNameWidth.float, paramNameWidth.float + sliderWidth.float, event.motion.x.float), 0.0, 1.0))
+      param.value = lerp(param.min, param.max, clamp(invLerp(paramNameWidth.float, paramNameWidth.float + sliderWidth.float, event.x.float), 0.0, 1.0))
       if param.kind == Int or param.kind == Trigger:
         param.value = param.value.int.float
       param.onchange(param.value, voice)
       return true
-  of KeyUp, KeyDown:
-    return key(event.key, event.kind == KeyDown)
+  of ekKeyUp, ekKeyDown:
+    return key(event)
   else:
     discard
   return false

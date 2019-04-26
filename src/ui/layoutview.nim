@@ -1,20 +1,17 @@
-import future
-import basic2d
-import locks
+import sugar
 import math
 import strutils
 
 import common
-import pico
+import nico
+import nico/vec
 import util
-#import synth
-import sdl2.audio
 
-import core.basemachine
-import ui.machineview
-import ui.menu
+import core/basemachine
+import ui/machineview
+import ui/menu
 
-import core.ringbuffer
+import core/ringbuffer
 
 ### Layout View
 # Draw a graph of the machine connections
@@ -22,31 +19,30 @@ import core.ringbuffer
 {.this:self.}
 
 type LayoutView* = ref object of View
-  name*: string
   currentMachine*: Machine
   dragging*: bool
   adjustingInput*: ptr Input
   connecting*: bool
   binding*: bool
-  lastmv*: Point2d
+  lastmv*: Vec2f
   stolenInput*: Machine
-  camera*: Point2d
+  camera*: Vec2f
   panning: bool
 
 const arrowVerts = [
-  point2d(-3,-3),
-  point2d( 3, 0),
-  point2d(-3, 3)
+  vec2f(-3,-3),
+  vec2f( 3, 0),
+  vec2f(-3, 3)
 ]
 
 proc newLayoutView*(): LayoutView =
   result = new(LayoutView)
-  result.camera = point2d(-screenWidth.float / 2.0, -screenHeight.float / 2.0)
+  result.camera = vec2f(screenWidth.float / 2.0, screenHeight.float / 2.0)
   result.currentMachine = nil
 
 import tables
 
-proc addMachineMenu(self: LayoutView, mv: Point2d, title: string, action: proc(mt: MachineType)): Menu =
+proc addMachineMenu(self: LayoutView, mv: Vec2f, title: string, action: proc(mt: MachineType)): Menu =
   var menu = newMenu(mv, title)
   machineTypesByCategory.sort((x,y) => cmp(x[0], y[0]))
   for cat, contents in pairs(machineTypesByCategory):
@@ -79,6 +75,10 @@ method draw*(self: LayoutView) =
     line(0, screenHeight div 2, screenWidth, screenHeight div 2)
 
     for x in 1..<screenWidth:
+      setColor(1)
+      line(x-1,oscilliscopeBufferPrev[x-1],x,oscilliscopeBufferPrev[x])
+
+    for x in 1..<screenWidth:
       let s0 = (oscilliscopeBuffer.length div screenWidth) * (x - 1)
       let s1 = (oscilliscopeBuffer.length div screenWidth) * x
       let y0 = (oscilliscopeBuffer[s0] * 64.0).int + screenHeight div 2
@@ -86,12 +86,10 @@ method draw*(self: LayoutView) =
 
       setColor(if abs(oscilliscopeBuffer[s1]) > 1.0: 2 else: 3)
       line(x-1,y0,x,y1)
-      if oscilliscopeBuffer.head == s1:
-        circfill(x,y1,2)
 
-  setCamera(camera)
+  setCamera(-camera.x, -camera.y)
 
-  var mv = mouse() + camera
+  let mv = mouseVec() - camera
 
   if connecting and currentMachine != nil:
     setColor(1)
@@ -111,9 +109,8 @@ method draw*(self: LayoutView) =
       line(input.machine.pos, machine.pos)
       let mid = (input.machine.pos + machine.pos) / 2.0
       setColor(6)
-      trifill(rotatedPoly(mid, arrowVerts, (machine.pos - input.machine.pos).angle))
-      setColor(if input.machine.mute: 1 else: 13)
-      poly(rotatedPoly(mid, arrowVerts, (machine.pos - input.machine.pos).angle))
+      let rp = rotatedPoly(mid, arrowVerts, (machine.pos - input.machine.pos).angle)
+      trifill(rp)
 
       # if the user is adjusting the gain, draw the gain amount
       if adjustingInput == addr(input):
@@ -134,8 +131,6 @@ method draw*(self: LayoutView) =
           else:
             setColor(14)
             trifill(rotatedPoly(mid, arrowVerts, (binding.machine.pos - machine.pos).angle))
-            setColor(2)
-            poly(rotatedPoly(mid, arrowVerts, (binding.machine.pos - machine.pos).angle))
 
   # draw boxes
   for machine in mitems(machines):
@@ -146,8 +141,8 @@ method draw*(self: LayoutView) =
 
   setCamera()
   setColor(1)
-  if self.name != nil:
-    print(self.name, 1, 1)
+  if layoutName != "":
+    print(layoutName, 1, 1)
   printr("layout", screenWidth - 1, 1)
 
 proc handleStolenEvent(self: LayoutView, event: Event): bool =
@@ -163,9 +158,9 @@ method event*(self: LayoutView, event: Event): bool =
       return true
 
   case event.kind:
-  of MouseButtonDown:
-    let mv = intPoint2d(event.button.x, event.button.y) + camera
-    case event.button.button:
+  of ekMouseButtonDown:
+    let mv = vec2f(event.x, event.y) - camera
+    case event.button:
     of 1:
       # left click, check for machines under cursor
       for machine in mitems(machines):
@@ -180,7 +175,7 @@ method event*(self: LayoutView, event: Event): bool =
                 return true
 
             currentMachine = machine
-            if event.button.clicks == 2:
+            if event.clicks == 2:
               # switch to machineview
               currentView = currentMachine.getMachineView()
             else:
@@ -192,15 +187,14 @@ method event*(self: LayoutView, event: Event): bool =
           let mid = (input.machine.pos + machine.pos) / 2.0
           if pointInAABB(mv, mid.getAABB(4.0)):
             adjustingInput = addr(input)
-            relmouse(true)
             return true
       # clicked on nothing
       currentMachine = nil
     of 2:
       panning = true
-      discard captureMouse(True32)
       return true
     of 3:
+      echo "right click"
       # right click
       for machine in mitems(machines):
         if pointInAABB(mv, machine.getAABB().expandAABB(2.0)):
@@ -221,7 +215,7 @@ method event*(self: LayoutView, event: Event): bool =
           let mid = (input.machine.pos + machine.pos) / 2.0
           var machine = machine
           if pointInAABB(mv, mid.getAABB(4.0)):
-            var menu = newMenu(mv + -camera, "connection")
+            var menu = newMenu(mouseVec(), "connection")
             menu.items.add(newMenuItem("disconnect", proc() =
               disconnectMachines(input.machine, machine)
               popMenu()
@@ -232,9 +226,7 @@ method event*(self: LayoutView, event: Event): bool =
                 var m = mtype.factory()
                 echo "inserting ", mtype.name
                 m.pos = mv
-                pauseAudio(1)
-                withLock machineLock:
-                  machines.add(m)
+                machines.add(m)
                 self.currentMachine = m
                 # connect it
                 if connectMachines(m, machine):
@@ -246,7 +238,6 @@ method event*(self: LayoutView, event: Event): bool =
                 else:
                   echo "failed to connect: ", m.name, " and ", input.machine.name
                   discard machines.pop()
-                pauseAudio(0)
                 popMenu()
                 popMenu()
               )
@@ -262,7 +253,7 @@ method event*(self: LayoutView, event: Event): bool =
                 # show all bindings between the two machines
                 var sourceMachine = machine
                 var targetMachine = binding.machine
-                var menu = newMenu(mv + -camera, "remove bindings")
+                var menu = newMenu(mouseVec(), "remove bindings")
                 for slot,binding in sourceMachine.bindings:
                   (proc() =
                     let slot = slot
@@ -283,57 +274,54 @@ method event*(self: LayoutView, event: Event): bool =
                 pushMenu(menu)
                 return
 
-      pushMenu(self.addMachineMenu(mv + -camera, "add machine") do(mtype: MachineType):
+      pushMenu(self.addMachineMenu(mouseVec(), "add machine") do(mtype: MachineType):
         var m = mtype.factory()
-        m.pos = mv
-        pauseAudio(1)
-        machines.add(m)
-        self.currentMachine = m
-        pauseAudio(0)
+        if m != nil:
+          m.pos = mv
+          machines.add(m)
+          self.currentMachine = m
+          echo "added machine: ", m.name
         popMenu()
       )
       return true
     else:
       discard
 
-  of MouseMotion:
-    let mv = intPoint2d(event.motion.x, event.motion.y) + camera
+  of ekMouseMotion:
+    let mv = vec2f(event.x, event.y) - camera
     if adjustingInput != nil:
-      let shift = (getModState() and KMOD_SHIFT) != 0
+      let shift = (event.mods and KMOD_SHIFT.uint16) != 0
       let move = if ctrl: 0.1 elif shift: 0.001 else: 0.01
       #adjustingInput[].gain = clamp(adjustingInput[].gain + (lastmv.y - mv.y) * move, 0.0, 10.0)
       let gain = adjustingInput[].gain
       adjustingInput[].gain = clamp(adjustingInput[].gain + (lastmv.y - mv.y) * move, 0.0, 10.0)
       lastmv = mv
-      return true
+      return false
     if dragging:
       currentMachine.pos += mv - lastmv
       lastmv = mv
-      return true
+      return false
     if panning:
-      camera -= (mv - lastmv)
-      return true
+      camera += mouserelVec()
+      return false
     lastmv = mv
-    return true
+    return false
 
-  of MouseButtonUp:
-    let mv = intPoint2d(event.button.x, event.button.y) + camera
-    case event.button.button:
+  of ekMouseButtonUp:
+    let mv = vec2f(event.x, event.y) - camera
+    case event.button:
     of 1:
       dragging = false
       adjustingInput = nil
-      relmouse(false)
       return true
     of 2:
       panning = false
-      relmouse(false)
-      discard captureMouse(False32)
       return true
     of 3:
-      relmouse(false)
       if currentMachine != nil and pointInAABB(mv, currentMachine.getAABB.expandAABB(2)):
+        echo "right click release on same machine ", currentMachine.name
         # open machine context menu
-        pushMenu(currentMachine.getMenu(mv + -camera))
+        pushMenu(currentMachine.getMenu(mouseVec()))
         connecting = false
         binding = false
         return true
@@ -370,12 +358,14 @@ method event*(self: LayoutView, event: Event): bool =
         for machine in mitems(machines):
           if pointInAABB(mv, machine.getAABB):
             if machine != currentMachine:
+              echo "right click release on different machine while binding ", currentMachine.name, " -> ", machine.name
               var target = machine
               var source = currentMachine
               if source.nBindings > 1:
-                pushMenu(currentMachine.getSlotMenu(mv + -camera) do(slotId: int):
+                echo "source has more than one binding"
+                pushMenu(currentMachine.getSlotMenu(mouseVec()) do(slotId: int):
                   proc bindParamMenu(slotId: int) =
-                    pushMenu(target.getParameterMenu(mv + -self.camera, "slot " & $slotId & " -> ") do(paramId: int):
+                    pushMenu(target.getParameterMenu(mouseVec(), "slot " & $slotId & " -> ") do(paramId: int):
                       createBinding(source, slotId, target, paramId)
                       popMenu()
                       if not shift():
@@ -387,7 +377,8 @@ method event*(self: LayoutView, event: Event): bool =
                   bindParamMenu(slotId)
                 )
               else:
-                pushMenu(machine.getParameterMenu(mv + -camera, "select param") do(paramId: int):
+                echo "source has one binding"
+                pushMenu(machine.getParameterMenu(mouseVec(), "select param") do(paramId: int):
                   createBinding(source, 0, target, paramId)
                   popMenu()
                 )
@@ -397,66 +388,65 @@ method event*(self: LayoutView, event: Event): bool =
     else:
       discard
 
-  of KeyDown, KeyUp:
-    let scancode = event.key.keysym.scancode
-    let down = event.kind == KeyDown
+  of ekKeyDown, ekKeyUp:
+    let scancode = event.scancode
+    let down = event.kind == ekKeyDown
 
     if down:
       case scancode:
-      of SDL_SCANCODE_S:
+      of SCANCODE_S:
         if down and ctrl:
           # TODO: ask for filename
-          var menu = newMenu(mouse(), "save song")
-          var te = newMenuItemText("name", if self.name == nil: "" else: self.name)
+          var menu = newMenu(mouseVec(), "save song")
+          var te = newMenuItemText("name", layoutName)
           menu.items.add(te)
           menu.items.add(newMenuItem("save") do():
-            self.name = te.value
-            if self.name in getLayouts():
-              var menu = newMenu(point2d(0,0), "overwrite '" & self.name & "'?")
+            if te.value in getLayouts():
+              var menu = newMenu(vec2f(0,0), "overwrite '" & te.value & "'?")
               menu.items.add(newMenuItem("no") do():
                 popMenu()
                 popMenu()
               )
               menu.items.add(newMenuItem("yes") do():
-                saveLayout(self.name)
+                layoutName = te.value
+                saveLayout(layoutName)
                 popMenu()
                 popMenu()
               )
               pushMenu(menu)
             else:
-              saveLayout(self.name)
+              layoutName = te.value
+              saveLayout(layoutName)
               popMenu()
           )
           pushMenu(menu)
-      of SDL_SCANCODE_O:
+      of SCANCODE_O:
         if down and ctrl:
           # TODO: show list of layout files
-          var menu = newMenu(mouse(), "select file to load")
+          var menu = newMenu(mouseVec(), "select file to load")
 
           for i,layout in getLayouts():
             (proc() =
               let layout = layout
               menu.items.add(newMenuItem(layout) do():
                 loadLayout(layout)
-                if self.name == nil:
-                  self.name = layout
                 popMenu()
               )
             )()
           pushMenu(menu)
-      of SDL_SCANCODE_F2:
+      of SCANCODE_F2:
         if currentMachine != nil:
           currentView = currentMachine.getMachineView()
           return true
-      of SDL_SCANCODE_2:
+      of SCANCODE_2:
         if ctrl:
           if currentMachine != nil:
             currentView = currentMachine.getMachineView()
             return true
-      of SDL_SCANCODE_HOME:
-          camera = point2d(-screenWidth.float / 2.0, -screenHeight.float / 2.0)
+      of SCANCODE_HOME:
+          camera = vec2f(-screenWidth.float / 2.0, -screenHeight.float / 2.0)
           return true
-      of SDL_SCANCODE_DELETE, SDL_SCANCODE_BACKSPACE:
+      of SCANCODE_DELETE, SCANCODE_BACKSPACE:
         if currentMachine != nil and currentMachine != masterMachine:
           currentMachine.delete()
           currentMachine = nil

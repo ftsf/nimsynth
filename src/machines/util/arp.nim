@@ -1,6 +1,6 @@
 import math
 
-import pico
+import nico
 
 import common
 

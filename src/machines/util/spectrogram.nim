@@ -1,9 +1,9 @@
-import core.fft
+import core/fft
 import common
-import core.basemachine
-import pico
+import core/basemachine
+import nico
 import util
-import core.ringbuffer
+import core/ringbuffer
 import strutils
 import math
 
