@@ -133,7 +133,7 @@ method init*(self: GBSynth) =
             else:
               discard
 
-            v.nextEnvUpdate = sampleRate.int div 64
+            v.nextEnvUpdate = sampleRate.int div 32
             v.samplesLeft = v.noteLength
             v.volume = if voice == 2: 15 else: v.envInit
             v.enabled = true

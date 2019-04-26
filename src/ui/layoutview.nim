@@ -75,10 +75,6 @@ method draw*(self: LayoutView) =
     line(0, screenHeight div 2, screenWidth, screenHeight div 2)
 
     for x in 1..<screenWidth:
-      setColor(1)
-      line(x-1,oscilliscopeBufferPrev[x-1],x,oscilliscopeBufferPrev[x])
-
-    for x in 1..<screenWidth:
       let s0 = (oscilliscopeBuffer.length div screenWidth) * (x - 1)
       let s1 = (oscilliscopeBuffer.length div screenWidth) * x
       let y0 = (oscilliscopeBuffer[s0] * 64.0).int + screenHeight div 2
