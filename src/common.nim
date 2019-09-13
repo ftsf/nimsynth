@@ -901,7 +901,7 @@ proc valueString*(self: Parameter, value: float): string =
 
 proc ctrl*(): bool =
   when defined(osx):
-    return key(K_GUI)
+    return key(K_LGUI)
   else:
     return key(K_LCTRL)
 
