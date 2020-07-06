@@ -1,16 +1,13 @@
 import math
 import strutils
 
-import sdl2
-import sdl2.audio
-
-import pico
+import nico
 
 import common
 
-import core.envelope
-import core.sample
-import ui.menu
+import core/envelope
+import core/sample
+import ui/menu
 
 import machines.master
 
@@ -67,12 +64,14 @@ method process*(self: Looper) {.inline.} =
         playing = false
 
 method updateExtraData(self: Looper, x,y,w,h: int) =
-  if mousebtnp(1):
-    let mv = mouse()
-    pushMenu(newSampleMenu(mv, basePath & "samples/") do(sample: Sample):
+  if mousebtnp(0):
+    let (mx,my) = mouse()
+    # open sample selection menu
+    pushMenu(newSampleMenu(vec2f(mx,my), "samples/") do(sample: Sample):
       self.osc.sample = sample
       self.osc.reset()
     )
+
 
 method saveExtraData(self: Looper): string =
   result = ""

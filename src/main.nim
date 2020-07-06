@@ -25,9 +25,11 @@ import machines/fx/gate
 import machines/fx/sandh
 import machines/fx/bitcrush
 import machines/fx/mod_amp
+import machines/fx/stereo
 
 import machines/generators/clock
 import machines/generators/adsr
+import machines/generators/eadsr
 import machines/generators/basicfm
 import machines/generators/fmsynth
 import machines/generators/gbsynth
@@ -38,6 +40,11 @@ import machines/generators/osc
 import machines/generators/synth
 import machines/generators/tb303
 import machines/generators/mod_lfsr
+#import machines/generators/ym2612
+import machines/generators/kayoubi
+import machines/generators/sampler
+import machines/generators/looper
+import machines/generators/granular
 
 import machines/io/filerec
 import machines/io/keyboard
@@ -48,8 +55,11 @@ import machines/math/accumulator
 import machines/ui/button
 import machines/ui/knob
 import machines/ui/value
+import machines/ui/xy
 
 import machines/util/arp
+import machines/util/chord
+import machines/util/chordprog
 import machines/util/dc
 import machines/util/karp
 import machines/util/lfo
@@ -62,10 +72,13 @@ import machines/util/sequencer
 import machines/util/split
 import machines/util/transposer
 import machines/util/spectrogram
+import machines/util/scale
 
 import ui/machineview
 import ui/layoutview
 import ui/menu
+
+import core/sample
 
 var glitch = 0.0
 var panic: bool
@@ -75,7 +88,7 @@ when defined(jack):
   import jack.jack
   import jack.midiport
 
-  import machines.io.audioin
+import machines.io.audioin
 
 when defined(jack):
   var J: ptr JackClient
@@ -133,9 +146,13 @@ when defined(jack):
 
       # update all machines
       for machine in mitems(machines):
-        if not machine.disabled:
+        if not machine.disabled and not machine.bypass:
           if machine.stereo or sampleId mod 2 == 0:
             machine.process()
+            for input in mitems(machine.inputs):
+              let s = abs(input.getSample())
+              if s > input.peak:
+                input.peak = s
 
       if i mod 2 == 0:
         samplesL[time] = masterMachine.outputSamples[0]
@@ -156,23 +173,40 @@ when defined(jack):
 
 else:
 
-  proc audioCallback(): float32 =
+  proc audioCallback(input: float32): float32 =
     glitch = 0.0
 
     if panic:
       return 0.0
 
     sampleId += 1
+
+    inputSample = audioInSample
+
     # update all machines
     for machine in mitems(machines):
+      if machine.disabled or machine.bypass:
+        continue
       if machine.stereo or sampleId mod 2 == 0:
         machine.process()
+        for input in mitems(machine.inputs):
+          let s = abs(input.getSample())
+          if s > input.peak:
+            input.peak = s
+
     var output = masterMachine.outputSamples[0]
     if abs(output) > 1.0:
       glitch += abs(output) - 1.0
 
-    if sampleId mod 2 == 0 and sampleMachine != nil:
+    if not oscilliscopeFreeze and sampleId mod 2 == 0 and sampleMachine != nil:
       oscilliscopeBuffer.add([sampleMachine.outputSamples[0]])
+
+    if samplePreview != nil:
+      output += samplePreview.data[samplePreviewIndex]
+      if samplePreview.channels == 2 or sampleId mod 2 == 0:
+        samplePreviewIndex += 1
+        if samplePreviewIndex >= samplePreview.length:
+          samplePreview = nil
 
     return output
 
@@ -278,9 +312,13 @@ proc eventFunc(event: Event): bool =
       case scancode:
         of SCANCODE_SLASH:
           baseOctave -= 1
+          if baseOctave < 0:
+            baseOctave = 0
           return true
         of SCANCODE_APOSTROPHE:
           baseOctave += 1
+          if baseOctave > 8:
+            baseOctave = 8
           return true
         of SCANCODE_N:
           if ctrl:
@@ -326,6 +364,10 @@ proc eventFunc(event: Event): bool =
   return false
 
 proc init() =
+  setAudioBufferSize(4096)
+
+  invSampleRate = 1.0 / sampleRate
+
   loadSpriteSheet(0, "spritesheet.png")
   setSpritesheet(0)
 
@@ -375,7 +417,7 @@ proc init() =
     echo "connected to jack"
   else:
     echo "using SDL audio"
-    audioCallback(0, audioCallback, true)
+    setAudioCallback(0, audioCallback, true)
 
     proc signalHandler() {.noconv.} =
       echo "signal recved exiting"
@@ -404,7 +446,13 @@ proc update(dt: float32) =
   if currentView != nil:
     currentView.update(dt)
 
+  for m in machines:
+    m.update(dt)
+    for input in mitems(m.inputs):
+      input.peak *= 0.9
+
 proc draw() =
+  frame += 1
   var shortcut_w = (screenWidth - 64) / shortcuts.len;
   if currentView != nil:
     currentView.draw()
@@ -453,4 +501,7 @@ proc draw() =
 
 nico.init("impbox","nimsynth")
 nico.createWindow("nimsynth",1920 div 4,1200 div 4,3,false)
+
+hideMouse()
+
 nico.run(init, update, draw)

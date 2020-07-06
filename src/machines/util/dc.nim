@@ -8,7 +8,7 @@ type
     filterL: OnePoleFilter
     filterR: OnePoleFilter
 
-const cutoff = 10.0
+const cutoff = 10.0'f
 
 {.this:self.}
 
@@ -23,8 +23,8 @@ method init(self: DCRemover) =
 
   filterL.kind = Highpass
   filterR.kind = Highpass
-  filterL.setCutoff(cutoff * invSampleRate)
-  filterR.setCutoff(cutoff * invSampleRate)
+  filterL.setCutoff(cutoff)
+  filterR.setCutoff(cutoff)
 
   filterL.calc()
   filterR.calc()

@@ -27,25 +27,39 @@ type
     osc1Amount: float
     osc1Kind: OscKind
     osc1Pw: float
+    osc1Semi: float
+    osc1Cent: float
+
     osc2Amount: float
     osc2Kind: OscKind
     osc2Pw: float
     osc2Semi: float
     osc2Cent: float
+
+    osc3Kind: OscKind
     osc3Amount: float
+    osc3Pw: float
+
     osc4Amount: float
+
     glissando: float
+    vibratoAmp: float
+    vibratoOsc: LFOOsc
     filterKind: FilterKind
     cutoff: float
     resonance: float
-    env: array[3, tuple[a,d,decayExp,s,r: float]]
+    env: array[3, EnvelopeSettings]
     env2CutoffMod: float
-    env3PitchMod: float
+    env3PitchMod1: float
+    env3PitchMod2: float
     env3QMod: float
     env3O2GainMod: float
+
     keytracking: float
     keytrkReference: int
+
     retrigger: bool
+    sync: bool
 
 method init*(self: SynthVoice, machine: Synth) =
   procCall init(Voice(self), machine)
@@ -53,6 +67,12 @@ method init*(self: SynthVoice, machine: Synth) =
   osc2.kind = Saw
   osc3.kind = Sin
   osc4.kind = Noise
+
+  osc1.init()
+  osc2.init()
+  osc3.init()
+  osc4.init()
+
   env1.init()
   env1.a = 0.0001
   env1.d = 0.1
@@ -77,11 +97,35 @@ method addVoice*(self: Synth) =
   voices.add(voice)
   voice.init(self)
 
+proc initNote(self: Synth, voiceId: int, note: int) =
+    var voice: SynthVoice = SynthVoice(self.voices[voiceId])
+    voice.note = note
+    if note == OffNote:
+      voice.env1.release()
+      voice.env2.release()
+      voice.env3.release()
+    else:
+      voice.pitch = noteToHz(note.float)
+      if not self.retrigger:
+        voice.env1.triggerIfReady(voice.velocity)
+        voice.env2.triggerIfReady(voice.velocity)
+        voice.env3.triggerIfReady(voice.velocity)
+      else:
+        voice.env1.trigger(voice.velocity)
+        voice.env2.trigger(voice.velocity)
+        voice.env3.trigger(voice.velocity)
+
+
+
 method init*(self: Synth) =
   procCall init(Machine(self))
   name = "synth"
   nInputs = 0
   nOutputs = 1
+  useKeyboard = true
+
+  vibratoOsc.kind = Sin
+  vibratoOsc.freq = 1'f
 
   self.globalParams.add([
     Parameter(name: "osc1", kind: Int, min: 0.0, max: OscKind.high.int.float, default: Saw.int.float, onchange: proc(newValue: float, voice: int) =
@@ -89,18 +133,25 @@ method init*(self: Synth) =
     , getValueString: proc(value: float, voice: int): string =
         return $(value.OscKind)
     ),
-    Parameter(name: "pw", kind: Float, min: 0.01, max: 0.99, default: 0.5, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "osc1pw", kind: Float, min: 0.01, max: 0.99, default: 0.5, onchange: proc(newValue: float, voice: int) =
       self.osc1Pw = newValue
     ),
     Parameter(name: "osc1gain", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
       self.osc1Amount = newValue
     ),
+    Parameter(name: "osc1semi", kind: Int, min: -24.0, max: 24.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.osc1Semi = newValue.int.float
+    ),
+    Parameter(name: "osc1cent", kind: Int, min: -100.0, max: 100.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.osc1Cent = newValue.int.float
+    ),
+
     Parameter(name: "osc2", kind: Int, separator: true, min: 0.0, max: OscKind.high.int.float, default: Saw.int.float, onchange: proc(newValue: float, voice: int) =
       self.osc2Kind = newValue.OscKind
     , getValueString: proc(value: float, voice: int): string =
         return $(value.OscKind)
     ),
-    Parameter(name: "pw", kind: Float, min: 0.01, max: 0.99, default: 0.5, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "osc2pw", kind: Float, min: 0.01, max: 0.99, default: 0.5, onchange: proc(newValue: float, voice: int) =
       self.osc2Pw = newValue
     ),
     Parameter(name: "osc2gain", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
@@ -112,9 +163,19 @@ method init*(self: Synth) =
     Parameter(name: "osc2cent", kind: Int, min: -100.0, max: 100.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
       self.osc2Cent = newValue.int.float
     ),
-    Parameter(name: "sub", kind: Float, separator: true, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+
+    Parameter(name: "sub", kind: Int, separator: true, min: 0.0, max: OscKind.high.int.float, default: Sin.int.float, onchange: proc(newValue: float, voice: int) =
+      self.osc3Kind = newValue.OscKind
+    , getValueString: proc(value: float, voice: int): string =
+        return $(value.OscKind)
+    ),
+    Parameter(name: "subgain", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.osc3Amount = newValue
     ),
+    Parameter(name: "pw", kind: Float, min: 0.01, max: 0.99, default: 0.5, onchange: proc(newValue: float, voice: int) =
+      self.osc2Pw = newValue
+    ),
+
     Parameter(name: "noise", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.osc4Amount = newValue
     ),
@@ -196,8 +257,11 @@ method init*(self: Synth) =
     , getValueString: proc(value: float, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
-    Parameter(name: "env3 pmod", kind: Float, min: -24.0, max: 24.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
-      self.env3PitchMod = newValue
+    Parameter(name: "env3 pmod1", kind: Float, min: -24.0, max: 24.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.env3PitchMod1 = newValue
+    ),
+    Parameter(name: "env3 pmod2", kind: Float, min: -24.0, max: 24.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.env3PitchMod2 = newValue
     ),
     Parameter(name: "env3 qmod", kind: Float, min: -10.0, max: 10.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.env3QMod = newValue
@@ -208,6 +272,12 @@ method init*(self: Synth) =
     Parameter(name: "glissando", kind: Float, separator: true, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.glissando = exp(lerp(-12.0, 0.0, 1.0-newValue))
     ),
+    Parameter(name: "vib freq", kind: Float, min: 0.1, max: 100.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
+      self.vibratoOsc.freq = newValue
+    ),
+    Parameter(name: "vib amp", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.vibratoAmp = newValue
+    ),
     Parameter(name: "ktrk", kind: Float, min: -2.0, max: 2.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
       self.keytracking = newValue
     ),
@@ -217,26 +287,13 @@ method init*(self: Synth) =
     Parameter(name: "retrig", kind: Bool, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
       self.retrigger = newValue.bool
     ),
+    Parameter(name: "sync", kind: Bool, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.sync = newValue.bool
+    ),
   ])
   self.voiceParams.add([
     Parameter(name: "note", kind: Note, deferred: true, separator: true, min: OffNote, max: 255.0, default: OffNote, onchange: proc(newValue: float, voice: int) =
-      var voice: SynthVoice = SynthVoice(self.voices[voice])
-      voice.note = newValue.int
-      if newValue == OffNote:
-        voice.env1.release()
-        voice.env2.release()
-        voice.env3.release()
-      else:
-        voice.pitch = noteToHz(newValue)
-        if not self.retrigger:
-          voice.env1.triggerIfReady(voice.velocity)
-          voice.env2.triggerIfReady(voice.velocity)
-          voice.env3.triggerIfReady(voice.velocity)
-        else:
-          voice.env1.trigger(voice.velocity)
-          voice.env2.trigger(voice.velocity)
-          voice.env3.trigger(voice.velocity)
-
+      self.initNote(voice, newValue.int)
     , getValueString: proc(value: float, voice: int): string =
       if value == OffNote:
         return "Off"
@@ -284,23 +341,32 @@ method process*(self: Synth) {.inline.} =
     v.osc1.kind = osc1Kind
     v.glissando.setCutoff(glissando)
     v.glissando.calc()
-    v.osc1.freq = v.glissando.process(v.pitch)
-    v.osc1.freq *= pow(2.0, (v.env3.process() * env3PitchMod) / 12.0)
-    v.osc1.pulseWidth = osc1Pw
-    v.osc2.kind = osc2Kind
-    v.osc2.freq = v.osc1.freq * pow(2.0, osc2Cent / 1200.0 + osc2Semi / 12.0)
-    v.osc2.pulseWidth = osc2Pw
-    v.osc3.kind = Sin
-    #v.osc3.pulseWidth = osc1Pw
-    v.osc3.freq = v.osc1.freq * 0.5
 
     let env1v = v.env1.process()
     let env2v = v.env2.process()
     let env3v = v.env3.process()
+    let vibv = vibratoOsc.process() * vibratoAmp
+    let baseFreq = v.glissando.process(v.pitch) * pow(2'f, vibv / 12'f)
 
-    var vs = (v.osc1.process() * osc1Amount + v.osc2.process() * (osc2Amount + env3v * env3O2GainMod) + v.osc3.process() * osc3Amount + v.osc4.process() * osc4Amount) * env1v
+    v.osc1.freq = baseFreq
+    v.osc1.freq = baseFreq * pow(2.0'f, osc1Cent / 1200.0'f + osc1Semi / 12.0'f)
+    v.osc1.freq = v.osc1.freq * pow(2.0'f, (env3v * env3PitchMod1) / 12.0'f)
+    v.osc1.pulseWidth = osc1Pw
+    v.osc2.kind = osc2Kind
+    v.osc2.freq = baseFreq * pow(2.0'f, osc2Cent / 1200.0'f + osc2Semi / 12.0'f)
+    v.osc2.freq = v.osc2.freq * pow(2.0'f, (env3v * env3PitchMod2) / 12.0'f)
+    v.osc2.pulseWidth = osc2Pw
+    v.osc3.kind = osc3Kind
+    v.osc3.freq = v.osc1.freq * 0.5'f
+
+    let osc1out = v.osc1.process()
+    if sync and v.osc1.cycled:
+      v.osc2.phase = 0.0'f
+    let osc2out = v.osc2.process()
+
+    var vs = (osc1out * osc1Amount + osc2out * (osc2Amount + env3v * env3O2GainMod) + v.osc3.process() * osc3Amount + v.osc4.process() * osc4Amount) * env1v
     v.filter.kind = filterKind
-    v.filter.cutoff = cutoff * (1.0 + (env2v * env2CutoffMod)) * (1.0 + pow(2.0, (((hzToNote(v.pitch) - keytrkReference.float) / 12.0) * keytracking)))
+    v.filter.cutoff = cutoff * (1.0'f + (env2v * env2CutoffMod)) * (1.0'f + pow(2.0'f, (((hzToNote(v.pitch) - keytrkReference.float32) / 12.0'f) * keytracking)))
     v.filter.resonance = max(0.0001, resonance + env3v * env3QMod)
     v.filter.calc()
     vs = v.filter.process(vs)
@@ -313,3 +379,20 @@ method drawExtraData(self: Synth, x,y,w,h: int) =
   setColor(5)
   drawEnvs(env, x,y,w,48)
   y += 64
+
+method trigger*(self: Synth, note: int) =
+  for i,voice in mpairs(voices):
+    var v = SynthVoice(voice)
+    if v.note == OffNote:
+      initNote(i, note)
+      let param = v.getParameter(0)
+      param.value = note.float
+      return
+
+method release*(self: Synth, note: int) =
+  for i,voice in mpairs(voices):
+    var v = SynthVoice(voice)
+    if v.note == note:
+      initNote(i, OffNote)
+      let param = v.getParameter(0)
+      param.value = OffNote.float

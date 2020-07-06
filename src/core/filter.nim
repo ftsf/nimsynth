@@ -20,13 +20,16 @@ type
 
   BaseFilter* = object of RootObj
     kind*: FilterKind
-    cutoff*: float
-    resonance*: float
+    cutoff*: float32
+    resonance*: float32
+
+  AllpassFilter* = object of BaseFilter
+    state: float32
 
   BiquadFilter* = object of BaseFilter
-    a0,a1,a2,b1,b2: float
-    peakGain*: float
-    z1,z2: float
+    a0,a1,a2,b1,b2: float32
+    peakGain*: float32
+    z1,z2: float32
 
   #MoogFilter* = object of BaseFilter
   #  state: array[4, float]
@@ -35,12 +38,12 @@ type
   #  stepSize: float
 
   MoogFilter* = object of BaseFilter
-    p0,p1,p2,p3,p32,p33,p34: float
+    p0,p1,p2,p3,p32,p33,p34: float32
 
   OnePoleFilter* = object of BaseFilter
-    a0: float
-    b1: float
-    z1: float
+    a0: float32
+    b1: float32
+    z1: float32
 
 method init*(self: var BaseFilter) {.base.} =
   cutoff = 1.0
@@ -49,10 +52,14 @@ method init*(self: var BaseFilter) {.base.} =
 method process*(self: var BaseFilter, sample: float32): float32 {.base.} =
   return sample
 
-method setCutoff*(self: var BaseFilter, cutoff: float) {.base.} =
+method process*(self: var AllpassFilter, sample: float32): float32 =
+  result = self.state + self.cutoff * sample
+  self.state = sample - self.cutoff * result
+
+method setCutoff*(self: var BaseFilter, cutoff: float32) {.base.} =
   self.cutoff = cutoff
 
-method setResonance*(self: var BaseFilter, q: float) {.base.} =
+method setResonance*(self: var BaseFilter, q: float32) {.base.} =
   self.resonance = q
 
 method calc*(self: var BaseFilter) {.base.} =
@@ -64,12 +71,12 @@ method reset*(self: var BaseFilter) {.base.} =
 ##############
 # BiquadFilter
 
-method setCutoff*(self: var BiquadFilter, cutoff: float) =
+method setCutoff*(self: var BiquadFilter, cutoff: float32) =
   self.cutoff = clamp(cutoff, 0.0001, 0.4999)
 
 method calc*(self: var BiquadFilter) =
   cutoff = clamp(cutoff, 0.0001, 0.499)
-  var norm: float
+  var norm: float32
   let V = pow(10.0, abs(peakGain) / 20.0)
   let K = tan(PI * cutoff)
   case kind:
@@ -180,12 +187,12 @@ method process*(self: var BiquadFilter, sample: float32): float32 =
 ############
 # MoogFilter
 
-proc fastTanh(x: float): float =
+proc fastTanh(x: float32): float32 =
   let x2 = x * x
-  return x * (27.0 + x2) / (27.0 + 9.0 * x2)
+  return x * (27.0'f + x2) / (27.0'f + 9.0'f * x2)
 
-method setCutoff*(self: var MoogFilter, cutoff: float) =
-  self.cutoff = 2.0 * PI * cutoff
+method setCutoff*(self: var MoogFilter, cutoff: float32) =
+  self.cutoff = 2.0'f * PI * cutoff
   #self.cutoff = min(cutoff * 2.0 * PI / sampleRate, 1.0)
 
 
@@ -246,8 +253,8 @@ method init*(self: var MoogFilter) =
 #  return state[3]
 
 method process*(self: var MoogFilter, sample: float32): float32 =
-  let k = resonance * 4.0
-  result = p3 * 0.360891 + p32 * 0.417290 + p33 * 0.177896 + p34 * 0.0439725
+  let k = resonance * 4.0'f
+  result = p3 * 0.360891'f + p32 * 0.417290'f + p33 * 0.177896'f + p34 * 0.0439725'f
   p34 = p33
   p33 = p32
   p32 = p3
@@ -261,21 +268,21 @@ method process*(self: var MoogFilter, sample: float32): float32 =
 # One Pole Filter
 
 method init*(self: var OnePoleFilter) =
-  a0 = 1.0
-  b1 = 0.0
-  z1 = 0.0
-  cutoff = 1.0
+  a0 = 1.0'f
+  b1 = 0.0'f
+  z1 = 0.0'f
+  cutoff = 1.0'f
 
 method calc*(self: var OnePoleFilter) =
   if kind == Lowpass:
-    b1 = exp(-2.0 * PI * cutoff)
-    a0 = 1.0 - b1
+    b1 = exp(-2.0'f * PI * cutoff)
+    a0 = 1.0'f - b1
   elif kind == Highpass:
-    b1 = -exp(-2.0 * PI * (0.5 - cutoff))
-    a0 = 1.0 + b1
+    b1 = -exp(-2.0'f * PI * (0.5'f - cutoff))
+    a0 = 1.0'f + b1
 
 
-method setCutoff*(self: var OnePoleFilter, cutoff: float) =
+method setCutoff*(self: var OnePoleFilter, cutoff: float32) =
   self.cutoff = cutoff
   calc()
 

@@ -1,17 +1,19 @@
 import common
 import math
+import strutils
 
 type
   BitCrush = ref object of Machine
     bitDepth: uint8
 
 proc snapToBitDepth(sample: float32, bitDepth: uint8): float32 =
-  let maxValue = pow(2.0,bitDepth.float).int
-  let s = (clamp(sample, -1.0, 1.0) + 1.0) / 2.0 # convert to float 0..1
-  let sint = (s * maxValue.float).int # convert to int
-  # convert back to float
-  result = ((sint.float / maxValue.float) - 0.5) * 2.0
-
+  if bitDepth == 32:
+    return sample
+  let s0to1 = clamp(sample * 0.5'f + 0.5'f, 0'f, 1'f)
+  let maxVal = 1'u32 shl bitDepth - 1'u32
+  let sint = min(maxVal, (s0to1 * (maxVal + 1'u32).float32).uint32)
+  let o = (sint.float32 / maxVal.float32) * 2.0'f - 1.0'f
+  return o
 
 {.this:self.}
 
@@ -43,6 +45,7 @@ import unittest
 
 suite "bitrate":
   test "snapToBitDepth":
+    check(snapToBitDepth(0.1, 1) == 1.0)
     check(snapToBitDepth(-0.1, 1) == -1.0)
     check(snapToBitDepth(1.0, 1) == 1.0)
     check(snapToBitDepth(-1.0, 1) == -1.0)

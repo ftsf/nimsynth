@@ -39,6 +39,7 @@ method init(self: Kit) =
   nOutputs = 1
   nInputs = 0
   stereo = true
+  useKeyboard = true
 
   voiceParams.add([
     Parameter(name: "trigger", separator: true, deferred: true, kind: Float, min: 0.0, max: 1.0, onchange: proc(newValue: float, voice: int) =
@@ -63,7 +64,10 @@ method init(self: Kit) =
     ),
   ])
 
-  setDefaults()
+  self.setDefaults()
+
+  for i in 0..<4:
+    self.addVoice()
 
 method process*(self: Kit) {.inline.} =
   outputSamples[0] = 0.0
@@ -82,18 +86,20 @@ method drawExtraData(self: Kit, x,y,w,h: int) =
   yv += 9
   for i in 0..<voices.len:
     var v = KitVoice(voices[i])
-    print($i & ": " & (if v.osc.sample != nil: v.osc.sample.name else: " - "), x, yv)
+    print($(i+1) & ": " & (if v.osc.sample != nil: v.osc.sample.name else: " - "), x, yv)
     yv += 9
 
 method updateExtraData(self: Kit, x,y,w,h: int) =
-  if mousebtnp(1):
+  if mousebtnp(0):
     let (mx,my) = mouse()
-    let voice = (my - y - 9) div 9
+    var voice = (my - y - 9) div 9
     if voice >= 0 and voice < voices.len:
       # open sample selection menu
-      pushMenu(newSampleMenu(vec2f(mx,my), basePath & "samples/") do(sample: Sample):
+      pushMenu(newSampleMenu(vec2f(mx,my), "samples/") do(sample: Sample):
         var v = KitVoice(self.voices[voice])
         v.osc.sample = sample
+        if voice >= 0 and voice < voices.high:
+          voice += 1
       )
 
 method saveExtraData(self: Kit): string =
@@ -117,6 +123,7 @@ method loadExtraData(self: Kit, data: string) =
     var v = KitVoice(voices[voice])
     v.osc.sample = loadSample(sline.split("|")[0], sline.split("|")[1])
     voice += 1
+
 
 proc newKit(): Machine =
   var kit = new(Kit)

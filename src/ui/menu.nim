@@ -15,6 +15,7 @@ type
   MenuItem* = ref object of RootObj
     label*: string
     action*: proc()
+    altAction*: proc()
     status*: MenuItemStatus
   MenuItemText* = ref object of MenuItem
     default*: string
@@ -27,6 +28,9 @@ type
     selected*: int
     back*: proc()
     textInputItem: MenuItemText
+    scroll*: int
+    rows*,cols*: int
+    colWidth*: int
 
 var menuStack*: seq[Menu]
 
@@ -52,6 +56,7 @@ proc newMenu*(pos: Vec2f, label: string = ""): Menu =
   result.items = newSeq[MenuItem]()
   result.selected = -1
   result.textInputItem = nil
+  result.scroll = 0
 
 proc newMenuItem*(label: string, action: proc() = nil, status: MenuItemStatus = Default): MenuItem =
   result = new(MenuItem)
@@ -83,6 +88,10 @@ proc getAABB*(self: Menu): AABB =
   result.max.y = result.min.y + rows.float * 9.0 + 2.0
   let cols = 1 + items.len div rows
   result.max.x = result.min.x + cols.float * 64.0 + 4
+
+  self.rows = rows
+  self.cols = cols
+  self.colWidth = 64
 
 method draw*(self: MenuItem, x,y,w: int, selected: bool): int {.base.} =
   setColor(
@@ -124,6 +133,7 @@ proc draw*(self: Menu) =
   let w = (aabb.max.x - aabb.min.x).int
   let h = (aabb.max.y - aabb.min.y).int
 
+  # clamp to screen edges
   if aabb.max.x > screenWidth + cx:
     pos.x = (screenWidth + cy - w).float32
   if aabb.max.y > screenHeight + cx:
@@ -133,38 +143,58 @@ proc draw*(self: Menu) =
   let y = pos.y.int
 
   setColor(1)
-  rectfill(aabb)
+  rrectfill(aabb)
   var yv = y + 2
   var xv = x
   if label != "":
     setColor(13)
     print(label, x + 2, yv)
     yv += 9
+
   let starty = yv
-  for i,item in items:
+  for i in scroll..<items.len:
+    let item = items[i]
     yv += item.draw(xv, yv, 64, selected == i)
     if yv >= aabb.max.y:
       yv = starty
       xv += 64
 
   setColor(6)
-  rect(aabb)
+  rrect(aabb)
+
+proc getItemAtPos(self: Menu, mv: Vec2f): int =
+  let aabb = self.getAABB()
+  let rows = (aabb.max.y - aabb.min.y) div 9 - (if label != "": 1 else: 0)
+  let column = (mv.x - pos.x).int div 64
+  let row = (mv.y - pos.y).int div 9 - (if label != "": 1 else: 0)
+  if row < 0:
+    return -1
+  if row >= rows:
+    return -1
+  let item = row + (column * rows) + scroll
+  if item >= 0 and item < items.len:
+    return item
+  return -1
 
 proc event*(self: Menu, event: Event): bool =
   case event.kind:
+  of ekMouseWheel:
+    self.scroll = clamp(self.scroll - event.ywheel, 0, items.high)
+    let mv = mouseVec()
+    let aabb = self.getAABB()
+    if pointInAABB(mv, aabb):
+      # determine item under cursor
+      let item = self.getItemAtPos(mv)
+      if item >= 0:
+        selected = item
+    return true
   of ekMouseMotion:
     let mv = mouseVec()
     let aabb = self.getAABB()
-    if pointInAABB(mv, self.getAABB()):
-      let rows = (aabb.max.y - aabb.min.y) div 9 - (if label != "": 1 else: 0)
-      let column = (mv.x - pos.x).int div 64
-      let row = (mv.y - pos.y).int div 9 - (if label != "": 1 else: 0)
-      if row < 0:
-        return false
-      if row >= rows:
-        return false
-      let item = row + (column * rows)
-      if item >= 0 and item < items.len:
+    if pointInAABB(mv, aabb):
+      # determine item under cursor
+      let item = self.getItemAtPos(mv)
+      if item >= 0:
         selected = item
       return false
 
@@ -172,7 +202,9 @@ proc event*(self: Menu, event: Event): bool =
     let mv = mouseVec()
     if pointInAABB(mv, self.getAABB()):
       if event.button == 1 and selected >= 0:
-        if items[selected].action != nil:
+        if ctrl() and items[selected].altAction != nil:
+          items[selected].altAction()
+        if ctrl() == false and items[selected].action != nil:
           items[selected].action()
       return true
 
@@ -238,7 +270,6 @@ proc event*(self: Menu, event: Event): bool =
         return true
       else:
         discard
-      return true
   else:
     discard
 

@@ -115,6 +115,7 @@ method process(self: LFO) {.inline.} =
   if freq == 0.0:
     return
   let oscVal = osc.process()
+
   for binding in bindings:
     if binding.machine != nil:
       var (voice, param) = binding.machine.getParameter(binding.param)
@@ -155,7 +156,7 @@ method drawBox*(self: LFO) =
       setColor(7)
     else:
       setColor(1)
-    let val = osc.peek(osc.phase + ((i.float / 30.float) * TAU))
+    let val = osc.peek(osc.phase + ((i.float32 / 30.float32)))
     pset(pos.x + i, pos.y + 9 - val * 4.0)
 
 
