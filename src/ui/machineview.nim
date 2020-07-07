@@ -14,6 +14,7 @@ type MachineView* = ref object of View
   machine*: Machine
   currentParam*: int
   dragging: bool
+  clickPos: Vec2f
   scroll*: int
 
 const maxPatchSlots = 64
@@ -40,8 +41,8 @@ proc drawParams*(self: MachineView, x,y,w,h: int) =
         line(x,yv,x+paramNameWidth + sliderWidth,yv)
         yv += 4
 
-      setColor(if i == currentParam: 8 else: 7)
-      print((if voice > -1: $voice & ": " else: "") & param.name, x, yv)
+      setColor(if i == currentParam: 8 elif param.fav: 10 else: 7)
+      print((if voice > -1: $(voice+1) & ": " else: "") & param.name, x, yv)
       printr(param[].valueString(param.value), x + 63, yv)
       var range = (param.max - param.min)
       if range == 0.0:
@@ -58,9 +59,10 @@ proc drawParams*(self: MachineView, x,y,w,h: int) =
       rectfill(zeroX, yv, x + paramNameWidth + sliderWidth.float * invLerp(param.min, param.max, param.value), yv+4)
 
       # draw default bar
-      setColor(7)
-      let defaultX = x + paramNameWidth + sliderWidth.float * invLerp(param.min, param.max, param.default)
-      line(defaultX, yv, defaultX, yv+4)
+      if param.kind != Note:
+        setColor(7)
+        let defaultX = x + paramNameWidth + sliderWidth.float * invLerp(param.min, param.max, param.default)
+        line(defaultX, yv, defaultX, yv+4)
 
       yv += 8
       i += 1
@@ -82,8 +84,6 @@ proc drawParams*(self: MachineView, x,y,w,h: int) =
         let yStart = currentParam.float / nParams.float
         let yEnd = (currentParam+1).float / nParams.float
         rectfill(x + w - 4, y + h.float * yStart, x + w, y + h.float * yEnd)
-
-
 
 method draw*(self: MachineView) =
   let paramsOnScreen = (screenHeight div 8)
@@ -121,6 +121,7 @@ method update*(self: MachineView, dt: float) =
 
 proc key*(self: MachineView, event: Event): bool =
   let scancode = event.scancode
+  let keycode = event.keycode
   let ctrl = (event.mods and KMOD_CTRL) != 0
   let shift = (event.mods and KMOD_SHIFT) != 0
 
@@ -188,12 +189,23 @@ proc key*(self: MachineView, event: Event): bool =
     of SCANCODE_KP_MINUS, SCANCODE_MINUS:
       machine.popVoice()
       return true
+    of SCANCODE_SPACE:
+      var (voice, param) = machine.getParameter(currentParam)
+      param.fav = not param.fav
+      return true
 
     else:
       discard
 
   # TODO: handle extra keys for the machine
 
+  if event.repeat == 0:
+    let note = keyToNote(event.keycode)
+    if note != -3:
+      if down:
+        machine.trigger(note)
+      else:
+        machine.release(note)
   return false
 
 method event*(self: MachineView, event: Event): bool =
@@ -213,17 +225,45 @@ method event*(self: MachineView, event: Event): bool =
     of 1:
       # check if they clicked on a param bar
       let mv = vec2f(event.x, event.y)
-      var y = 0
-      let nParams = machine.getParameterCount()
-      for i in scroll..nParams-1:
-        var (voice, param) = machine.getParameter(i)
-        if param.separator:
-          y += 4
-        if mv.y >= y and mv.y <= y + 7:
-          currentParam = i
-          dragging = true
-          return true
-        y += 8
+      if mv.x < screenWidth div 3 + paramNameWidth:
+        if mv.x > screenWidth div 3 + paramNameWidth - 5:
+          # scrollbar
+          # TODO: adjust scroll based on click
+          discard
+        else:
+          var y = 0
+          let nParams = machine.getParameterCount()
+          for i in scroll..nParams-1:
+            var (voice, param) = machine.getParameter(i)
+            if param.separator:
+              y += 4
+            if mv.y >= y and mv.y <= y + 7:
+              currentParam = i
+              dragging = true
+              clickPos = mv
+              return true
+            y += 8
+    of 3:
+      # check if they clicked on a param bar
+      # reset to default value
+      let mv = vec2f(event.x, event.y)
+      if mv.x < screenWidth div 3 + paramNameWidth:
+        if mv.x > screenWidth div 3 + paramNameWidth - 5:
+          discard
+        else:
+          var y = 0
+          let nParams = machine.getParameterCount()
+          for i in scroll..nParams-1:
+            var (voice, param) = machine.getParameter(i)
+            if param.separator:
+              y += 4
+            if mv.y >= y and mv.y <= y + 7:
+              currentParam = i
+              let (voice,param) = machine.getParameter(currentParam)
+              param.value = param.default
+              param.onchange(param.value, voice)
+              return true
+            y += 8
     else:
       discard
   of ekMouseMotion:
@@ -231,11 +271,28 @@ method event*(self: MachineView, event: Event): bool =
       var (voice, param) = machine.getParameter(currentParam)
       let paramWidth = screenWidth div 3 + paramNameWidth
       let sliderWidth = paramWidth - 64 - 6
-      param.value = lerp(param.min, param.max, clamp(invLerp(paramNameWidth.float, paramNameWidth.float + sliderWidth.float, event.x.float), 0.0, 1.0))
-      if param.kind == Int or param.kind == Trigger:
-        param.value = param.value.int.float
+      if shift():
+        # jump directly to value
+        param.value = lerp(param.min, param.max, clamp(invLerp(paramNameWidth.float, paramNameWidth.float + sliderWidth.float, event.x.float), 0.0, 1.0))
+      else:
+        # relative shift
+        let range = param.max - param.min
+        let ydist = event.y.float - clickPos.y
+        let sensitivity = clamp(10.0 / abs(event.y.float - clickPos.y))
+        let speed = (range / sliderWidth.float) * sensitivity
+        if ydist < 3:
+          param.value = lerp(param.min, param.max, clamp(invLerp(paramNameWidth.float, paramNameWidth.float + sliderWidth.float, event.x.float), 0.0, 1.0))
+        else:
+          param.value = clamp(param.value + event.xrel * speed, param.min, param.max)
+      #if param.kind == Int or param.kind == Trigger:
+      #  if param.value > 0:
+      #    param.value = (param.value + 0.5).int.float
+      #  elif param.value < 0:
+      #    param.value = (param.value - 0.5).int.float
+      #  else:
+      #    param.value = param.value.int.float
       param.onchange(param.value, voice)
-      return true
+      return false
   of ekKeyUp, ekKeyDown:
     return key(event)
   else:

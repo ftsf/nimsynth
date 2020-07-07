@@ -78,12 +78,30 @@ proc initNote(self: Organ, voiceId: int, note: int) =
     voice.env.r = self.envSettings.r
     voice.env.trigger()
 
+method trigger(self: Organ, note: int) =
+  for i,voice in mpairs(voices):
+    var v = OrganVoice(voice)
+    if v.note == OffNote:
+      initNote(i, note)
+      let param = v.getParameter(0)
+      param.value = note.float
+      return
+
+method release(self: Organ, note: int) =
+  for i,voice in mpairs(voices):
+    var v = OrganVoice(voice)
+    if v.note == note:
+      initNote(i, OffNote)
+      let param = v.getParameter(0)
+      param.value = OffNote.float
+
 method init(self: Organ) =
   procCall init(Machine(self))
 
   nInputs = 0
   nOutputs = 1
   stereo = false
+  useKeyboard = true
 
   name = "organ"
 

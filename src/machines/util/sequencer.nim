@@ -25,7 +25,7 @@ type
     Red
     Yellow
     White
-  Pattern* = ref object of RootObj
+  Pattern* = ref object
     name*: string
     color*: PatternColor
     rows*: seq[array[colsPerPattern, int]]
@@ -47,16 +47,22 @@ type
     currentStep*: int
     currentColumn*: int
     subColumn*: int
+    groove*: int
+    humanization: float32
 
     playingPattern*: int
     nextPattern*: int
 
+    humanizationMap: seq[float32]
+
     step*: int
     ticksPerBeat*: int
+    beatsPerBar*: int
     playing: bool
     subTick: float
     looping: bool
     recording: bool
+    recordColumn: int
 
   SequencerView* = ref object of MachineView
     clipboard: Pattern
@@ -64,13 +70,28 @@ type
 proc mapSeqValueToParamValue(value: int, param: ptr Parameter): float =
   case param.kind:
   of Bool:
-    return (if value == 1.0: 1.0 else: 0.0)
-  of Note, Int:
+    return (if value == 0: 0.0 else: 1.0)
+  of Note:
+    return value.float
+  of Int:
     return clamp(value.float, param.min, param.max)
   of Trigger:
     return (if value == 1: 1.0 else: 0.0)
   of Float:
     return lerp(param.min, param.max, invLerp(0.0, 999.0, clamp(value, 0, 999).float))
+
+proc mapParamValueToSeqValue(value: float, param: ptr Parameter): int =
+  case param.kind:
+  of Bool:
+    return (if value == 0.0: 0 else: 1)
+  of Note:
+    return value.int
+  of Int:
+    return value.int
+  of Trigger:
+    return (if value == 0.0: 0 else: 1)
+  of Float:
+    return lerp(0'f, 999'f, invLerp(param.min, param.max, value)).int
 
 proc newPattern*(length: int = 16): Pattern =
   result = new(Pattern)
@@ -80,12 +101,41 @@ proc newPattern*(length: int = 16): Pattern =
     for col in mitems(row):
       col = Blank
 
+proc setPattern(self: Sequencer, patId: int) =
+  self.currentPattern = clamp(patId, 0, self.patterns.high)
+  if self.patterns[self.currentPattern] == nil:
+    self.patterns[self.currentPattern] = newPattern()
+  self.currentStep = clamp(self.currentStep, 0, self.patterns[self.currentPattern].rows.high)
+
+proc playPattern(self: Sequencer, patId: int) =
+  self.playingPattern = clamp(patId, 0, self.patterns.high)
+  self.subTick = 0'f
+
+  if self.patterns[self.playingPattern] == nil:
+    self.playing = false
+    self.step = 0
+  else:
+    self.playing = true
+    self.step = self.patterns[self.playingPattern].loopStart
+
+    if self.humanization > 0:
+      self.humanizationMap = newSeq[float32](self.patterns[self.playingPattern].rows.len * colsPerPattern)
+      var sum = 0'f
+      for i in 0..<self.humanizationMap.len:
+        self.humanizationMap[i] = 1.0'f + rnd(self.humanization)
+        sum += self.humanizationMap[i]
+      for i in 0..<self.humanizationMap.len:
+        self.humanizationMap[i] /= sum
+        self.humanizationMap[i] *= self.humanizationMap.len.float32 * colsPerPattern
+
 method init*(self: Sequencer) =
   procCall init(Machine(self))
 
   patterns = newSeq[Pattern](maxPatterns)
   patterns[0] = newPattern(16)
   ticksPerBeat = 4
+  nextPattern = -1
+  beatsPerBar = 4
   subTick = 0.0
   name = "seq"
   nOutputs = 0
@@ -93,28 +143,12 @@ method init*(self: Sequencer) =
   nBindings = 8
   bindings.setLen(8)
   useMidi = true
+  stereo = false
+  humanization = 0'f
 
   globalParams.add([
-    Parameter(kind: Int, name: "pattern", min: 0.0, max: 63.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
-      self.playingPattern = clamp(newValue.int, 0, maxPatterns)
-      if self.patterns[self.playingPattern] == nil:
-        self.subTick = 0.0
-        self.step = 0
-        self.playing = false
-      else:
-        self.subTick = 0.0
-        self.step = 0
-        self.playing = true
-        self.globalParams[1].value = self.playingPattern.float
-        self.globalParams[1].onchange(self.playingPattern.float, -1)
-    , getValueString: proc(value: float, voice: int): string =
-      if self.patterns[value.int] != nil:
-        return $value.int & ": " & self.patterns[value.int].name
-      else:
-        return $value.int & ": empty"
-    ),
-    Parameter(kind: Int, name: "next", min: 0.0, max: 63.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
-      self.nextPattern = clamp(newValue.int, 0, maxPatterns)
+    Parameter(kind: Int, name: "pattern", min: 0.0, max: 63.0, default: 0.0, ignoreSave: true, onchange: proc(newValue: float, voice: int) =
+      self.playPattern(newValue.int)
     , getValueString: proc(value: float, voice: int): string =
       if self.patterns[value.int] != nil:
         return $value.int & ": " & self.patterns[value.int].name
@@ -126,6 +160,12 @@ method init*(self: Sequencer) =
     , getValueString: proc(value: float, voice: int): string =
       return (if value < 0: "1/" & $(-value.int) else: $value.int)
     ),
+    Parameter(kind: Int, name: "groove", min: -4.0, max: 4.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.groove = newValue.int
+    ),
+    Parameter(kind: Float, name: "human", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.humanization = newValue.float32
+    ),
     Parameter(kind: Int, name: "loop", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.looping = newValue.bool
     , getValueString: proc(value: float, voice: int): string =
@@ -136,15 +176,8 @@ method init*(self: Sequencer) =
     , getValueString: proc(value: float, voice: int): string =
       return (if value == 1.0: "on" else: "off")
     ),
-    Parameter(kind: Float, name: "tick", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
-      if self.patterns[self.playingPattern] != nil:
-        self.step = (newValue * self.patterns[self.playingPattern].rows.high.float).int
-        self.subTick = 0.0
-    , getValueString: proc(value: float, voice: int): string =
-      if self.patterns[self.playingPattern] == nil:
-        return ""
-      else:
-        return $(value * self.patterns[self.playingPattern].rows.high.float).int
+    Parameter(kind: Int, name: "bpb", min: 1.0, max: 16.0, default: 4.0, onchange: proc(newValue: float, voice: int) =
+      self.beatsPerBar = newValue.int
     ),
   ])
 
@@ -237,9 +270,18 @@ proc drawPattern(self: Sequencer, x,y,w,h: int) =
         let y = y + (subTick * 8.0).int
         line(x, y, x + colsPerPattern * 17, y)
 
+    if ticksPerBeat > 0:
+      if i mod ticksPerBeat == 0 and (i div ticksPerBeat) mod beatsPerBar == 0:
+        setColor(0)
+        line(x, y, x + colsPerPattern * 17, y)
+
     # draw step number
-    setColor(if i == currentStep: 12 elif ticksPerBeat > 1 and i %% ticksPerBeat == 0: 6 else: 13)
-    printr($i, x + 9, y + 1)
+    if ticksPerBeat < 1 or i mod ticksPerBeat == 0:
+      setColor(if i == currentStep: 12 elif ticksPerBeat > 1 and i %% ticksPerBeat == 0: 6 else: 13)
+      if ticksPerBeat < 1:
+        printr($i, x + 9, y + 1)
+      else:
+        printr($(((i div ticksPerBeat) mod beatsPerBar) + 1), x + 9, y + 1)
 
     # draw values in columns
     for col,val in row:
@@ -349,16 +391,14 @@ proc drawPatternSelector(self: Sequencer, x,y,w,h: int) =
 method update(self: SequencerView, dt: float) =
   var s = Sequencer(machine)
 
-  s.currentPattern = clamp(s.currentPattern, 0, 63)
-
   updateParams(screenWidth - 128, 8, 126, screenHeight - 9)
 
 method draw*(self: SequencerView) =
   cls()
-  var sequencer = Sequencer(machine)
-  if sequencer.patterns[sequencer.currentPattern] == nil:
-    sequencer.patterns[sequencer.currentPattern] = newPattern(16)
+  let sequencer = Sequencer(machine)
+
   let pattern = sequencer.patterns[sequencer.currentPattern]
+
   let startStep = clamp(sequencer.currentStep-7,0,pattern.rows.high)
 
   setColor(6)
@@ -368,11 +408,19 @@ method draw*(self: SequencerView) =
   block:
     setColor(4)
     if sequencer.bindings[sequencer.currentColumn].machine != nil:
+      # if column is bound
       var binding = sequencer.bindings[sequencer.currentColumn]
       var (voice, param) = binding.machine.getParameter(binding.param)
       print(binding.machine.name & ": " & (if voice != -1: $voice & ": " else: "") & param.name, 1, 9+8)
+      # show current value
+      let value = pattern.rows[sequencer.currentStep][sequencer.currentColumn]
+      let valueFloat = mapSeqValueToParamValue(value, param)
+      if param.getValueString != nil:
+        print(param.getValueString(valueFloat, voice), 1, 9+8+8)
+      else:
+        print(valueFloat.formatFloat(ffDecimal, 4), 1, 9+8+8)
     else:
-      print($sequencer.currentColumn & ": unbound", 1, 9+8)
+      print($(sequencer.currentColumn+1) & ": unbound", 1, 9+8)
 
     for i in 0..colsPerPattern-1:
       if sequencer.bindings[i].machine == nil:
@@ -380,7 +428,7 @@ method draw*(self: SequencerView) =
       else:
         rectfill(i * 16 + 13, 8, i * 16 + 13 + 12, 15)
 
-  sequencer.drawPattern(1,24,screenWidth - 1,screenHeight - 49)
+  sequencer.drawPattern(1,32,screenWidth - 1,screenHeight - 49)
 
   sequencer.drawPatternSelector(colsPerPattern * 17 + 24, 24, 8 * 9, 8 * 9)
 
@@ -397,11 +445,11 @@ method draw*(self: SequencerView) =
         print("value: " & param[].valueString(value), 1, screenHeight - 8)
       if param.kind == Note:
         # draw keyboard
-        sspr(0,91,49,127-91, screenWidth - 100, screenHeight - 76, 98, 76)
+        sspr(0,93,48,35, screenWidth - 48 * 2, screenHeight - 35 * 2 - 16, 48 * 2, 35 * 2)
         # draw octaves
         setColor(7)
-        print($baseOctave, screenWidth - 110, screenHeight - 24, 2)
-        print($(baseOctave + 1), screenWidth - 110, screenHeight - 56, 2)
+        print($(baseOctave - 1), screenWidth - 110, screenHeight - 24, 2)
+        print($baseOctave, screenWidth - 110, screenHeight - 56, 2)
 
 
   drawParams(screenWidth - 128, 8, 126, screenHeight - 100)
@@ -413,6 +461,14 @@ method process*(self: Sequencer) =
     return
   if playing:
     if subTick == 0.0:
+      if recording:
+        # read binding param value into cell
+        var pat = self.patterns[playingPattern]
+        for i in 0..<colsPerPattern:
+          if bindings[i].isBound():
+            var (voice, param) = bindings[i].machine.getParameter(bindings[i].param)
+            pat.rows[step][i] = mapParamValueToSeqValue(param.value, param)
+
       # update all params first then call onchange on all
       # this is so multiple changes can be made at once
       for i,binding in bindings:
@@ -437,23 +493,29 @@ method process*(self: Sequencer) =
             param.value = mapSeqValueToParamValue(value, param)
             param.onchange(param.value, voice)
 
-    let ticksPerBeat = if ticksPerBeat < 0: 1.0 / -ticksPerBeat.float else: ticksPerBeat.float
-    subTick += invSampleRate * beatsPerSecond() * ticksPerBeat.float
+    var realTicksPerBeat = if ticksPerBeat < 0: 1.0 / -ticksPerBeat.float else: ticksPerBeat.float
+    if realTicksPerBeat >= 1:
+      if groove > 0:
+        if step mod 2 == 0:
+          realTicksPerBeat += groove.float32
+        else:
+          realTicksPerBeat -= groove.float32
+    if self.humanization > 0 and self.humanizationMap.len == pattern.rows.len:
+      subTick += invSampleRate * beatsPerSecond() * realTicksPerBeat.float * self.humanizationMap[self.step]
+    else:
+      subTick += invSampleRate * beatsPerSecond() * realTicksPerBeat.float
     if subTick >= 1.0:
       step += 1
       subTick = 0.0
       if step > pattern.rows.high or (pattern.loopEnd != pattern.loopStart and step > pattern.loopEnd):
         # reached end of pattern
-        if nextPattern != playingPattern:
-          playingPattern = nextPattern
-          let pattern = patterns[playingPattern]
-          step = pattern.loopStart
+        if nextPattern != playingPattern and nextPattern >= 0:
+          playPattern(nextPattern)
+          nextPattern = -1
         else:
-          step = pattern.loopStart
+          playPattern(playingPattern)
           if not looping:
             playing = false
-
-    globalParams[5].value = step.float / pattern.rows.high.float
 
 proc setValue(self: Sequencer, newValue: int) =
   var pattern = patterns[currentPattern]
@@ -506,11 +568,19 @@ proc key*(self: SequencerView, event: Event): bool =
   if scancode == SCANCODE_L and ctrl and down:
     # toggle loop
     if s.looping:
-      s.globalParams[3].value = 0.0
-      s.globalParams[3].onchange(0.0, -1)
+      s.globalParams[4].value = 0.0
+      s.globalParams[4].onchange(0.0, -1)
     else:
-      s.globalParams[3].value = 1.0
-      s.globalParams[3].onchange(1.0, -1)
+      s.globalParams[4].value = 1.0
+      s.globalParams[4].onchange(1.0, -1)
+    return true
+  elif scancode == SCANCODE_G and ctrl and down:
+    if s.groove == 0:
+      s.globalParams[2].value = 1.0
+      s.globalParams[2].onchange(1.0, -1)
+    else:
+      s.globalParams[2].value = 0.0
+      s.globalParams[2].onchange(0.0, -1)
     return true
   elif scancode == SCANCODE_B and ctrl and down:
     pattern.loopStart = s.currentStep
@@ -527,11 +597,7 @@ proc key*(self: SequencerView, event: Event): bool =
   elif scancode == SCANCODE_LEFT and down:
     if ctrl:
       # prev pattern
-      s.currentPattern -= 1
-      if s.currentPattern < 0:
-        s.currentPattern = s.patterns.high
-      if s.patterns[s.currentPattern] == nil:
-        s.patterns[s.currentPattern] = newPattern()
+      s.setPattern(s.currentPattern-1)
       return true
     else:
       s.subColumn -= 1
@@ -555,11 +621,7 @@ proc key*(self: SequencerView, event: Event): bool =
   elif scancode == SCANCODE_RIGHT and down:
     if ctrl:
       # next pattern
-      s.currentPattern += 1
-      if s.currentPattern > s.patterns.high:
-        s.patterns.add(newPattern())
-      if s.patterns[s.currentPattern] == nil:
-        s.patterns[s.currentPattern] = newPattern()
+      s.setPattern(s.currentPattern+1)
       return true
     else:
       var maxSubCol = 0
@@ -592,6 +654,9 @@ proc key*(self: SequencerView, event: Event): bool =
       let length = s.patterns[s.currentPattern].rows.len
       s.patterns[s.currentPattern].rows.setLen(max(length div 2, 1))
       return true
+    else:
+      s.currentStep = max(s.currentStep - s.beatsPerBar * s.ticksPerBeat, 0)
+      return true
   elif scancode == SCANCODE_PAGEDOWN and down:
     if ctrl:
       let length = s.patterns[s.currentPattern].rows.len
@@ -600,6 +665,9 @@ proc key*(self: SequencerView, event: Event): bool =
       for i in length..(length*2)-1:
         for c in 0..colsPerPattern-1:
           s.patterns[s.currentPattern].rows[i][c] = Blank
+      return true
+    else:
+      s.currentStep = clamp(s.currentStep + s.beatsPerBar * s.ticksPerBeat, 0, s.patterns[s.currentPattern].rows.high)
       return true
   elif scancode == SCANCODE_SPACE and down:
     if s.currentPattern == s.playingPattern:
@@ -625,20 +693,60 @@ proc key*(self: SequencerView, event: Event): bool =
     return true
   elif scancode == SCANCODE_MINUS and down:
     # lower tpb
-    var (voice, param) = s.getParameter(2)
+    var param = s.getParameterByName("tpb")
     s.ticksPerBeat -= 1
     param.value = s.ticksPerBeat.float
-    param.onchange(param.value, voice)
+    param.onchange(param.value, -1)
     return true
   elif scancode == SCANCODE_EQUALS and down:
     # increase tpb
-    var (voice, param) = s.getParameter(2)
+    var param = s.getParameterByName("tpb")
     s.ticksPerBeat += 1
     param.value = s.ticksPerBeat.float
-    param.onchange(param.value, voice)
+    param.onchange(param.value, -1)
     return true
-  elif (scancode == SCANCODE_BACKSPACE or scancode == SCANCODE_DELETE) and down:
+  elif down and scancode == SCANCODE_BACKSPACE:
     s.setValue(Blank)
+  elif down and scancode == SCANCODE_DELETE:
+    if ctrl:
+      # remove current cell and move everything up one
+      let pat = s.patterns[s.currentPattern]
+      # copy all rows below current up one
+      for i in s.currentStep..<pat.rows.high:
+        pat.rows[i][s.currentColumn] = pat.rows[i+1][s.currentColumn]
+      pat.rows[pat.rows.high][s.currentColumn] = Blank
+      return true
+
+    else:
+      # remove current row and move everything up one row
+      let pat = s.patterns[s.currentPattern]
+      # copy all rows below current up one
+      for i in s.currentStep..<pat.rows.high:
+        pat.rows[i] = pat.rows[i+1]
+      for col in 0..<colsPerPattern:
+        pat.rows[pat.rows.high][col] = Blank
+      return true
+
+  elif down and scancode == SCANCODE_INSERT:
+    if ctrl:
+      # insert a new row, move everything down one row
+      let pat = s.patterns[s.currentPattern]
+      # copy all rows below current down one
+      for i in countdown(pat.rows.high, s.currentStep+1):
+        pat.rows[i][s.currentColumn] = pat.rows[i-1][s.currentColumn]
+      pat.rows[s.currentStep][s.currentColumn] = Blank
+      return true
+
+    else:
+      # insert a new row, move everything down one row
+      let pat = s.patterns[s.currentPattern]
+      # copy all rows below current down one
+      for i in countdown(pat.rows.high, s.currentStep+1):
+        pat.rows[i] = pat.rows[i-1]
+      for col in 0..<colsPerPattern:
+        pat.rows[s.currentStep][col] = Blank
+      return true
+
   elif scancode == SCANCODE_T and ctrl and down:
     var menu = newMenu(vec2f(
       (s.currentColumn * 16 + 12).float,
@@ -796,17 +904,12 @@ method event(self: SequencerView, event: Event): bool =
       let patId = clamp(y * 8 + x, 0, 63)
 
       if event.button == 1:
-        if ctrl:
+        if ctrl():
           if s.patterns[patId] != nil:
             s.nextPattern = patId
-            s.globalParams[1].value = s.nextPattern.float
           return
         else:
-          s.currentPattern = patId
-          if s.currentPattern > s.patterns.high:
-            s.patterns.setLen(s.currentPattern+1)
-            if s.patterns[s.currentPattern] == nil:
-              s.patterns[s.currentPattern] = newPattern()
+          s.setPattern(patId)
           return
       elif event.button == 3 and down:
         if s.patterns[patId] == nil:

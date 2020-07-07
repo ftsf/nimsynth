@@ -105,16 +105,17 @@ method process(self: Operator) {.inline.} =
     outputSamples[0] = pow(getInput(0), getInput(1))
 
 method getAABB(self: Operator): AABB =
-  result.min.x = pos.x - 4
-  result.min.y = pos.y - 4
-  result.max.x = pos.x + 4
-  result.max.y = pos.y + 4
+  result.min.x = (pos.x.int - 5).float32
+  result.min.y = (pos.y.int - 5).float32
+  result.max.x = (pos.x.int + 5).float32
+  result.max.y = (pos.y.int + 5).float32
 
 method getAABB(self: OperatorE): AABB =
-  result.min.x = pos.x - 4
-  result.min.y = pos.y - 4
-  result.max.x = pos.x + 4
-  result.max.y = pos.y + 4
+  result.min.x = (pos.x.int - 5).float32
+  result.min.y = (pos.y.int - 5).float32
+  result.max.x = (pos.x.int + 5).float32
+  result.max.y = (pos.y.int + 5).float32
+
 
 method drawBox(self: Operator) =
   setColor(1)

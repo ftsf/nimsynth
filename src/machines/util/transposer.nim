@@ -23,7 +23,7 @@ method init(self: Transposer) =
   name = "transp"
 
   globalParams.add([
-    Parameter(name: "input", kind: Float, deferred: true, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "input", kind: Note, deferred: true, min: OffNote, max: 255.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
       if self.bindings[0].isBound():
         var (voice,param) = self.bindings[0].getParameter()
         if newValue == OffNote:

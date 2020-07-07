@@ -8,7 +8,7 @@ import core.lfsr
 type
   LFSRMachine = ref object of Machine
     lfsr: LFSR
-    freq: float
+    freq: float32
     nextClick: int
 
 method init(self: LFSRMachine) =
@@ -17,13 +17,13 @@ method init(self: LFSRMachine) =
   nInputs = 0
   nOutputs = 1
   stereo = false
+  nextClick = 1
 
   lfsr.init()
 
   globalParams.add([
-    Parameter(kind: Float, name: "freq", min: 0.0001, max: 24000.0, default: 440.0, onchange: proc(newValue: float, voice: int) =
-      self.freq = newValue
-      self.nextClick = ((1.0 / self.freq) * sampleRate).int
+    Parameter(kind: Float, name: "freq", min: 20.0'f, max: 24000.0'f, default: 440.0'f, onchange: proc(newValue: float, voice: int) =
+      self.freq = clamp(newValue, 20.0'f, 24000'f)
     ),
   ])
 
@@ -33,7 +33,10 @@ method process(self: LFSRMachine) =
   nextClick -= 1
   if nextClick <= 0:
     discard lfsr.process()
-    nextClick = ((1.0 / freq) * sampleRate).int
+    if freq <= 1.0'f:
+      nextClick = sampleRate.int
+    else:
+      nextClick = ((1.0 / freq) * sampleRate).int
   outputSamples[0] = lfsr.output
 
 proc newMachine(): Machine =

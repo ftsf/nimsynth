@@ -25,7 +25,6 @@ proc setValue(self: ValueMachine, value: float) =
     param.value = value
     param.onchange(value, voice)
 
-  self.name = ($self.value)[0..6]
   self.globalParams[0].value = value
 
 method init(self: ValueMachine) =

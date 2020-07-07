@@ -4,33 +4,12 @@ import nico
 
 import common
 
-import machines.master
+import machines/master
+
+import core/chords
 
 
 {.this:self.}
-
-type Chord = tuple[name: string, intervals: seq[int]]
-
-const chords = [
-  ("oct", @[0]),
-  ("maj", @[0,4,7]),
-  ("min", @[0,3,7]),
-  ("dim", @[0,3,6]),
-  ("aug", @[0,4,8]),
-  ("sus4", @[0,5,7]),
-  ("sus2", @[0,2,7]),
-  ("7", @[0,4,7,10]),
-  ("maj7", @[0,4,7,11]),
-  ("min7", @[0,3,7,9]),
-  ("mmaj7", @[0,3,7,11]),
-  ("hdim", @[0,3,6,10]),
-  ("dim7", @[0,3,6,9]),
-  ("7dim5", @[0,4,6,10]),
-  ("maj7dim5", @[0,4,6,11]),
-  ("maj7aug5", @[0,4,8,11]),
-  ("7sus4", @[0,5,7,10]),
-  ("maj7sus4", @[0,5,7,11]),
-]
 
 type ArpMode = enum
   Up
@@ -72,10 +51,10 @@ method init(self: Arp) =
     , getValueString: proc(value: float, voice: int): string =
       return noteToNoteName(value.int)
     ),
-    Parameter(kind: Int, name: "chord", min: 0.0, max: chords.high.float, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Int, name: "chord", min: 0.0, max: chordList.high.float, default: 0.0, onchange: proc(newValue: float, voice: int) =
       self.chord = newValue.int
     , getValueString: proc(value: float, voice: int): string =
-      return chords[value.int][0]
+      return chordList[value.int][0]
     ),
     Parameter(kind: Int, name: "mode", min: mode.low.float, max: mode.high.float, default: Up.float, onchange: proc(newValue: float, voice: int) =
       self.mode = newValue.ArpMode
@@ -102,7 +81,7 @@ method process(self: Arp) =
     if bindings[0].machine != nil:
       if lastTick != i:
         var (voice, param) = bindings[0].getParameter()
-        let intervals = chords[chord][1]
+        let intervals = chordList[chord][1]
 
         var j = i
         case mode:
@@ -117,7 +96,7 @@ method process(self: Arp) =
         param.onchange(param.value, voice)
 
 method drawExtraData(self: Arp, x,y,w,h: int) =
-  let intervals = chords[chord][1]
+  let intervals = chordList[chord][1]
   var yv = y
   for i in 0..nNotes-1:
     setColor(if i == step.int: 8 else: 6)

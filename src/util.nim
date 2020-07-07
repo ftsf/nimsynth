@@ -88,7 +88,7 @@ proc rotatedPoly*(offset: Vec2f, verts: openArray[Vec2f], angle: float, origin =
     p[i] = v
   return p
 
-proc pointInPoly*(p: Vec2f, poly: Polygon | Triangle | Quad): bool =
+func pointInPoly*(p: Vec2f, poly: Polygon | Triangle | Quad): bool =
   let px = p.x
   let py = p.y
   let nvert = poly.len()
@@ -108,6 +108,12 @@ proc rectfill*(aabb: AABB) =
 
 proc rect*(aabb: AABB) =
   rect(aabb.min.x.int, aabb.min.y.int, aabb.max.x.int, aabb.max.y.int)
+
+proc rrectfill*(aabb: AABB) =
+  rrectfill(aabb.min.x.int, aabb.min.y.int, aabb.max.x.int, aabb.max.y.int)
+
+proc rrect*(aabb: AABB) =
+  rrect(aabb.min.x.int, aabb.min.y.int, aabb.max.x.int, aabb.max.y.int)
 
 proc getAABB*(p: Vec2f, expand: float): AABB =
   result.min.x = p.x - expand
@@ -206,13 +212,11 @@ proc lineSegmentIntersection*(l1, l2: Line): (bool,Vec2f) =
     return (collide, vec2f(0,0))
 
 proc normal*(v: var Vec2f) =
-  v.normalize()
-  v = v.perpendicular()
+  v = v.normalized.perpendicular()
 
 proc normal*(v: Vec2f): Vec2f =
   var v = v
-  v.normalize()
-  return v.perpendicular()
+  return v.normalized.perpendicular()
 
 proc printShadowC*(text: string, x, y: int, scale: int = 1) =
   let oldColor = getColor()
@@ -295,7 +299,7 @@ proc bezierQuadraticLength*(s, e, cp: Vec2f, steps: int): float =
   for i in 0..steps-1:
     next = bezierQuadratic(s,e,cp,float(i)/float(steps))
     if i > 0:
-      l += (next - v).magnitude
+      l += (next - v).length
       v = next
   return l
 
@@ -316,12 +320,12 @@ proc bezierCubicLength*(s, e, cp1, cp2: Vec2f, steps: int): float =
   for i in 0..steps-1:
     next = bezierCubic(s,e,cp1,cp2,float(i)/float(steps))
     if i > 0:
-      l += (next - v).magnitude
+      l += (next - v).length
       v = next
   return l
 
 proc closestPointOnLine*(line: Line, p: Vec2f): Vec2f =
-  let l2 = (line[0] - line[1]).sqrMagnitude
+  let l2 = (line[0] - line[1]).length2
   if l2 == 0.0:
     return line[0]
   let t = max(0.0, min(1.0, dot(p-line[0], line[1] - line[0]) / l2))
@@ -329,7 +333,7 @@ proc closestPointOnLine*(line: Line, p: Vec2f): Vec2f =
 
 proc lineSegDistanceSqr*(line: Line, p: Vec2f): float =
   let proj = closestPointOnLine(line, p)
-  return (p - proj).sqrMagnitude
+  return (p - proj).length2
 
 proc lineSegDistance*(line: Line, p: Vec2f): float =
   return sqrt(lineSegDistanceSqr(line, p))
@@ -344,14 +348,6 @@ proc modDiff*[T](a,b,m: T): T  =
   let a = a %%/ m
   let b = b %%/ m
   return min(abs(a-b), m - abs(a-b))
-
-proc modSign*[T](a,n: T): T {.inline.} =
-  return (a mod n + n) mod n
-
-proc angleDiff*(a,b: float): float =
-  let a = modSign(a,TAU)
-  let b = modSign(b,TAU)
-  return modSign((a - b) + PI, TAU) - PI
 
 proc ordinal*(x: int): string =
   if x == 10:

@@ -1,6 +1,7 @@
 import math
-import math
 import strutils
+import tables
+import sequtils
 
 var sampleRate* = 48000.0
 var nyquist* = sampleRate / 2.0
@@ -10,7 +11,12 @@ const middleC* = 261.625565
 import nico
 import nico/vec
 
+export vec
+
 var frame*: uint32 = 0
+
+var oscilliscopeBufferSize*: int = 1024
+var oscilliscopeFreeze*: bool
 
 import core/ringbuffer
 
@@ -50,7 +56,13 @@ type
 
 type
   # used for connecting a machine to another machine's parameter
-  Binding* = tuple[machine: Machine, param: int]
+  BindingKind* = enum
+    bkAny = "Any"
+    bkNote = "Note"
+    bkInt = "Int"
+    bkFloat = "Float"
+    bkTrigger = "Trigger"
+  Binding* = tuple[machine: Machine, param: int, kind: BindingKind]
   ParameterKind* = enum
     Float # 0x0000 - 0xffff (min - max)
     Bool # 0 - 1
@@ -65,7 +77,7 @@ type
     skInt16 # 0x0000 - 0xffff (min - max)
     skNote # 0 - 0xff (off)
     skPattern
-  Parameter* = object of RootObj
+  Parameter* = object
     kind*: ParameterKind
     seqkind*: ParameterSequencerKind
     name*: string
@@ -76,16 +88,20 @@ type
     getValueString*: proc(value: float, voice: int = -1): string
     deferred*: bool # deferred attributes get changed by a sequencer last
     separator*: bool # put a space above it
-  MidiEvent* = object of RootObj
+    ignoreSave*: bool # value wont be saved to file
+    fav*: bool
+
+  MidiEvent* = object
     time*: int
     channel*: range[0..15]
     command*: uint8
     data1*,data2*: uint8
-  Input* = object of RootObj
+  Input* = object
     machine*: Machine
-    output*: int  # which output to read
+    output*: int  # which of the input machine's output slots to read
     gain*: float
     inputId*: int # for machines that have more than one input
+    peak*: float
   Voice* = ref object of RootObj
     parameters*: seq[Parameter]
   Machine* = ref object of RootObj
@@ -97,6 +113,7 @@ type
     voiceParams*: seq[Parameter]
     voices*: seq[Voice]
     inputs*: seq[Input]
+    outputtingToMachines*: seq[tuple[machine: Machine, count: int]]
     nOutputs*: int
     nInputs*: int
     bindings*: seq[Binding]
@@ -105,19 +122,121 @@ type
     stereo*: bool
     outputSampleId*: int  # updated externally each sample, maybe this could be a global
     outputSamples*: seq[float32]
-    mute*: bool
     bypass*: bool
     disabled*: bool # mute and don't call process
     useMidi*: bool
+    useKeyboard*: bool
     midiChannel*: int
+    currentParam*: int
+    scroll*: int
+
   View* = ref object of RootObj
-    discard
-  Knob* = ref object of RootObj
+    windows*: seq[Window]
+    dragWindow*: Window
+    resizeWindow*: Window
+    resizeStart*: Vec2f
+    resizeStartSize*: Vec2f
+    camera*: Vec2f
+
+  Window* = ref object of RootObj
+    view*: View
     pos*: Vec2f
-    machine*: Machine
-    paramId*: int
+    w*,h*: int
+    title*: string
+    resize*: bool
+    shade*: bool
+    close*: bool
+    pin*: bool
+
+proc sendToTop*(self: Window) =
+  let i = self.view.windows.find(self)
+  if i >= 0:
+    swap(self.view.windows[self.view.windows.high], self.view.windows[i])
+
+proc close*(self: Window) =
+  self.close = true
+
+method eventContents*(self: Window, x,y,w,h: int, e: Event): bool {.base.} =
+  discard
+
+method event*(self: Window, e: Event): bool {.base.} =
+  let pos = self.pos + self.view.camera
+  let x = pos.x.int
+  let y = pos.y.int
+  let w = self.w
+  let h = self.h
+
+  if not self.shade:
+    if self.eventContents(x+2,y+10,w-4,h-14,e):
+      return true
+
+  case e.kind:
+  of ekMouseButtonDown:
+    if e.x >= x and e.x <= x + w and e.y >= y and e.y <= y + h:
+      if e.button == 1:
+        # check if on topbar
+        if e.y < y + 9:
+          if e.x > x + w - 8:
+            self.close = true
+            return true
+          elif e.clicks == 2:
+            self.shade = not self.shade
+          self.sendToTop()
+          self.view.dragWindow = self
+        elif not self.shade and e.y > y + h - 4:
+          self.view.resizeWindow = self
+          self.view.resizeStart = vec2f(e.x, e.y)
+          self.view.resizeStartSize = vec2f(w, h)
+        return true
+  of ekMouseMotion:
+    if self.view.dragWindow == self:
+      self.pos += vec2f(e.xrel, e.yrel)
+    elif self.view.resizeWindow == self:
+      self.w = self.view.resizeStartSize.x.int + (e.x - self.view.resizeStart.x.int)
+      self.h = self.view.resizeStartSize.y.int + (e.y - self.view.resizeStart.y.int)
+      if self.w < 32:
+        self.w = 32
+      if self.h < 32:
+        self.h = 32
+  of ekMouseButtonUp:
+    if e.button == 1:
+      if self.view.dragWindow == self:
+        self.view.dragWindow = nil
+      if self.view.resizeWindow == self:
+        self.view.resizeWindow = nil
+  else:
+    discard
+  return false
+
+method drawContents*(self: Window, x,y,w,h: int) {.base.} =
+  discard
+
+method draw*(self: Window) {.base.} =
+  let x = self.pos.x.int
+  let y = self.pos.y.int
+  let w = self.w
+  let h = if self.shade: 9 else: self.h
+  setColor(1)
+  rrectfill(x,y,x+w-1,y+h-1)
+  setColor(5)
+
+  if not self.shade:
+    hline(x,y+8,x+w-1)
+    hline(x,y+h-4,x+w-1)
+
+  setColor(5)
+  rrect(x,y,x+w-1,y+h-1)
+
+  setColor(6)
+  print(self.title, x + 2, y + 2)
+  print("X", x + w - 8, y + 2)
+
+  if not self.shade:
+    self.drawContents(x+2,y+10,w-4,h-14)
 
 var machines*: seq[Machine]
+var machinesById*: Table[int,Machine]
+
 var currentView*: View
 var vLayoutView*: View
 var masterMachine*: Machine
@@ -144,6 +263,17 @@ when defined(jack):
     if rawEvent.size >= 3:
       result.data2 = cast[ptr array[3, uint8]](rawEvent.buffer)[2]
 
+else:
+  proc newMidiEvent*(timestamp: float, rawEvent: pointer, size: int): MidiEvent =
+    let status = cast[ptr array[3, uint8]](rawEvent)[0]
+    result.time = timestamp.int
+    result.channel = status.int and 0b00001111
+    result.command = ((status.int shr 4) and 0b00000111).uint8
+    if size >= 2:
+      result.data1 = cast[ptr array[3, uint8]](rawEvent)[1]
+    if size >= 3:
+      result.data2 = cast[ptr array[3, uint8]](rawEvent)[2]
+
 method init*(self: Machine) {.base.} =
   globalParams = newSeq[Parameter]()
   voiceParams = newSeq[Parameter]()
@@ -151,6 +281,9 @@ method init*(self: Machine) {.base.} =
   inputs = newSeq[Input]()
   bindings = newSeq[Binding]()
   outputSamples = newSeq[float32]()
+
+method cleanup*(self: Machine) {.base.} =
+  discard
 
 method init*(self: Voice, machine: Machine) {.base.} =
   parameters = newSeq[Parameter]()
@@ -177,7 +310,7 @@ method addVoice*(self: Machine) {.base.} =
   voice.init(self)
 
 method setDefaults*(self: Machine) {.base.} =
-  for param in mitems(self.globalParams):
+  for i,param in mpairs(self.globalParams):
     param.value = param.default
     param.onchange(param.value, -1)
 
@@ -246,15 +379,16 @@ proc hasCycle[T](G: seq[T]): bool =
       return true
   return false
 
-proc findLeaves(m: Machine, machines: var seq[Machine]) =
+proc findLeaves(m: Machine, machines: seq[Machine], newMachines: var seq[Machine]) =
 
   var adj = m.getAdjacentWithBindings()
 
   for a in adj:
-    a.findLeaves(machines)
+    a.findLeaves(machines, newMachines)
 
-  if not (m in machines):
-    machines.add(m)
+  if m notin newMachines:
+    if m in machines:
+      newMachines.add(m)
 
 proc sortMachines() =
   if not sortingEnabled:
@@ -263,7 +397,7 @@ proc sortMachines() =
   # sort by depth from master
   var newMachines = newSeq[Machine]()
 
-  masterMachine.findLeaves(newMachines)
+  masterMachine.findLeaves(machines, newMachines)
 
   # add any detached machines at the end
   for machine in mitems(machines):
@@ -273,7 +407,7 @@ proc sortMachines() =
   machines = newMachines
 
 proc connectMachines*(source, dest: Machine, gain: float = 1.0, inputId: int = 0, outputId: int = 0): bool =
-  echo "connecting: ", source.name, ": ", outputId, " -> ", dest.name, ": ", inputId
+  #echo "connecting: ", source.name, ": ", outputId, " -> ", dest.name, ": ", inputId
   # check dest accepts inputs
   if dest.nInputs == 0:
     echo dest.name, " does not have any inputs"
@@ -293,11 +427,22 @@ proc connectMachines*(source, dest: Machine, gain: float = 1.0, inputId: int = 0
       return false
   # add it and test for cycle
   dest.inputs.add(Input(machine: source, output: outputId, gain: gain, inputId: inputId))
+
   if hasCycle(machines):
     # undo
     discard dest.inputs.pop()
     echo "would create a cycle"
     return false
+
+  var alreadyConnected = false
+  for v in source.outputtingToMachines.mitems:
+    if v.machine == dest:
+      alreadyConnected = true
+      v.count += 1
+      #echo "incrementing output"
+      break
+  if alreadyConnected == false:
+    source.outputtingToMachines.add((machine: dest, count: 1))
 
   sortMachines()
   return true
@@ -307,7 +452,12 @@ proc disconnectMachines*(source, dest: Machine) =
     if input.machine == source:
       dest.inputs.del(i)
       break
-  sortMachines()
+  for i,v in source.outputtingToMachines:
+    if v.machine == dest:
+      source.outputtingToMachines[i].count -= 1
+      if source.outputtingToMachines[i].count <= 0:
+        source.outputtingToMachines.del(i)
+      break
 
 proc swapMachines*(a,b: Machine) =
   # check they are compatible
@@ -332,28 +482,44 @@ proc swapMachines*(a,b: Machine) =
     sortMachines()
 
 proc delete*(self: Machine) =
-  # remove all connections and references to it
-  for machine in mitems(machines):
-    if machine != self:
-      for i,input in machine.inputs:
-        if input.machine == self:
-          disconnectMachines(self, machine)
+  echo "delete machine ", self.name
+
+  # remove any connections from this machine
+  for v in outputtingToMachines:
+    echo "outputting to ", v.machine.name
+    v.machine.inputs.keepItIf(it.machine != self)
+
+  # remove any connections to this machine
+  for input in self.inputs:
+    input.machine.outputtingToMachines.keepItIf(it.machine != self)
+
   # remove all bindings to this machine
-  for machine in mitems(machines):
+  for machine in machines:
     if machine != self:
       for i, binding in mpairs(machine.bindings):
         if binding.machine == self:
           removeBinding(machine, i)
+
   for i,shortcut in mpairs(shortcuts):
     if shortcut == self:
       shortcuts[i] = nil
 
-  machines.del(machines.find(self))
+  let i = machines.find(self)
+
+  self.cleanup()
+
+  machines.del(i)
+  machinesById.del(self.id)
 
   if sampleMachine == self:
     sampleMachine = masterMachine
 
   sortMachines()
+
+proc remove*(self: Machine) =
+  # like delete, but first attach all our inputs to our outputs
+  # TODO: implement
+  self.delete()
 
 type MachineType* = tuple[name: string, factory: proc(): Machine]
 
@@ -368,10 +534,11 @@ var machineTypesByCategory* = initOrderedTable[string, seq[MachineType]]()
 proc clearLayout*() =
   # removes all machines and resets thing to init
   machines = newSeq[Machine]()
+  machinesById = initTable[int,Machine]()
   nextMachineId = 0
   baseOctave = 4
   sampleId = 0
-  oscilliscopeBuffer = newRingBuffer[float32](1024)
+  oscilliscopeBuffer = newRingBuffer[float32](oscilliscopeBufferSize)
   statusMessage = "ready to rok"
   statusUpdateTime = 0
   currentView = vLayoutView
@@ -394,23 +561,33 @@ proc registerMachine*(name: string, factory: proc(): Machine, category: string =
       machineTypesByCategory.add(category, newSeq[MachineType]())
     machineTypesByCategory[category].add((name: name, factory: mCreator))
 
-proc createMachine*(name: string): Machine =
+proc createMachine*(name: string, id = -1): Machine =
   for mt in machineTypes:
     if mt.name == name:
       result = mt.factory()
+      if id == -1:
+        result.id = nextMachineId
+        nextMachineId += 1
+      else:
+        result.id = id
+        nextMachineId = max(nextMachineId, result.id + 1)
+      machinesById[result.id] = result
   if result == nil:
     raise newException(Exception, "no machine type named: " & name)
 
 proc newLayout*() =
   clearLayout()
   masterMachine = createMachine("master")
+
+  machinesById[masterMachine.id] = masterMachine
   machines.add(masterMachine)
+
   sampleMachine = masterMachine
 
 proc getInput*(self: Machine, inputId: int = 0): float32
 
 proc getSample*(self: Input): float32 =
-  if machine.mute:
+  if machine.disabled:
     return 0.0
   elif machine.bypass:
     return machine.getInput() * gain
@@ -439,24 +616,74 @@ method getOutputName*(self: Machine, outputId: int = 0): string {.base.} =
 method getInputName*(self: Machine, inputId: int = 0): string {.base.} =
   return "main"
 
-method getParameterCount*(self: Machine): int {.base.} =
-  # TODO: add support for input gain params
-  return self.globalParams.len + (self.voiceParams.len * self.voices.len)
+method getParameterCount*(self: Machine, favOnly: bool = false): int {.base.} =
+  result = 0
+  for p in self.globalParams:
+    if p.fav or not favOnly:
+      result += 1
+  for p in self.voiceParams:
+    if p.fav or not favOnly:
+      result += self.voices.len
 
-method getParameter*(self: Machine, paramId: int): (int, ptr Parameter) {.base.} =
+iterator parameters*(self: Machine, favOnly: bool = false): (int, ptr Parameter) =
+  for p in mitems(self.globalParams):
+    if p.fav or not favOnly:
+      yield (-1, p.addr)
 
-  if paramId > globalParams.len + (voiceParams.len * voices.len):
-    raise newException(InvalidParamException, "invalid ParamId: " & $paramId & ". " & self.name & " only has " & $getParameterCount() & " params.")
+  for v in 0..<self.voices.len:
+    for p in mitems(self.voices[v].parameters):
+      if p.fav or not favOnly:
+        yield (v, p.addr)
 
-  let voice = if paramId <= globalParams.high: -1 else: (paramId - globalParams.len) div voiceParams.len
+method getParameter*(self: Machine, paramId: int, favOnly: bool = false): (int, ptr Parameter) {.base.} =
+  var i = 0
+  for p in mitems(self.globalParams):
+    if p.fav or not favOnly:
+      if i == paramId:
+        return (-1,p.addr)
+      i += 1
 
+  for v in 0..<self.voices.len:
+    for p in mitems(self.voices[v].parameters):
+      if p.fav or not favOnly:
+        if i == paramId:
+          return (v,p.addr)
+        i += 1
+
+  raise newException(InvalidParamException, "invalid ParamId: " & $paramId & ". " & self.name & " only has " & $getParameterCount() & " params.")
+
+proc getParameterByName*(self: Machine, paramName: string, voice: int = -1): ptr Parameter =
   if voice == -1:
-    return (voice, addr(self.globalParams[paramId]))
-  elif voice > self.voices.high or voice < -1:
-    return (-1, nil)
+    for p in self.globalParams.mitems:
+      if p.name == paramName:
+        return p.addr
   else:
-    let voiceParam = (paramId - globalParams.len) mod voiceParams.len
-    return (voice, addr(self.voices[voice].parameters[voiceParam]))
+    if self.voices.len > voice:
+      for p in self.voices[voice].parameters.mitems:
+        if p.name == paramName:
+          return p.addr
+  echo "machine ", self.name, " has no parameter ", paramName, " on voice: ", voice
+  return nil
+
+proc getParameterIdByName*(self: Machine, paramName: string, voice: int = -1): int =
+  var i = 0
+  for p in self.globalParams.mitems:
+    if voice == -1 and p.name == paramName:
+      return i
+    i += 1
+  for vi, v in self.voices:
+    for p in v.parameters.mitems:
+      if voice == vi and p.name == paramName:
+        return i
+      i += 1
+  echo "machine ", self.name, " has no parameter ", paramName, " on voice: ", voice
+  return -1
+
+proc getParameter*(self: Voice, paramId: int): ptr Parameter =
+  if paramId > self.parameters.high:
+    raise newException(InvalidParamException, "invalid ParamId: " & $paramId)
+
+  return self.parameters[paramId].addr
 
 proc isBound*(self: Binding): bool =
   return (self.machine != nil)
@@ -468,38 +695,42 @@ proc getParameter*(self: Binding): (int, ptr Parameter) =
     return (-1, nil)
 
 type
-  ParamMarshal = object of RootObj
+  ParamMarshal = object
     name: string
     voice: int
     value: float
-  PatchMarshal = object of RootObj
+    fav: bool
+  PatchMarshal = object
     name: string
+    className: string
     parameters: seq[ParamMarshal]
     extraData: string
-  BindMarshal = object of RootObj
+  BindMarshal = object
     slotId: int
     targetMachineId: int
     targetMachineName: string
     paramId: int
     paramName: string
     paramVoice: int
-  InputMarshal = object of RootObj
+  InputMarshal = object
     targetMachineId: int
     outputId: int
     gain: float
     inputId: int
-  MachineMarshal = object of RootObj
+  MachineMarshal = object
     id: int
     name: string
     className: string # needs to match the name used to create it
     pos: Vec2f
     parameters: seq[ParamMarshal]
+    disabled: bool
     bindings: seq[BindMarshal]
     hideBindings: bool
     inputs: seq[InputMarshal]
     voices: int
     extraData: string
-  LayoutMarhsal = object of RootObj
+
+  LayoutMarhsal = object
     name: string
     machines: seq[MachineMarshal]
     shortcuts: array[10,int]
@@ -518,10 +749,13 @@ proc getMarshaledParams(self: Machine): seq[ParamMarshal] =
   result = newSeq[ParamMarshal]()
   for i in 0..getParameterCount()-1:
     var (voice, param) = getParameter(i)
+    if param.ignoreSave:
+      continue
     var pp: ParamMarshal
     pp.name = param.name
     pp.voice = voice
     pp.value = param.value
+    pp.fav = param.fav
     result.add(pp)
 
 proc getMarshaledBindings(self: Machine): seq[BindMarshal] =
@@ -559,13 +793,14 @@ proc getMarshaledInputs(self: Machine): seq[InputMarshal] =
 proc savePatch*(machine: Machine, name: string) =
   var p: PatchMarshal
   p.name = name
+  p.className = machine.className
   p.parameters = machine.getMarshaledParams()
   p.extraData = machine.saveExtraData()
 
   createDir("patches")
-  createDir("patches/" & machine.name)
+  createDir("patches/" & machine.className)
 
-  var fp = newFileStream("patches/" & machine.name & "/" & name & ".json", fmWrite)
+  var fp = newFileStream("patches/" & machine.className & "/" & name & ".json", fmWrite)
   if fp == nil:
     echo "error opening file for saving"
     return
@@ -575,49 +810,44 @@ proc savePatch*(machine: Machine, name: string) =
 proc loadMarshaledParams(self: Machine, parameters: seq[ParamMarshal], setDefaults = false) =
   var nRealParams = getParameterCount()
   for i,p in parameters:
-    while i > nRealParams-1:
-      self.addVoice()
-      nRealParams = getParameterCount()
-    var (voice,param) = getParameter(i)
-    if param.name == p.name:
-      param.value = p.value
-      if setDefaults:
-        param.default = p.value
-      if param.kind == Note or param.kind == Trigger:
-        continue
-      param.onchange(param.value, voice)
-    else:
-      echo "parameter name does not match: " & param.name & " vs " & p.name
+    var found = false
+    for j in 0..<getParameterCount():
+      var (voice,param) = getParameter(j)
+      if p.voice == voice and p.name == param.name:
+        found = true
+        if param.ignoreSave:
+          break
+        param.value = p.value
+        if setDefaults:
+          param.default = p.value
+        param.onchange(param.value, voice)
+        param.fav = p.fav
+        break
+    if not found:
+      debug "could not find parameter: " & p.name
 
 proc getMachineById(machineId: int): Machine =
-  for m in machines:
-    if m.id == machineId:
-      result = m
-      break
-  if result == nil:
-    raise newException(Exception, "no machine with id: " & $machineId)
+  return machinesById[machineId]
 
 proc loadMarshaledBindings(self: Machine, bindings: seq[BindMarshal]) =
   for i,binding in bindings:
     if binding.targetMachineId != -1:
       echo "binding ", self.name, " to ", binding.targetMachineName, ": ", binding.paramName
       try:
-        self.createBinding(i, getMachineById(binding.targetMachineId), binding.paramId)
+        let m = getMachineById(binding.targetMachineId)
+        let paramId = m.getParameterIdByName(binding.paramName, binding.paramVoice)
+        if paramId != -1:
+          self.createBinding(i, m, paramId)
       except InvalidParamException:
         echo "failed binding: ", binding.targetMachineName, ": ", binding.paramName
         discard
 
 proc loadMarshaledInputs(self: Machine, inputs: seq[InputMarshal]) =
   for i,input in inputs:
-    var ip: Input
-    ip.machine = getMachineById(input.targetMachineId)
-    ip.output = input.outputId
-    ip.gain = input.gain
-    ip.inputId = input.inputId
-    self.inputs.add(ip)
+    discard connectMachines(getMachineById(input.targetMachineId), self, input.gain, input.inputId, input.outputId)
 
 proc loadPatch*(machine: Machine, name: string) =
-  var fp = newFileStream("patches/" & machine.name & "/" & name & ".json", fmRead)
+  var fp = newFileStream("patches/" & machine.className & "/" & name & ".json", fmRead)
   if fp == nil:
     echo "error opening file for reading"
     return
@@ -640,6 +870,7 @@ proc saveLayout*(name: string) =
     m.name = machine.name
     m.className = machine.className
     m.pos = machine.pos
+    m.disabled = machine.disabled
     m.parameters = machine.getMarshaledParams()
     m.bindings = machine.getMarshaledBindings()
     m.hideBindings = machine.hideBindings
@@ -683,16 +914,17 @@ proc loadLayout*(name: string) =
   var highestId = 0
 
   for i, machine in l.machines:
-    var m = createMachine(machine.className)
-    m.id = machine.id
-    if m.id > highestId:
-      highestId = m.id
+    var m = createMachine(machine.className, machine.id)
     m.pos = machine.pos
     m.name = machine.name
+    m.disabled = machine.disabled
     m.hideBindings = machine.hideBindings
     while m.voices.len < machine.voices:
       m.addVoice()
+
+    machinesById[m.id] = m
     machines.add(m)
+
     m.loadMarshaledParams(machine.parameters)
     machineMap.add(m)
     echo "loaded machine: ", m.id, ": ", m.name
@@ -711,7 +943,6 @@ proc loadLayout*(name: string) =
   sortingEnabled = true
   sortMachines()
 
-  nextMachineId = highestId + 1
   sampleMachine = masterMachine
   layoutName = name
 
@@ -719,13 +950,13 @@ proc loadLayout*(name: string) =
 
 proc getPatches*(self: Machine): seq[string] =
   result = newSeq[string]()
-  let prefix = "patches/" & name & "/"
+  let prefix = "patches/" & self.className & "/"
   for file in walkFiles(prefix & "*.json"):
     result.add(file[prefix.len..file.high-5])
 
 method popVoice*(self: Machine) {.base.} =
   # find anything bound to this voice
-  if self.voices.len > 0:
+  if self.voices.len > 1:
     for machine in mitems(machines):
       for i,binding in mpairs(machine.bindings):
         if binding.machine == self:
@@ -739,8 +970,17 @@ method popVoice*(self: Machine) {.base.} =
 method process*(self: Machine) {.base.} =
   discard
 
+method update*(self: Machine, dt: float32) {.base.} =
+  discard
+
 method midiEvent*(self: Machine, event: MidiEvent) {.base.} =
   discard
+
+method trigger*(self: Machine, note: int) {.base.} =
+  debug self.className, " does not define trigger"
+
+method release*(self: Machine, note: int) {.base.} =
+  debug self.className, " does not define release"
 
 method update*(self: View, dt: float) {.base.} =
   discard
@@ -903,7 +1143,7 @@ proc ctrl*(): bool =
   when defined(osx):
     return key(K_GUI)
   else:
-    return key(K_LCTRL)
+    return key(K_LCTRL) or key(K_RCTRL)
 
 proc shift*(): bool =
-  return key(K_LSHIFT)
+  return key(K_LSHIFT) or key(K_RSHIFT)

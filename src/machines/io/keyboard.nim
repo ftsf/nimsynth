@@ -5,15 +5,17 @@ import common
 import util
 
 import core/basemachine
+import core/scales
 
 
 const polyphony = 16
 
 type Keyboard = ref object of Machine
-  baseOctave: int
   nOctaves: int
   noteBuffer: array[polyphony, tuple[note: int, age: int]]
+  size: int
   scale: int
+  baseNote: int
 
 {.this:self.}
 
@@ -26,6 +28,7 @@ method init*(self: Keyboard) =
   nBindings = polyphony * 2
   bindings.setLen(nBindings)
   useMidi = true
+  useKeyboard = true
   midiChannel = 0
 
   for i in 0..<polyphony:
@@ -38,11 +41,16 @@ method init*(self: Keyboard) =
     Parameter(name: "octaves", kind: Int, min: 1.0, max: 10.0, default: 7.0, onchange: proc(newValue: float, voice: int) =
       self.nOctaves = newValue.int
     ),
-    Parameter(name: "baseoct", kind: Int, min: 0.0, max: 9.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
-      self.baseOctave = newValue.int
+    Parameter(name: "size", kind: Int, min: 1.0, max: 6.0, default: 2.0, onchange: proc(newValue: float, voice: int) =
+      self.size = newValue.int
     ),
-    Parameter(name: "scale", kind: Int, min: 1.0, max: 6.0, default: 2.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "scale", kind: Int, min: 0.0, max: scaleList.high.float, default: scaleList.high.float, onchange: proc(newValue: float, voice: int) =
       self.scale = newValue.int
+    , getValueString: proc(value: float, voice: int): string =
+      return scaleList[value.int].name
+    ),
+    Parameter(name: "baseNote", kind: Note, min: 0.0, max: 255.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+      self.baseNote = newValue.int
     ),
   ])
 
@@ -122,14 +130,14 @@ proc newKeyboard(): Machine =
   return k
 
 method getAABB*(self: Keyboard): AABB =
-  let w = nOctaves * 12 * scale
+  let w = nOctaves * 12 * size
   result.min.x = pos.x - (w div 2).float
   result.min.y = pos.y - 13
   result.max.x = pos.x + (w div 2).float
   result.max.y = pos.y + 7
 
 method getKeyboardAABB*(self: Keyboard): AABB =
-  let w = nOctaves * 12 * scale
+  let w = nOctaves * 12 * size
   result.min.x = pos.x - (w div 2).float
   result.min.y = pos.y - 6
   result.max.x = pos.x + (w div 2).float
@@ -140,7 +148,7 @@ method drawBox*(self: Keyboard) =
   rectfill(getAABB())
 
   setColor(6)
-  let w = nOctaves * 12 * scale
+  let w = nOctaves * 12 * size
   rectfill(getKeyboardAABB())
   # draw keyboard
   var x = pos.x - w div 2
@@ -151,27 +159,33 @@ method drawBox*(self: Keyboard) =
       if i.note == n:
         down = true
         break
+
     case key:
     of 1,3,6,8,10:
+      # black notes
       setColor(if down: 12 else: 1)
-      rectfill(x, pos.y - 6, x + scale - 1, pos.y + 2)
-    of 0:
-      setColor(if down: 11 else: 13)
-      rectfill(x, pos.y - 6, x + scale - 1, pos.y + 6)
-      setColor(13)
-      print($(n div 12), x + 1, pos.y - 12)
+      rectfill(x, pos.y - 6, x + size - 1, pos.y + 6)
     else:
-      setColor(if down: 11 else: 6)
-      rectfill(x, pos.y - 6, x + scale - 1, pos.y + 6)
-    x += scale
+      if key == 0:
+        setColor(if baseOctave == n div 12: 12 else: 13)
+        print($(n div 12), x + 1, pos.y - 12)
+
+      if key in [11,4]:
+        setColor(6)
+        vline(x + size, if key == 11: pos.y - 13 else: pos.y - 6, pos.y + 6)
+
+      setColor(if down: 11 else: 7)
+      rectfill(x, pos.y - 6, x + size - 1, pos.y + 6)
+    x += size
 
 method handleClick(self: Keyboard, mouse: Vec2f): bool =
   if pointInAABB(mouse, getKeyboardAABB()):
-    let w = nOctaves * 12 * scale
+    let w = nOctaves * 12 * size
     let x = mouse.x - (pos.x - w div 2)
-    let k = x div scale + baseOctave * 12
+    let k = x div size + baseOctave * 12
     # find key under mouse
-    noteOn(k, 127)
+    if k mod 12 in scaleList[scale].notes:
+      noteOn(k, 127)
     return true
   return false
 
@@ -190,17 +204,22 @@ method event(self: Keyboard, event: Event, camera: Vec2f): (bool, bool) =
 
   of ekMouseMotion:
       # find key under mouse
-      let w = nOctaves * 12 * scale
+      let w = nOctaves * 12 * size
       let mouse = mouseVec() - camera
       let x = mouse.x - (pos.x - w div 2)
-      let k = x div scale + baseOctave * 12
-      noteOn(k, 127)
+      let k = x div size + baseOctave * 12
+      if k mod 12 in scaleList[scale].notes:
+        noteOn(k, 127)
       return (false,true)
   else:
     discard
 
   return (false,true)
 
+method trigger*(self: Keyboard, note: int) =
+  self.noteOn(note, 255)
 
+method release*(self: Keyboard, note: int) =
+  self.noteOff(note)
 
 registerMachine("keyboard", newKeyboard, "io")

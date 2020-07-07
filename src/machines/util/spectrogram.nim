@@ -73,7 +73,7 @@ method drawBox(self: SpectrogramMachine) =
   var highestPeakValue: float32
   var highestPeak: int
 
-  for i in 0..<responseGraph.len div 2:
+  for i in 4..<responseGraph.len div 2:
     if responseGraph[i] > highestPeakValue:
       highestPeak = i
       highestPeakValue = responseGraph[i]
@@ -81,25 +81,28 @@ method drawBox(self: SpectrogramMachine) =
   setColor(1)
   vline(pos.x - 32 + (highestPeak.float / (resolution div 2).float) * 64.0, pos.y - 31, pos.y + 31)
 
-  printr("$1 hZ".format(sampleRateFractionToHz(highestPeak.float / resolution.float).int), pos.x + 30, pos.y - 30)
+  let hz = sampleRateFractionToHz(highestPeak.float / resolution.float)
 
-  var sample0: float
-  var sample1: float
+  printr("$1 hZ".format(hz.int), pos.x + 30, pos.y - 30)
+  printr("$1".format(hzToNoteName(hz)), pos.x + 30, pos.y - 20)
+
+  var sample0: float32
+  var sample1: float32
 
   for i in 1..<64:
     setColor(3)
 
     if logView:
-      sample0 = log10(i.float)
-      sample1 = log10((i+1).float)
+      sample0 = (i-1).float32
+      sample1 = i.float32
     else:
-      sample0 = (i-1).float
-      sample1 = i.float
+      sample0 = (i-1).float32
+      sample1 = i.float32
 
-    let scale = if logView: responseGraph.len.float / 10.0 else: responseGraph.len.float / 2.0
+    let scale = if logView: responseGraph.len.float32 / 10.0'f else: responseGraph.len.float32 / 2.0'f
 
-    let v0 = abs(responseGraph.getSubsample((sample0 / 64.0) * scale))
-    let v1 = abs(responseGraph.getSubsample((sample1 / 64.0) * scale))
+    let v0 = abs(responseGraph.getSubsample((sample0 / 64.0'f) * scale))
+    let v1 = abs(responseGraph.getSubsample((sample1 / 64.0'f) * scale))
     line(
       pos.x + i - 1 - 32,
       pos.y + 31 - clamp(v0 * 2.0, 0, 62.0),
