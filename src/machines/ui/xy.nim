@@ -99,11 +99,11 @@ method init(self: XY) =
   ])
 
   self.eventListener = addEventListener(proc(e: Event): bool =
-    if e.kind == ekAxisMotion and e.which == self.gamepad:
-      if e.button == self.gamepadXAxis:
+    if e.kind == ekAxisMotion and e.which.int == self.gamepad:
+      if e.button.int == self.gamepadXAxis:
         self.tx = e.xrel
         return true
-      if e.button == self.gamepadYAxis:
+      if e.button.int == self.gamepadYAxis:
         self.ty = e.xrel
         return true
     return false

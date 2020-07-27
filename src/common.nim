@@ -735,7 +735,7 @@ type
     machines: seq[MachineMarshal]
     shortcuts: array[10,int]
 
-import marshal
+import json
 import streams
 import os
 
@@ -804,7 +804,7 @@ proc savePatch*(machine: Machine, name: string) =
   if fp == nil:
     echo "error opening file for saving"
     return
-  fp.write($$p)
+  fp.write(%p)
   fp.close()
 
 proc loadMarshaledParams(self: Machine, parameters: seq[ParamMarshal], setDefaults = false) =
@@ -852,7 +852,7 @@ proc loadPatch*(machine: Machine, name: string) =
     echo "error opening file for reading"
     return
   var p: PatchMarshal
-  fp.load(p)
+  p = fp.parseJson().to(PatchMarshal)
   fp.close()
 
   machine.loadMarshaledParams(p.parameters, true)
@@ -888,7 +888,7 @@ proc saveLayout*(name: string) =
   if fp == nil:
     echo "error opening file for saving"
     return
-  fp.write($$l)
+  fp.write(%l)
   fp.close()
 
   echo "saved layout to ", name
@@ -905,7 +905,7 @@ proc loadLayout*(name: string) =
   var l: LayoutMarhsal
   l.shortcuts = [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1]
   var fp = newFileStream("layouts/" & name & ".json", fmRead)
-  fp.load(l)
+  l = fp.parseJson().to(LayoutMarhsal)
   fp.close()
 
   # first clear out layout

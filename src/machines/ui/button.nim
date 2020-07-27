@@ -63,10 +63,10 @@ method init(self: Button) =
   ])
 
   self.eventListener = addEventListener(proc(e: Event): bool =
-    if e.kind == ekButtonDown and e.button == self.gamepadButton and e.which == self.gamepad:
+    if e.kind == ekButtonDown and e.button.int == self.gamepadButton and e.which.int == self.gamepad:
       self.setOn()
       return false
-    elif e.kind == ekButtonUp and e.button == self.gamepadButton and e.which == self.gamepad:
+    elif e.kind == ekButtonUp and e.button.int == self.gamepadButton and e.which.int == self.gamepad:
       self.setOff()
       return false
     return false

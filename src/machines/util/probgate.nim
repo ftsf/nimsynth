@@ -23,7 +23,7 @@ method init(self: ProbGate) =
       self.probability = newValue
     ),
     Parameter(kind: Float, name: "input", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
-      if random(1.0) <= self.probability:
+      if rand(1.0) <= self.probability:
         if self.bindings[0].isBound():
           var (voice,param) = self.bindings[0].getParameter()
           param.value = newValue

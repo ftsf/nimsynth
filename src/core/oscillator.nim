@@ -62,7 +62,7 @@ proc process*(self: var Osc, offset: float32 = 0'f): float32 {.inline.} =
   if self.phase > 1'f:
     self.phase -= 1'f
     self.cycled = true
-    self.noiseOut = random(2'f) - 1'f
+    self.noiseOut = rand(2'f) - 1'f
   else:
     self.cycled = false
 
@@ -103,7 +103,7 @@ proc process*(self: var LFOOsc): float32 {.inline.} =
   self.sqrOut = if self.phase > self.pulseWidth: -1'f else: 1'f
   self.triOut = abs(self.sawOut) * 2'f - 1'f
   self.sinOut = sin(self.phase * TAU)
-  self.noiseOut = random(2'f) - 1'f
+  self.noiseOut = rand(2'f) - 1'f
   self.fatSawOut = tanh(1'f*self.sawOut) / tanh(1'f)
   case self.kind:
   of Sin:
@@ -125,7 +125,7 @@ proc peek*(self: LFOOsc, phase: float32): float32 {.inline.} =
   let sqrOut = if phase > self.pulseWidth: -1'f else: 1'f
   let triOut = abs(sawOut) * 2'f - 1'f
   let sinOut = sin(phase * TAU)
-  let noiseOut = random(2'f) - 1'f
+  let noiseOut = rand(2'f) - 1'f
   let fatSawOut = tanh(0.5'f*sawOut) / tanh(0.5'f)
 
   case self.kind:

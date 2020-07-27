@@ -36,7 +36,7 @@ method init(self: ProbPath) =
         for voice in self.voices:
           var v = ProbPathVoice(voice)
           weight += v.weight
-        let r = random(weight)
+        let r = rand(weight)
         var vr = 0.0
         for voice in self.voices:
           var v = ProbPathVoice(voice)
