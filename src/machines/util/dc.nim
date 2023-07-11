@@ -1,6 +1,6 @@
-import common
+import ../../common
 
-import core.filter
+import ../../core/filter
 
 
 type

@@ -1,8 +1,8 @@
-import common
+import ../common
 import nico
 import nico/vec
 import strutils
-import util
+import ../util
 import menu
 
 ### Machine View
@@ -54,14 +54,14 @@ proc drawParams*(self: MachineView, x,y,w,h: int) =
       # draw slider fill
       setColor(if i == currentParam: 8 else: 6)
 
-      let zeroX = x + paramNameWidth + sliderWidth.float * clamp(invLerp(param.min, param.max, 0.0), 0.0, 1.0)
+      let zeroX = x + paramNameWidth + (sliderWidth.float * clamp(invLerp(param.min, param.max, 0.0), 0.0, 1.0)).toInt
 
-      rectfill(zeroX, yv, x + paramNameWidth + sliderWidth.float * invLerp(param.min, param.max, param.value), yv+4)
+      rectfill(zeroX, yv, x + (paramNameWidth + sliderWidth.float * invLerp(param.min, param.max, param.value)).toInt, yv+4)
 
       # draw default bar
       if param.kind != Note:
         setColor(7)
-        let defaultX = x + paramNameWidth + sliderWidth.float * invLerp(param.min, param.max, param.default)
+        let defaultX = x + paramNameWidth + (sliderWidth.float * invLerp(param.min, param.max, param.default)).toInt
         line(defaultX, yv, defaultX, yv+4)
 
       yv += 8
@@ -76,14 +76,14 @@ proc drawParams*(self: MachineView, x,y,w,h: int) =
       setColor(13)
       let yStart = scroll.float / nParams.float
       let yEnd = (scroll + nParams).float / nParams.float
-      rectfill(x + w - 4, y + h.float * yStart, x + w, y + h.float * yEnd)
+      rectfill(x + w - 4, y + (h.float * yStart).toInt, x + w, y + (h.float * yEnd).toInt)
 
       # current
       block:
         setColor(7)
         let yStart = currentParam.float / nParams.float
         let yEnd = (currentParam+1).float / nParams.float
-        rectfill(x + w - 4, y + h.float * yStart, x + w, y + h.float * yEnd)
+        rectfill(x + w - 4, y + (h.float * yStart).toInt, x + w, y + (h.float * yEnd).toInt)
 
 method draw*(self: MachineView) =
   let paramsOnScreen = (screenHeight div 8)
@@ -150,9 +150,10 @@ proc key*(self: MachineView, event: Event): bool =
       if ctrl and down:
         var menu = newMenu(vec2f(0,0), "load patch")
         for patch in machine.getPatches():
+          let p = string(patch)
           (proc() =
-            let patchName = patch
-            menu.items.add(newMenuItem(patch) do():
+            let patchName = p
+            menu.items.add(newMenuItem(p) do():
               self.machine.loadPatch(patchName)
               popMenu()
             )

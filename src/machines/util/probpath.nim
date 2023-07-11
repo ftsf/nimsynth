@@ -1,6 +1,6 @@
 ## When triggered sends a signal to a weighted random binding
 
-import common
+import ../../common
 import random
 
 

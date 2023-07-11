@@ -1,7 +1,7 @@
 import nico
 import nico/vec
 import ../common
-import util
+import ../util
 
 {.this:self.}
 

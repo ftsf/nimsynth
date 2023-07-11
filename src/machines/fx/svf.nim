@@ -1,10 +1,10 @@
 import fenv
 import math
-import common
-import core/basemachine
-import core/fft
+import ../../common
+import ../../core/basemachine
+import ../../core/fft
 import nico
-import util
+import ../../util
 
 const maxFilters = 8
 

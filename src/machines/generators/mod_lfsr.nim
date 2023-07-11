@@ -1,6 +1,6 @@
-import common
+import ../../common
 
-import core.lfsr
+import ../../core/lfsr
 
 
 {.this:self.}

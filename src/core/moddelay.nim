@@ -1,6 +1,6 @@
-import common
+import ../common
 import math
-import util
+import ../util
 
 const maxSamples = 48000
 

@@ -1,10 +1,8 @@
 import strutils
 import math
-import util
-
-import common
-
-import core.envelope
+import ../../util
+import ../../common
+import ../../core/envelope
 
 
 # envelope

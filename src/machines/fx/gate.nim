@@ -1,11 +1,8 @@
 import math
-
 import nico
-
-import common
-import util
-
-import core/envelope
+import ../../common
+import ../../util
+import ../../core/envelope
 
 
 {.this:self.}

@@ -1,4 +1,4 @@
-import common
+import ../../common
 import math
 
 type

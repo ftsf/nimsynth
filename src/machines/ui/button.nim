@@ -1,13 +1,10 @@
 import math
 import strutils
-
 import nico
 import nico/vec
-
-import common
-import util
-
-import ui/layoutview
+import ../../common
+import ../../util
+import ../../ui/layoutview
 
 
 type Button = ref object of Machine

@@ -1,11 +1,11 @@
 import nico
 import nico/vec
 
-import common
-import util
+import ../../common
+import ../../util
 
-import core/basemachine
-import core/scales
+import ../../core/basemachine
+import ../../core/scales
 
 
 const polyphony = 16

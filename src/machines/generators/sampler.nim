@@ -3,11 +3,11 @@ import strutils
 
 import nico
 
-import common
+import ../../common
 
-import core/envelope
-import core/sample
-import ui/menu
+import ../../core/envelope
+import ../../core/sample
+import ../../ui/menu
 
 type
   Sampler = ref object of Machine

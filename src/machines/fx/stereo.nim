@@ -1,6 +1,6 @@
-import common
+import ../../common
 import math
-import core/filter
+import ../../core/filter
 
 type
   Stereo* = ref object of Machine

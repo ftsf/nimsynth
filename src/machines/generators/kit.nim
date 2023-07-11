@@ -4,11 +4,11 @@ import strutils
 import nico
 import nico/vec
 
-import common
+import ../../common
 
-import core/envelope
-import core/sample
-import ui/menu
+import ../../core/envelope
+import ../../core/sample
+import ../../ui/menu
 
 
 type

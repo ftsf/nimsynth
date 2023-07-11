@@ -1,6 +1,6 @@
 import math
 import random
-import core/noise
+import ../core/noise
 
 const sampleRate = 48000.0'f
 const invSampleRate = 1.0'f/sampleRate

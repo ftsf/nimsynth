@@ -6,13 +6,13 @@ import strutils
 import nico
 import nico/vec
 
-import common
-import util
+import ../../common
+import ../../util
 
-import core/basemachine
-import ui/machineview
-import ui/menu
-import machines/master
+import ../../core/basemachine
+import ../../ui/machineview
+import ../../ui/menu
+import ../../machines/master
 
 
 const colsPerPattern = 8
@@ -321,12 +321,12 @@ proc drawPattern(self: Sequencer, x,y,w,h: int) =
     setColor(1)
     rectfill(x + colsPerPattern * 17 + 2, y, x + colsPerPattern * 17 + 7, y + h)
     setColor(13)
-    rectfill(x + colsPerPattern * 17 + 2, y + (startStep.float/pattern.rows.high.float) * h.float, x + colsPerPattern * 17 + 7, y + (endStep.float/pattern.rows.high.float) * h.float)
+    rectfill(x + colsPerPattern * 17 + 2, y + ((startStep.float/pattern.rows.high.float) * h.float).int, x + colsPerPattern * 17 + 7, y + ((endStep.float/pattern.rows.high.float) * h.float).int)
     if playingPattern == currentPattern:
       setColor(2)
-      rectfill(x + colsPerPattern * 17 + 2, y + (step.float/pattern.rows.len.float) * h.float, x + colsPerPattern * 17 + 7, y + ((step+1).float/pattern.rows.len.float) * h.float)
+      rectfill(x + colsPerPattern * 17 + 2, y + ((step.float/pattern.rows.len.float) * h.float).int, x + colsPerPattern * 17 + 7, y + (((step+1).float/pattern.rows.len.float) * h.float).int)
     setColor(7)
-    rectfill(x + colsPerPattern * 17 + 2, y + (currentStep.float/pattern.rows.len.float) * h.float, x + colsPerPattern * 17 + 7, y + ((currentStep+1).float/pattern.rows.len.float) * h.float)
+    rectfill(x + colsPerPattern * 17 + 2, y + ((currentStep.float/pattern.rows.len.float) * h.float).int, x + colsPerPattern * 17 + 7, y + (((currentStep+1).float/pattern.rows.len.float) * h.float).int)
 
   clip()
 
@@ -534,8 +534,8 @@ proc setValue(self: Sequencer, newValue: int) =
       if value == Blank:
         value = 0
       let k = if subColumn == 0: 2 elif subColumn == 1: 1 else: 0
-      let d = (value/(10^k)) mod 10
-      value = value + (newValue - d) * (10^k)
+      let d = (value/(10^k)).int mod 10
+      value = value + (newValue - d) * (10^k).int
 
     elif param.kind == Note:
       if subColumn == 0:

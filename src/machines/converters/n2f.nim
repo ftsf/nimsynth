@@ -1,4 +1,4 @@
-import common
+import ../../common
 
 # converts note int to float
 

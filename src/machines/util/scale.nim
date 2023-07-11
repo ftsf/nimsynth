@@ -6,14 +6,14 @@ import random
 import nico
 import nico/vec
 
-import common
-import util
+import ../../common
+import ../../util
 
-import core/scales
+import ../../core/scales
 
-import core/basemachine
-import ui/machineview
-import machines/master
+import ../../core/basemachine
+import ../../ui/machineview
+import ../../machines/master
 
 type
   ScaleMachine = ref object of Machine

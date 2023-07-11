@@ -4,12 +4,12 @@ import strutils
 import nico
 import nico/vec
 
-import common
-import util
+import ../../common
+import ../../util
 
-import core/basemachine
-import ui/layoutview
-import ui/menu
+import ../../core/basemachine
+import ../../ui/layoutview
+import ../../ui/menu
 
 
 type ValueMachine = ref object of Machine

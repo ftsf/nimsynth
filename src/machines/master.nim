@@ -1,4 +1,4 @@
-import common
+import ../common
 import math
 
 {.this:self.}
@@ -121,14 +121,14 @@ method drawExtraData(self: Master, x,y,w,h: int) =
       setColor(4)
     else:
       setColor(3)
-    rectfill(x + 1, y + 8, x + 1 + (w - 2).float32 * (clamp(ampL, 0.0, 2.0) * 0.5), y + 8 + 4)
+    rectfill(x + 1, y + 8, x + 1 + ((w - 2).float32 * (clamp(ampL, 0.0, 2.0) * 0.5)).toInt, y + 8 + 4)
     if ampR > 0.9:
       setColor(7)
     elif ampR > 0.75:
       setColor(4)
     else:
       setColor(3)
-    rectfill(x + 1, y + 8 + 4 + 2, x + 1 + (w - 2).float32 * (clamp(ampR, 0.0, 2.0) * 0.5), y + 8 + 4 + 2 + 4)
+    rectfill(x + 1, y + 8 + 4 + 2, x + 1 + ((w - 2).float32 * (clamp(ampR, 0.0, 2.0) * 0.5)).toInt, y + 8 + 4 + 2 + 4)
 
     setColor(7)
     vline(x + 1 + (w - 2) div 2, y + 10, y + 24)
@@ -152,14 +152,14 @@ method drawExtraData(self: Master, x,y,w,h: int) =
       setColor(4)
     else:
       setColor(3)
-    rectfill(x + 1, y + 8, x + 1 + (w - 2).float32 * (clamp(ampL, 0.0, 2.0) * 0.5), y + 8 + 4)
+    rectfill(x + 1, y + 8, x + 1 + ((w - 2).float32 * (clamp(ampL, 0.0, 2.0) * 0.5)).toInt, y + 8 + 4)
     if ampR > 0.9:
       setColor(7)
     elif ampR > 0.75:
       setColor(4)
     else:
       setColor(3)
-    rectfill(x + 1, y + 8 + 4 + 2, x + 1 + (w - 2).float32 * (clamp(ampR, 0.0, 2.0) * 0.5), y + 8 + 4 + 2 + 4)
+    rectfill(x + 1, y + 8 + 4 + 2, x + 1 + ((w - 2).float32 * (clamp(ampR, 0.0, 2.0) * 0.5)).toInt, y + 8 + 4 + 2 + 4)
 
     setColor(7)
     vline(x + 1 + (w - 2) div 2, y + 10, y + 24)

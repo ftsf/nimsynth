@@ -1,16 +1,16 @@
 import math
 
-import common
-import util
+import ../../common
+import ../../util
 
 import nico
 import nico/vec
 
-import core/oscillator
-import core/filter
-import core/envelope
+import ../../core/oscillator
+import ../../core/filter
+import ../../core/envelope
 
-import machines/master
+import ../../machines/master
 
 
 # 6 osc FM synth

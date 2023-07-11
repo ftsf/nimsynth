@@ -1,7 +1,7 @@
 # machine that provides audio input from the system
 # maybe allow to choose the inputs
 
-import common
+import ../../common
 
 type
   AudioInMachine = ref object of Machine

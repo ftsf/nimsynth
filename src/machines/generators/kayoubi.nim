@@ -6,14 +6,14 @@ import random
 import nico
 import nico/vec
 
-import common
-import util
+import ../../common
+import ../../util
 
-import core/scales
+import ../../core/scales
 
-import core/basemachine
-import ui/machineview
-import machines/master
+import ../../core/basemachine
+import ../../ui/machineview
+import ../../machines/master
 
 type
   KayoubiAlgorithm = enum
@@ -209,7 +209,7 @@ method process(self: Kayoubi) =
     return
   self.tickTimer -= 1
   if self.tickTimer <= 0:
-    self.tickTimer += (sampleRate.int / (beatsPerSecond() * self.ticksPerBeat)).int
+    self.tickTimer += (sampleRate.int / (beatsPerSecond() * self.ticksPerBeat.float)).int
     self.tickCounter += 1
     if self.tickCounter >= self.ticksPerBeat:
       self.tickCounter = 0

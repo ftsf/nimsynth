@@ -4,10 +4,10 @@ import strutils
 import nico
 import nico/vec
 
-import common
-import util
+import ../../common
+import ../../util
 
-import ui/layoutview
+import ../../ui/layoutview
 
 const size = 24'f
 const halfSize = 12'f

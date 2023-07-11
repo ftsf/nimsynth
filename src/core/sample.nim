@@ -1,12 +1,12 @@
 import os
 import math
 
-import common
-import util
+import ../common
+import ../util
 import nico/vec
 
 import sndfile
-import ui/menu
+import ../ui/menu
 import nico
 
 

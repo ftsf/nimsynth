@@ -1,6 +1,6 @@
-import common
+import ../../common
 
-import core.oscillator
+import ../../core/oscillator
 
 
 {.this:self.}

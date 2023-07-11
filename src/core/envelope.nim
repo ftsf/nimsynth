@@ -1,6 +1,5 @@
-import util
-
-import common
+import ../util
+import ../common
 import filter
 import math
 import nico

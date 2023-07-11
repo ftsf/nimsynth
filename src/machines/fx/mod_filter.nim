@@ -1,9 +1,8 @@
 import math
 
-import common
-import util
-
-import core.filter
+import ../../common
+import ../../util
+import ../../core/filter
 
 
 {.this:self.}

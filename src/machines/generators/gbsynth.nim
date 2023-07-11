@@ -1,11 +1,11 @@
 import math
 
-import common
-import util
+import ../../common
+import ../../util
 import nico
 
-import ui/machineview
-import core/lfsr
+import ../../ui/machineview
+import ../../core/lfsr
 
 
 {.this:self.}

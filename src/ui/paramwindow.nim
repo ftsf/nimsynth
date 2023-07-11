@@ -1,8 +1,8 @@
-import common
+import ../common
 import nico
 import nico/vec
 import math
-import util
+import ../util
 
 type ParamWindow = ref object of Window
   machine*: Machine
@@ -50,13 +50,13 @@ method drawContents(self: ParamWindow, x,y,w,h: int) =
     # draw slider fill
     setColor(if i == self.currentParam: 8 else: 6)
 
-    let zeroX = x + paramNameWidth + sliderWidth.float * clamp(invLerp(param.min, param.max, 0.0), 0.0, 1.0)
-    rectfill(clamp(zeroX, minX, maxX), yv, clamp(minX + sliderWidth.float * invLerp(param.min, param.max, param.value), minX, maxX), yv+4)
+    let zeroX = x + paramNameWidth + (sliderWidth.float * clamp(invLerp(param.min, param.max, 0.0), 0.0, 1.0)).toInt
+    rectfill(clamp(zeroX, minX, maxX), yv, clamp(minX + (sliderWidth.float * invLerp(param.min, param.max, param.value)).toInt, minX, maxX), yv+4)
 
     # draw default bar
     if param.kind != Note:
       setColor(7)
-      let defaultX = minX + sliderWidth.float * invLerp(param.min, param.max, param.default)
+      let defaultX = minX + (sliderWidth.float * invLerp(param.min, param.max, param.default)).toInt
       line(defaultX, yv, defaultX, yv+4)
 
     yv += 8

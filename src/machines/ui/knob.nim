@@ -4,12 +4,12 @@ import strutils
 import nico
 import nico/vec
 
-import common
-import util
+import ../../common
+import ../../util
 
-import core/basemachine
-import ui/layoutview
-import ui/menu
+import ../../core/basemachine
+import ../../ui/layoutview
+import ../../ui/menu
 
 
 type Knob = ref object of Machine
@@ -72,7 +72,7 @@ method drawBox(self: Knob) =
     let range = max - min
     if range != 0.0:
       let angle = lerp(degToRad(-180.0 - 45.0), degToRad(45.0), ((param.value - min) / range))
-      line(x,y, x + cos(angle) * 4, y + sin(angle) * 4)
+      line(x,y, x + (cos(angle) * 4).toInt, y + (sin(angle) * 4).toInt)
     printShadowC(param.name, x, y + 8)
     printShadowC(
       if param.getValueString != nil:

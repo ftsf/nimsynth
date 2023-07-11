@@ -1,13 +1,13 @@
 import math
 
-import common
-import util
+import ../../common
+import ../../util
 
-import core.oscillator
-import core.filter
-import core.envelope
+import ../../core/oscillator
+import ../../core/filter
+import ../../core/envelope
 
-import machines.master
+import ../../machines/master
 
 
 # 9 osc Organ

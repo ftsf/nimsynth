@@ -4,10 +4,10 @@
 
 import math
 
-import common
-import util
+import ../../common
+import ../../util
 
-import core.filter
+import ../../core/filter
 
 
 type Transposer = ref object of Machine

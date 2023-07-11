@@ -1,7 +1,7 @@
-import common
+import ../../common
 import nico
 import nico/vec
-import util
+import ../../util
 import streams
 
 type ParamRecorderMode = enum
@@ -123,12 +123,12 @@ method drawBox(self: ParamRecorder) =
 
     block:
       setColor(if mode == Playback: 11 else: 3)
-      let x = x - 5 + ((readHead.float / buffers[slot].len.float) * 10.0).float
+      let x = x - 5 + ((readHead.float / buffers[slot].len.float) * 10.0).int
       line(x, y + 1, x, y + 7)
 
     if mode == Recording:
       setColor(8)
-      let x = x - 5 + ((writeHead.float / buffers[slot].len.float) * 10.0).float
+      let x = x - 5 + ((writeHead.float / buffers[slot].len.float) * 10.0).int
       line(x, y + 1, x, y + 7)
 
 

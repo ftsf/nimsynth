@@ -1,5 +1,5 @@
 import math
-import common
+import ../../common
 
 {.this:self.}
 

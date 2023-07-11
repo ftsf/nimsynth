@@ -1,6 +1,6 @@
-import common
+import ../../common
 import math
-import util
+import ../../util
 
 # sample and hold machine
 # when triggered, captures its sample value and holds that

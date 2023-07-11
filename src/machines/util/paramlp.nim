@@ -1,11 +1,9 @@
 ## Takes an input parameter and smoothes it and passes it on
 
 import math
-
-import common
-import util
-
-import core.filter
+import ../../common
+import ../../util
+import ../../core/filter
 
 
 {.this:self.}

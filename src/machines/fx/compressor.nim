@@ -2,8 +2,8 @@ import math
 
 import nico
 
-import common
-import core.envelope
+import ../../common
+import ../../core/envelope
 
 
 {.this:self.}
@@ -112,10 +112,10 @@ proc newCompressor(): Machine =
 method drawExtraData(self: Compressor, x,y,w,h: int) =
   var yv = y
   setColor(11)
-  rectfill(x, yv, x + (w-1).float * abs(inputSample), yv + 4)
+  rectfill(x, yv, x + ((w-1).float * abs(inputSample)).toInt, yv + 4)
   yv += 5
   setColor(10)
-  rectfill(x + (w-1) - (w-1).float * abs(reduction), yv, x + (w-1), yv + 4)
+  rectfill(x + (w-1) - ((w-1).float * abs(reduction)).toInt, yv, x + (w-1), yv + 4)
 
   yv += 5
   # draw plot
@@ -124,14 +124,14 @@ method drawExtraData(self: Compressor, x,y,w,h: int) =
   while xv < x+w-1:
     let input = (xv - x).float / w.float
     let output = clamp(input + getReduction(input), 0.0, 1.0)
-    pset(xv, yv + w - (output * w.float))
+    pset(xv, yv + w - (output * w.float).toInt)
     xv += 1
   setColor(9)
   xv = x
-  while xv < x+(w-1).float * env.value:
+  while xv < x+((w-1).float * env.value).toInt:
     let input = (xv - x).float / w.float
     let output = clamp(input + getReduction(input), 0.0, 1.0)
-    line(xv, yv + w, xv, yv + w - (output * w.float))
+    line(xv, yv + w, xv, yv + w - (output * w.float).toInt)
     xv += 1
 
 method getInputName(self: Compressor, inputId: int): string =

@@ -1,12 +1,12 @@
-import common
+import ../common
 
 import nico
 import nico/vec
 
-import ui/machineview
-import util
+import ../ui/machineview
+import ../util
 
-import ui/menu
+import ../ui/menu
 
 
 {.this: self.}
@@ -220,14 +220,14 @@ method drawParams*(self: Machine, x,y,w,h: int, favOnly: bool = false) {.base.} 
     # draw slider fill
     setColor(if i == currentParam: 8 else: 6)
 
-    let zeroX = x + paramNameWidth + sliderWidth.float * clamp(invLerp(param.min, param.max, 0.0), 0.0, 1.0)
+    let zeroX = x + paramNameWidth + (sliderWidth.float * clamp(invLerp(param.min, param.max, 0.0), 0.0, 1.0)).toInt
 
-    rectfill(zeroX, yv, x + paramNameWidth + sliderWidth.float * invLerp(param.min, param.max, param.value), yv+4)
+    rectfill(zeroX, yv, x + paramNameWidth + (sliderWidth.float * invLerp(param.min, param.max, param.value)).toInt, yv+4)
 
     # draw default bar
     if param.kind != Note:
       setColor(7)
-      let defaultX = x + paramNameWidth + sliderWidth.float * invLerp(param.min, param.max, param.default)
+      let defaultX = x + paramNameWidth + (sliderWidth.float * invLerp(param.min, param.max, param.default)).toInt
       line(defaultX, yv, defaultX, yv+4)
 
     yv += 8

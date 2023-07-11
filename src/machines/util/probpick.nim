@@ -1,6 +1,6 @@
 ## When triggered sends a weighted random signal
 
-import common
+import ../../common
 import random
 
 

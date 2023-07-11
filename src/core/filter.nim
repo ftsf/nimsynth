@@ -1,7 +1,6 @@
 import math
-import util
-
-import common
+import ../util
+import ../common
 
 {.this:self.}
 

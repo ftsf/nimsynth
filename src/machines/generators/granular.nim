@@ -4,14 +4,14 @@ import strutils
 import nico
 import nico/vec
 
-import common
-import util
+import ../../common
+import ../../util
 
-import core/sample
-import core/filter
-import core/envelope
+import ../../core/sample
+import ../../core/filter
+import ../../core/envelope
 
-import ui/menu
+import ../../ui/menu
 
 type
   GranularVoice = ref object of Voice

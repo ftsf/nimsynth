@@ -1,12 +1,8 @@
 import math
-
 import nico
-
-import common
-
-import machines/master
-
-import core/chords
+import ../../common
+import ../../machines/master
+import ../../core/chords
 
 
 {.this:self.}

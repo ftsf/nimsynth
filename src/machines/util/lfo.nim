@@ -1,15 +1,12 @@
 import math
 import strutils
-
 import nico
+import ../../common
+import ../../util
+import ../../core/oscillator
+import ../../core/basemachine
 
-import common
-import util
-
-import core/oscillator
-import core/basemachine
-
-import machines/master
+import ../../machines/master
 
 
 type

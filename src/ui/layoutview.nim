@@ -3,17 +3,17 @@ import math
 import strutils
 import sequtils
 
-import common
+import ../common
 import nico
 import nico/vec
-import util
+import ../util
 
-import core/basemachine
-import ui/machineview
-import ui/menu
-import ui/paramwindow
+import ../core/basemachine
+import machineview
+import menu
+import paramwindow
 
-import core/ringbuffer
+import ../core/ringbuffer
 
 ### Layout View
 # Draw a graph of the machine connections
@@ -59,10 +59,11 @@ proc addMachineMenu(self: LayoutView, mv: Vec2f, title: string, action: proc(mt:
       var item = newMenuItem(cat) do():
         var menu = newMenu(mv, cat)
         for mtype in contents:
+          let m = MachineType(mtype)
           (proc =
-            let mtype = mtype
+            let mtype = m
             var item = newMenuItem(mtype.name, proc() =
-              action(mtype)
+              action(m)
               if not self.shift:
                 popMenu()
             )

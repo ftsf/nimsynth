@@ -3,13 +3,13 @@ import strutils
 
 import nico
 
-import common
+import ../../common
 
-import core/envelope
-import core/sample
-import ui/menu
+import ../../core/envelope
+import ../../core/sample
+import ../../ui/menu
 
-import machines.master
+import ../../machines/master
 
 
 type

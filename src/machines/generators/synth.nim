@@ -4,12 +4,12 @@ import strutils
 import nico
 import nico/vec
 
-import common
-import util
+import ../../common
+import ../../util
 
-import core/oscillator
-import core/filter
-import core/envelope
+import ../../core/oscillator
+import ../../core/filter
+import ../../core/envelope
 
 
 {.this:self.}

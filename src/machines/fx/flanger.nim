@@ -1,9 +1,8 @@
 import math
 
-import common
-
-import core.moddelay
-import core.oscillator
+import ../../common
+import ../../core/moddelay
+import ../../core/oscillator
 
 
 type

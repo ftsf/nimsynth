@@ -1,10 +1,7 @@
 import math
-
 import nico
-
-import common
-
-import machines.master
+import ../../common
+import ../../machines/master
 
 
 {.this:self.}

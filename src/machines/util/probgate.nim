@@ -1,6 +1,6 @@
 ## Takes an input and potentially passes it on based on probability
 
-import common
+import ../../common
 import random
 
 

@@ -2,12 +2,12 @@ import math
 
 import nico
 
-import common
+import ../../common
 
 {.this:self.}
 
-import core/chords
-import core/scales
+import ../../core/chords
+import ../../core/scales
 
 type ChordProgMachine = ref object of Machine
   baseNote: int

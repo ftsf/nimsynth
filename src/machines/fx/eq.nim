@@ -1,11 +1,11 @@
 import math
 
-import common
-import util
+import ../../common
+import ../../util
 import nico
 
-import core/filter
-import core/fft
+import ../../core/filter
+import ../../core/fft
 
 
 {.this:self.}
@@ -130,7 +130,7 @@ method drawExtraData(self: EQ, x,y,w,h: int) =
     for i in 1..<resolution:
       let y0 = response[(i-1)] * 10.0
       let y1 = response[i] * 10.0
-      line(x + (i-1), h - y0, x + i, h - y1)
+      line(x + (i-1), h - y0.toInt, x + i, h - y1.toInt)
 
   when false:
     block:

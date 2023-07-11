@@ -1,9 +1,9 @@
 import strutils
 import math
 
-import common
+import ../../common
 
-import core.envelope
+import ../../core/envelope
 
 
 # envelope

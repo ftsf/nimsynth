@@ -1,7 +1,7 @@
-import common
+import ../../common
 import math
-import util
-import machines.master
+import ../../util
+import ../../machines/master
 
 # simple clock
 type

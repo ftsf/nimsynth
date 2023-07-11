@@ -1,11 +1,11 @@
-import common
+import ../../common
 import math
-import util
+import ../../util
 
-import core.oscillator
-import core.filter
-import core.envelope
-import machines.master
+import ../../core/oscillator
+import ../../core/filter
+import ../../core/envelope
+import ../../machines/master
 
 import strutils
 
