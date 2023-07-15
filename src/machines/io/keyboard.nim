@@ -35,21 +35,21 @@ method init*(self: Keyboard) =
     noteBuffer[i].note = OffNote
 
   self.globalParams.add([
-    Parameter(name: "channel", kind: Int, min: 0.0, max: 15.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "channel", kind: Int, min: 0.0, max: 15.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.midiChannel = newValue.int
     ),
-    Parameter(name: "octaves", kind: Int, min: 1.0, max: 10.0, default: 7.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "octaves", kind: Int, min: 1.0, max: 10.0, default: 7.0, onchange: proc(newValue: float32, voice: int) =
       self.nOctaves = newValue.int
     ),
-    Parameter(name: "size", kind: Int, min: 1.0, max: 6.0, default: 2.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "size", kind: Int, min: 1.0, max: 6.0, default: 2.0, onchange: proc(newValue: float32, voice: int) =
       self.size = newValue.int
     ),
-    Parameter(name: "scale", kind: Int, min: 0.0, max: scaleList.high.float, default: scaleList.high.float, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "scale", kind: Int, min: 0.0, max: scaleList.high.float32, default: scaleList.high.float32, onchange: proc(newValue: float32, voice: int) =
       self.scale = newValue.int
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return scaleList[value.int].name
     ),
-    Parameter(name: "baseNote", kind: Note, min: 0.0, max: 255.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "baseNote", kind: Note, min: 0.0, max: 255.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.baseNote = newValue.int
     ),
   ])
@@ -74,12 +74,12 @@ proc noteOn(self: Keyboard, note: int, vel: int) =
 
       if bindings[i*2].isBound:
         var (voice,param) = bindings[i*2].getParameter()
-        param.value = note.float
+        param.value = note.float32
         param.onchange(param.value, voice)
 
       if bindings[i*2+1].isBound:
         var (voice,param) = bindings[i*2+1].getParameter()
-        param.value = vel.float / 127.0
+        param.value = vel.float32 / 127.0
         param.onchange(param.value, voice)
 
       done = true
@@ -100,12 +100,12 @@ proc noteOn(self: Keyboard, note: int, vel: int) =
     noteBuffer[oldestVoice].age = 0
     if bindings[oldestVoice*2].isBound:
       var (voice,param) = bindings[oldestVoice*2].getParameter()
-      param.value = note.float
+      param.value = note.float32
       param.onchange(param.value, voice)
 
     if bindings[oldestVoice*2+1].isBound:
       var (voice,param) = bindings[oldestVoice*2+1].getParameter()
-      param.value = vel.float / 127.0
+      param.value = vel.float32 / 127.0
       param.onchange(param.value, voice)
 
 proc noteOff(self: Keyboard, note: int) =
@@ -131,16 +131,16 @@ proc newKeyboard(): Machine =
 
 method getAABB*(self: Keyboard): AABB =
   let w = nOctaves * 12 * size
-  result.min.x = pos.x - (w div 2).float
+  result.min.x = pos.x - (w div 2).float32
   result.min.y = pos.y - 13
-  result.max.x = pos.x + (w div 2).float
+  result.max.x = pos.x + (w div 2).float32
   result.max.y = pos.y + 7
 
 method getKeyboardAABB*(self: Keyboard): AABB =
   let w = nOctaves * 12 * size
-  result.min.x = pos.x - (w div 2).float
+  result.min.x = pos.x - (w div 2).float32
   result.min.y = pos.y - 6
-  result.max.x = pos.x + (w div 2).float
+  result.max.x = pos.x + (w div 2).float32
   result.max.y = pos.y + 6
 
 method drawBox*(self: Keyboard) =

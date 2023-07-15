@@ -54,14 +54,14 @@ proc drawParams*(self: MachineView, x,y,w,h: int) =
       # draw slider fill
       setColor(if i == currentParam: 8 else: 6)
 
-      let zeroX = x + paramNameWidth + sliderWidth.float * clamp(invLerp(param.min, param.max, 0.0), 0.0, 1.0)
+      let zeroX = x + paramNameWidth + (sliderWidth.float32 * clamp(invLerp(param.min, param.max, 0.0), 0.0, 1.0)).int
 
-      rectfill(zeroX, yv, x + paramNameWidth + sliderWidth.float * invLerp(param.min, param.max, param.value), yv+4)
+      rectfill(zeroX, yv, x + paramNameWidth + (sliderWidth.float32 * invLerp(param.min, param.max, param.value)).int, yv+4)
 
       # draw default bar
       if param.kind != Note:
         setColor(7)
-        let defaultX = x + paramNameWidth + sliderWidth.float * invLerp(param.min, param.max, param.default)
+        let defaultX = x + paramNameWidth + (sliderWidth.float32 * invLerp(param.min, param.max, param.default)).int
         line(defaultX, yv, defaultX, yv+4)
 
       yv += 8
@@ -74,16 +74,16 @@ proc drawParams*(self: MachineView, x,y,w,h: int) =
 
       # handle
       setColor(13)
-      let yStart = scroll.float / nParams.float
-      let yEnd = (scroll + nParams).float / nParams.float
-      rectfill(x + w - 4, y + h.float * yStart, x + w, y + h.float * yEnd)
+      let yStart = scroll.float32 / nParams.float32
+      let yEnd = (scroll + nParams).float32 / nParams.float32
+      rectfill(x + w - 4, y + (h.float32 * yStart).int, x + w, y + (h.float32 * yEnd).int)
 
       # current
       block:
         setColor(7)
-        let yStart = currentParam.float / nParams.float
-        let yEnd = (currentParam+1).float / nParams.float
-        rectfill(x + w - 4, y + h.float * yStart, x + w, y + h.float * yEnd)
+        let yStart = currentParam.float32 / nParams.float32
+        let yEnd = (currentParam+1).float32 / nParams.float32
+        rectfill(x + w - 4, y + (h.float32 * yStart).int, x + w, y + (h.float32 * yEnd).int)
 
 method draw*(self: MachineView) =
   let paramsOnScreen = (screenHeight div 8)
@@ -101,23 +101,18 @@ proc updateParams*(self: MachineView, x,y,w,h: int) =
 #  # drag to adjust value
 #  if dragging:
 #    var (voice, param) = machine.getParameter(currentParam)
-#    param.value = lerp(param.min, param.max, clamp(invLerp(paramNameWidth.float, paramNameWidth.float + sliderWidth.float, mv.x), 0.0, 1.0))
+#    param.value = lerp(param.min, param.max, clamp(invLerp(paramNameWidth.float32, paramNameWidth.float32 + sliderWidth.float32, mv.x), 0.0, 1.0))
 #    if param.kind == Int or param.kind == Trigger:
-#      param.value = param.value.int.float
+#      param.value = param.value.int.float32
 #    param.onchange(param.value, voice)
 #else:
 #  dragging = false
   discard
 
 
-method update*(self: MachineView, dt: float) =
-
-  let (mx,my) = mouse()
-
-  if mx > screenWidth div 3 + paramNameWidth:
-    machine.updateExtraData(screenWidth div 3 + paramNameWidth, 16, screenWidth - 1, screenHeight - 1)
-  else:
-    updateParams(1,1, screenWidth div 3 + paramNameWidth, screenHeight - 1)
+method update*(self: MachineView, dt: float32) =
+  machine.updateExtraData(screenWidth div 3 + paramNameWidth, 16, screenWidth - 1, screenHeight - 1)
+  updateParams(1,1, screenWidth div 3 + paramNameWidth, screenHeight - 1)
 
 proc key*(self: MachineView, event: Event): bool =
   let scancode = event.scancode
@@ -150,9 +145,9 @@ proc key*(self: MachineView, event: Event): bool =
       if ctrl and down:
         var menu = newMenu(vec2f(0,0), "load patch")
         for patch in machine.getPatches():
+          var patchName = patch
           (proc() =
-            let patchName = patch
-            menu.items.add(newMenuItem(patch) do():
+            menu.items.add(newMenuItem(patchName) do():
               self.machine.loadPatch(patchName)
               popMenu()
             )
@@ -176,7 +171,7 @@ proc key*(self: MachineView, event: Event): bool =
       case param.kind:
       of Int, Trigger, Note, Bool:
         let move = if ctrl: (if param.kind == Note: 12.0 else: 10.0) else: 1.0
-        param.value = clamp(param.value.int.float + move * dir, param.min, param.max)
+        param.value = clamp(param.value.int.float32 + move * dir, param.min, param.max)
       of Float:
         let move = if shift: 0.001 elif ctrl: 0.1 else: 0.01
         param.value = clamp(param.value + range * move * dir, param.min, param.max)
@@ -273,24 +268,24 @@ method event*(self: MachineView, event: Event): bool =
       let sliderWidth = paramWidth - 64 - 6
       if shift():
         # jump directly to value
-        param.value = lerp(param.min, param.max, clamp(invLerp(paramNameWidth.float, paramNameWidth.float + sliderWidth.float, event.x.float), 0.0, 1.0))
+        param.value = lerp(param.min, param.max, clamp(invLerp(paramNameWidth.float32, paramNameWidth.float32 + sliderWidth.float32, event.x.float32), 0.0, 1.0))
       else:
         # relative shift
         let range = param.max - param.min
-        let ydist = event.y.float - clickPos.y
-        let sensitivity = clamp(10.0 / abs(event.y.float - clickPos.y))
-        let speed = (range / sliderWidth.float) * sensitivity
+        let ydist = event.y.float32 - clickPos.y
+        let sensitivity = clamp(10.0 / abs(event.y.float32 - clickPos.y))
+        let speed = (range / sliderWidth.float32) * sensitivity
         if ydist < 3:
-          param.value = lerp(param.min, param.max, clamp(invLerp(paramNameWidth.float, paramNameWidth.float + sliderWidth.float, event.x.float), 0.0, 1.0))
+          param.value = lerp(param.min, param.max, clamp(invLerp(paramNameWidth.float32, paramNameWidth.float32 + sliderWidth.float32, event.x.float32), 0.0, 1.0))
         else:
           param.value = clamp(param.value + event.xrel * speed, param.min, param.max)
       #if param.kind == Int or param.kind == Trigger:
       #  if param.value > 0:
-      #    param.value = (param.value + 0.5).int.float
+      #    param.value = (param.value + 0.5).int.float32
       #  elif param.value < 0:
-      #    param.value = (param.value - 0.5).int.float
+      #    param.value = (param.value - 0.5).int.float32
       #  else:
-      #    param.value = param.value.int.float
+      #    param.value = param.value.int.float32
       param.onchange(param.value, voice)
       return false
   of ekKeyUp, ekKeyDown:

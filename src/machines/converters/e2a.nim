@@ -4,7 +4,7 @@ import common
 
 type
   E2AMachine = ref object of Machine
-    value: float
+    value: float32
 
 # converts an event to an audio signal
 
@@ -16,7 +16,7 @@ method init(self: E2AMachine) =
   stereo = false
 
   globalParams.add([
-    Parameter(name: "value", kind: Float, min: -1000.0, max: 1000.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "value", kind: Float, min: -1000.0, max: 1000.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.value = newValue
     ),
   ])

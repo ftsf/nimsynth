@@ -18,7 +18,7 @@ method init(self: SANDH) =
   stereo = false
 
   globalParams.add([
-    Parameter(name: "trigger", kind: Trigger, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "trigger", kind: Trigger, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.sampleValue = self.getInput()
     ),
   ])

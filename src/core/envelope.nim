@@ -28,7 +28,7 @@ type
     released: bool
     filter: OnePoleFilter
     targetLevel: float32
-    level: float32
+    level*: float32
     releaseStartLevel: float32
     velocity*: float32
     speed*: float32
@@ -37,6 +37,13 @@ type
 
 proc value*(self: Envelope): float32 =
   return self.targetLevel
+
+proc updateFromSettings*(self: var Envelope, settings: EnvelopeSettings) =
+  self.a = settings.a
+  self.d = settings.d
+  self.decayExp = settings.decayExp
+  self.s = settings.s
+  self.r = settings.r
 
 proc process*(self: var Envelope): float32 =
   targetLevel = 0.0

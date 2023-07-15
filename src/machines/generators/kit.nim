@@ -18,7 +18,7 @@ type
     osc: SampleOsc
     env: Envelope
     useEnv: bool
-    gain: float
+    gain: float32
 
 {.this:self.}
 
@@ -42,7 +42,7 @@ method init(self: Kit) =
   useKeyboard = true
 
   voiceParams.add([
-    Parameter(name: "trigger", separator: true, deferred: true, kind: Float, min: 0.0, max: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "trigger", separator: true, deferred: true, kind: Float, min: 0.0, max: 1.0, onchange: proc(newValue: float32, voice: int) =
       var v = KitVoice(self.voices[voice])
       if v.osc.sample != nil:
         v.playing = true
@@ -50,15 +50,15 @@ method init(self: Kit) =
         v.gain = newValue
         v.env.trigger()
     ),
-    Parameter(name: "pitch", kind: Float, min: 0.5, max: 2.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "pitch", kind: Float, min: 0.5, max: 2.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       var v = KitVoice(self.voices[voice])
       v.osc.speed = newValue
     ),
-    Parameter(name: "decay", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "decay", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       var v = KitVoice(self.voices[voice])
       v.env.d = newValue
     ),
-    Parameter(name: "use env", kind: Bool, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "use env", kind: Bool, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       var v = KitVoice(self.voices[voice])
       v.useEnv = newValue.bool
     ),

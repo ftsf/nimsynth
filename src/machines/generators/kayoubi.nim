@@ -147,7 +147,7 @@ proc processTriTrance(self: Kayoubi, I: int) =
   if self.rand1.rand(1.0) < self.density:
     if self.bindings[0].isBound():
       var (voice,param) = self.bindings[0].getParameter()
-      param.value = n.float
+      param.value = n.float32
       param.onchange(param.value, voice)
 
 
@@ -161,42 +161,42 @@ method init(self: Kayoubi) =
   self.bindings.setLen(1)
 
   self.globalParams.add([
-    Parameter(kind: Int, name: "algorithm", min: 0.0, max: KayoubiAlgorithm.high.float, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Int, name: "algorithm", min: 0.0, max: KayoubiAlgorithm.high.float32, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.algorithm = newValue.int.KayoubiAlgorithm
       self.initAlgorithm()
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
         return $value.KayoubiAlgorithm
     ),
-    Parameter(kind: Note, name: "base", min: OffNote, max: 255.0, default: 48.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Note, name: "base", min: OffNote, max: 255.0, default: 48.0, onchange: proc(newValue: float32, voice: int) =
       self.baseNote = newValue.int
     ),
-    Parameter(kind: Trigger, name: "trigger", min: 0.0, max: 1.0, ignoreSave: true, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Trigger, name: "trigger", min: 0.0, max: 1.0, ignoreSave: true, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.playing = newValue.int != 0
       self.tickTimer = 0
       self.tickCounter = 0
       self.beatCounter = 0
     ),
-    Parameter(kind: Int, name: "scale", min: 0.0, max: KayoubiScale.high.float, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Int, name: "scale", min: 0.0, max: KayoubiScale.high.float32, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.scale = newValue.int.KayoubiScale
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return $value.KayoubiScale
     ),
-    Parameter(kind: Int, name: "TPB", min: 1, max: 16.0, default: 5.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Int, name: "TPB", min: 1, max: 16.0, default: 5.0, onchange: proc(newValue: float32, voice: int) =
       self.ticksPerBeat = newValue.int
     ),
-    Parameter(kind: Int, name: "BPL", min: 4.0, max: 32.0, default: 4.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Int, name: "BPL", min: 4.0, max: 32.0, default: 4.0, onchange: proc(newValue: float32, voice: int) =
       self.beatsPerLoop = newValue.int
     ),
-    Parameter(kind: Float, name: "X", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Float, name: "X", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.x = newValue
     ),
-    Parameter(kind: Float, name: "Y", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Float, name: "Y", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.y = newValue
     ),
-    Parameter(kind: Float, name: "density", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Float, name: "density", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.density = newValue
     ),
-    Parameter(kind: Int, name: "seed", min: 0.0, max: (2^15).float, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Int, name: "seed", min: 0.0, max: (2^15).float32, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.seed = newValue.int
       self.initAlgorithm()
     ),

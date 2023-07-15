@@ -13,11 +13,11 @@ import ui/menu
 
 
 type ValueMachine = ref object of Machine
-  value: float
+  value: float32
 
 {.this:self.}
 
-proc setValue(self: ValueMachine, value: float) =
+proc setValue(self: ValueMachine, value: float32) =
   self.value = value
 
   if bindings[0].isBound():
@@ -34,7 +34,7 @@ method init(self: ValueMachine) =
   name = "value"
 
   self.globalParams.add([
-    Parameter(name: "value", kind: Float, min: -10000.0, max: 10000.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "value", kind: Float, min: -10000.0, max: 10000.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.setValue(newValue)
     ),
   ])

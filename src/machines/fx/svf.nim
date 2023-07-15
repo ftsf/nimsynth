@@ -16,11 +16,11 @@ type
     Notch
   SVFFilter = object of RootObj
     kind: SVFFilterKind
-    Fc: float
-    Q: float
-    drive: float
-    notch,lp,hp,band: float
-    limit: float
+    Fc: float32
+    Q: float32
+    drive: float32
+    notch,lp,hp,band: float32
+    limit: float32
   SVFFilterMachine = ref object of Machine
     filters: array[maxFilters,SVFFilter]
     nFilters: int
@@ -29,7 +29,7 @@ type
 
 {.this:self.}
 
-proc process(self: var SVFFilter, s: float): float
+proc process(self: var SVFFilter, s: float32): float32
 proc reset(self: var SVFFilter)
 
 proc graphResponse(self: SVFFilterMachine) =
@@ -56,32 +56,32 @@ method init(self: SVFFilterMachine) =
   stereo = false
 
   self.globalParams.add([
-    Parameter(name: "kind", kind: Int, min: LP.float, max: Notch.float, default: LP.float, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "kind", kind: Int, min: LP.float32, max: Notch.float32, default: LP.float32, onchange: proc(newValue: float32, voice: int) =
       for i in 0..<maxFilters:
         self.filters[i].kind = newValue.SVFFilterKind
       self.hasChanged = true
     ),
-    Parameter(name: "f", kind: Float, min: 0.00001, max: 0.5, default: 0.25, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "f", kind: Float, min: 0.00001, max: 0.5, default: 0.25, onchange: proc(newValue: float32, voice: int) =
       for i in 0..<maxFilters:
-        self.filters[i].Fc = clamp(newValue, 0.00001, 0.5) * sampleRate
+        self.filters[i].Fc = clamp(newValue, 0.00001f, 0.5f) * sampleRate
       self.hasChanged = true
     ),
-    Parameter(name: "q", kind: Float, min: 0.00001, max: 0.99999, default: 0.5, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "q", kind: Float, min: 0.00001, max: 0.99999, default: 0.5, onchange: proc(newValue: float32, voice: int) =
       for i in 0..<maxFilters:
         self.filters[i].Q = newValue
       self.hasChanged = true
     ),
-    Parameter(name: "drive", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "drive", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       for i in 0..<maxFilters:
         self.filters[i].drive = newValue
       self.hasChanged = true
     ),
-    Parameter(name: "limit", kind: Float, min: 0.5, max: 0.99999, default: 0.9, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "limit", kind: Float, min: 0.5, max: 0.99999, default: 0.9, onchange: proc(newValue: float32, voice: int) =
       for i in 0..<maxFilters:
         self.filters[i].limit = clamp(newValue, 0.5, 0.99999)
       self.hasChanged = true
     ),
-    Parameter(name: "series", kind: Int, min: 1.0, max: maxFilters.float, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "series", kind: Int, min: 1.0, max: maxFilters.float32, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       self.nFilters = clamp(newValue.int, 1, maxFilters)
       self.hasChanged = true
     ),
@@ -89,12 +89,12 @@ method init(self: SVFFilterMachine) =
 
   setDefaults()
 
-proc saturate(input: float, limit: float): float =
+proc saturate(input: float32, limit: float32): float32 =
   let x1 = abs(input + limit)
   let x2 = abs(input - limit)
   return 0.5 * (x1 - x2)
 
-proc process(self: var SVFFilter, s: float): float =
+proc process(self: var SVFFilter, s: float32): float32 =
   let Fs = sampleRate
   let freq = 2.0 * sin(PI * min(0.25, Fc / (Fs*2.0)))
   let damp = min(2.0*(1.0 - pow(Q, 0.25)), min(2.0, 2.0 / freq - freq * 0.5))
@@ -190,8 +190,8 @@ method drawBox(self: SVFFilterMachine) =
 
   for i in 1..<32:
     setColor(3)
-    let v0 = responseGraph.getSubsample(((i-1).float / 32.0) * (responseGraph.len.float / 2.0))
-    let v1 = responseGraph.getSubsample((i.float / 32.0) * (responseGraph.len.float / 2.0))
+    let v0 = responseGraph.getSubsample(((i-1).float32 / 32.0) * (responseGraph.len.float32 / 2.0))
+    let v1 = responseGraph.getSubsample((i.float32 / 32.0) * (responseGraph.len.float32 / 2.0))
     line(
       pos.x + i - 1 - 16,
       pos.y + 9 - clamp(v0 * 4.0, -6.0, 12.0),

@@ -3,15 +3,19 @@ import strutils
 import tables
 import sequtils
 
-var sampleRate* = 48000.0
-var nyquist* = sampleRate / 2.0
-var invSampleRate* = 1.0/sampleRate
-const middleC* = 261.625565
-
 import nico
 import nico/vec
 
+var sampleRate* = 44100.0f
+export lerp
+export invLerp
 export vec
+
+var nyquist* = sampleRate / 2.0f
+var invSampleRate* = 1.0f/sampleRate
+const middleC* = 261.625565f
+
+var defaultSampleDir* = "samples"
 
 var frame*: uint32 = 0
 
@@ -81,11 +85,11 @@ type
     kind*: ParameterKind
     seqkind*: ParameterSequencerKind
     name*: string
-    min*,max*: float
-    value*: float
-    default*: float
-    onchange*: proc(newValue: float, voice: int)
-    getValueString*: proc(value: float, voice: int = -1): string
+    min*,max*: float32
+    value*: float32
+    default*: float32
+    onchange*: proc(newValue: float32, voice: int)
+    getValueString*: proc(value: float32, voice: int = -1): string
     deferred*: bool # deferred attributes get changed by a sequencer last
     separator*: bool # put a space above it
     ignoreSave*: bool # value wont be saved to file
@@ -99,9 +103,9 @@ type
   Input* = object
     machine*: Machine
     output*: int  # which of the input machine's output slots to read
-    gain*: float
+    gain*: float32
     inputId*: int # for machines that have more than one input
-    peak*: float
+    peak*: float32
   Voice* = ref object of RootObj
     parameters*: seq[Parameter]
   Machine* = ref object of RootObj
@@ -264,7 +268,7 @@ when defined(jack):
       result.data2 = cast[ptr array[3, uint8]](rawEvent.buffer)[2]
 
 else:
-  proc newMidiEvent*(timestamp: float, rawEvent: pointer, size: int): MidiEvent =
+  proc newMidiEvent*(timestamp: float32, rawEvent: pointer, size: int): MidiEvent =
     let status = cast[ptr array[3, uint8]](rawEvent)[0]
     result.time = timestamp.int
     result.channel = status.int and 0b00001111
@@ -275,12 +279,12 @@ else:
       result.data2 = cast[ptr array[3, uint8]](rawEvent)[2]
 
 method init*(self: Machine) {.base.} =
-  globalParams = newSeq[Parameter]()
-  voiceParams = newSeq[Parameter]()
-  voices = newSeq[Voice]()
-  inputs = newSeq[Input]()
-  bindings = newSeq[Binding]()
-  outputSamples = newSeq[float32]()
+  globalParams = @[]
+  voiceParams = @[]
+  voices = @[]
+  inputs = @[]
+  bindings = @[]
+  outputSamples = @[]
 
 method cleanup*(self: Machine) {.base.} =
   discard
@@ -406,7 +410,7 @@ proc sortMachines() =
 
   machines = newMachines
 
-proc connectMachines*(source, dest: Machine, gain: float = 1.0, inputId: int = 0, outputId: int = 0): bool =
+proc connectMachines*(source, dest: Machine, gain: float32 = 1.0, inputId: int = 0, outputId: int = 0): bool =
   #echo "connecting: ", source.name, ": ", outputId, " -> ", dest.name, ": ", inputId
   # check dest accepts inputs
   if dest.nInputs == 0:
@@ -525,8 +529,6 @@ type MachineType* = tuple[name: string, factory: proc(): Machine]
 
 var machineTypes* = newSeq[MachineType]()
 
-import tables
-
 type MachineCategory = Table[string, seq[MachineType]]
 
 var machineTypesByCategory* = initOrderedTable[string, seq[MachineType]]()
@@ -558,7 +560,7 @@ proc registerMachine*(name: string, factory: proc(): Machine, category: string =
 
   if category != "":
     if not machineTypesByCategory.hasKey(category):
-      machineTypesByCategory.add(category, newSeq[MachineType]())
+      machineTypesByCategory.add(category, @[])
     machineTypesByCategory[category].add((name: name, factory: mCreator))
 
 proc createMachine*(name: string, id = -1): Machine =
@@ -698,7 +700,7 @@ type
   ParamMarshal = object
     name: string
     voice: int
-    value: float
+    value: float32
     fav: bool
   PatchMarshal = object
     name: string
@@ -715,7 +717,7 @@ type
   InputMarshal = object
     targetMachineId: int
     outputId: int
-    gain: float
+    gain: float32
     inputId: int
   MachineMarshal = object
     id: int
@@ -982,7 +984,7 @@ method trigger*(self: Machine, note: int) {.base.} =
 method release*(self: Machine, note: int) {.base.} =
   debug self.className, " does not define release"
 
-method update*(self: View, dt: float) {.base.} =
+method update*(self: View, dt: float32) {.base.} =
   discard
 
 method draw*(self: View) {.base.} =
@@ -1060,16 +1062,16 @@ proc keyToNote*(key: Keycode): int =
   else:
     return -3
 
-proc noteToHz*(note: float): float =
+proc noteToHz*(note: float32): float32 =
   return pow(2.0,((note - 69.0) / 12.0)) * 440.0
 
-proc hzToSampleRateFraction*(hz: float): float =
+proc hzToSampleRateFraction*(hz: float32): float32 =
   return hz / sampleRate
 
-proc sampleRateFractionToHz*(srf: float): float =
+proc sampleRateFractionToHz*(srf: float32): float32 =
   return sampleRate * srf
 
-proc hzToNote*(hz: float): float =
+proc hzToNote*(hz: float32): float32 =
   if hz == 0.0:
     return 0
   return (12.0 * log2(hz / 440.0) + 69.0)
@@ -1109,21 +1111,21 @@ proc noteToNoteName*(note: int): string =
   else:
     return "???"
 
-proc hzToNoteName*(hz: float): string =
+proc hzToNoteName*(hz: float32): string =
   return noteToNoteName(hzToNote(hz).int)
 
-proc dbToLinear*(db: float): float =
+proc dbToLinear*(db: float32): float32 =
   if db == 0.0:
     return 1.0
   else:
     return pow(10.0, db / 20.0)
 
-proc linearToDb*(linear: float): float =
+proc linearToDb*(linear: float32): float32 =
   if linear == 0:
     return -Inf
   return 10.0 * log10(linear)
 
-proc valueString*(self: Parameter, value: float): string =
+proc valueString*(self: Parameter, value: float32): string =
   if self.getValueString != nil:
     return self.getValueString(value, -1)
   else:
@@ -1147,3 +1149,10 @@ proc ctrl*(): bool =
 
 proc shift*(): bool =
   return key(K_LSHIFT) or key(K_RSHIFT)
+
+proc panSample*(s: float32, pan: float32, channel: int): float32 =
+  let panMapped = ((pan + 1f) * 0.5f) / (PI * 0.5f)
+  if channel == 0:
+    result = s * sin(pan)
+  else:
+    result = s * cos(pan)

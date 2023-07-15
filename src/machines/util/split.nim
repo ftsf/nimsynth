@@ -18,7 +18,7 @@ method init(self: SplitMachine) =
   bindings = newSeq[Binding](8)
 
   globalParams.add([
-    Parameter(name: "value", kind: Float, min: -1000.0, max: 1000.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "value", kind: Float, min: -1000.0, max: 1000.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       for i in 0..7:
         if bindings[i].isBound():
           var (voice,param) = bindings[i].getParameter()

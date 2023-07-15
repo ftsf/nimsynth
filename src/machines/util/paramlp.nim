@@ -13,8 +13,8 @@ import core.filter
 
 type ParamLP = ref object of Machine
   filter: OnePoleFilter
-  targetValue: float
-  actualValue: float
+  targetValue: float32
+  actualValue: float32
 
 method init(self: ParamLP) =
   procCall init(Machine(self))
@@ -28,10 +28,10 @@ method init(self: ParamLP) =
   filter.init()
 
   globalParams.add([
-    Parameter(name: "input", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "input", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.targetValue = newValue
     ),
-    Parameter(name: "smooth", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "smooth", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.filter.setCutoff(exp(lerp(-12.0, 0.0, 1.0-newValue)))
       self.filter.calc()
     ),

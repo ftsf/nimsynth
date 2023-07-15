@@ -2,6 +2,7 @@ import common
 import math
 import util
 import machines.master
+import nico
 
 # simple clock
 type
@@ -12,8 +13,8 @@ type
     EveryBeat
   Clock = ref object of Machine
     clockRateUnit: ClockRateUnit  # as unit of sampleRate
-    clockRate: float # as unit of sampleRate
-    clock: float
+    clockRate: float32 # as unit of sampleRate
+    clock: float32
     triggered: bool
 
 {.this:self.}
@@ -29,15 +30,15 @@ method init(self: Clock) =
   bindings.setLen(1)
 
   globalParams.add([
-    Parameter(name: "rate", kind: Float, min: 0.0, max: 48000.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "rate", kind: Float, min: 0.0, max: 48000.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.clockRate = max(newValue, 0.0)
     ),
-    Parameter(name: "units", kind: Int, min: ClockRateUnit.low.float, max: ClockRateUnit.high.float, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "units", kind: Int, min: ClockRateUnit.low.float32, max: ClockRateUnit.high.float32, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.clockRateUnit = newValue.ClockRateUnit
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
         return $(value.ClockRateUnit)
     ),
-    Parameter(name: "phase", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "phase", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.clock = clamp(newValue, 0.0, 1.0)
     ),
   ])

@@ -10,11 +10,11 @@ type
     SoftClip
   Distortion* = object of RootObj
     kind*: DistortionKind
-    preGain*: float
-    threshold*: float
-    postGain*: float
-    mix: float
-    feedback: float
+    preGain*: float32
+    threshold*: float32
+    postGain*: float32
+    mix: float32
+    feedback: float32
 
 proc process*(self: Distortion, sample: float32): float32 =
   var drySignal = sample * preGain
@@ -41,21 +41,21 @@ method init(self: DistortionMachine) =
   stereo = true
 
   self.globalParams.add([
-    Parameter(name: "dist", kind: Int, min: DistortionKind.low.float, max: DistortionKind.high.float, default: HardClip.float, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "dist", kind: Int, min: DistortionKind.low.float32, max: DistortionKind.high.float32, default: HardClip.float32, onchange: proc(newValue: float32, voice: int) =
       self.distortion.kind = newValue.DistortionKind
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return $value.DistortionKind
     ),
-    Parameter(name: "pre", kind: Float, min: 0.0, max: 2.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "pre", kind: Float, min: 0.0, max: 2.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       self.distortion.preGain = newValue
     ),
-    Parameter(name: "mix", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "mix", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float32, voice: int) =
       self.distortion.mix = newValue
     ),
-    Parameter(name: "threshold", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "threshold", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       self.distortion.threshold = newValue
     ),
-    Parameter(name: "post", kind: Float, min: 0.0, max: 2.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "post", kind: Float, min: 0.0, max: 2.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       self.distortion.postGain = newValue
     )
   ])

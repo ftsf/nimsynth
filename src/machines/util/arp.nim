@@ -19,11 +19,11 @@ type ArpMode = enum
 type Arp = ref object of Machine
   note: int
   chord: int
-  speed: float # tpb
+  speed: float32 # tpb
   nNotes: int  # how many notes in the sequence to loop over
   mode: ArpMode
 
-  step: float
+  step: float32
   playing: bool
 
 method init(self: Arp) =
@@ -38,7 +38,7 @@ method init(self: Arp) =
   setDefaults()
 
   globalParams.add([
-    Parameter(kind: Note, name: "note", min: OffNote, max: 256.0, default: OffNote, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Note, name: "note", min: OffNote, max: 256.0, default: OffNote, onchange: proc(newValue: float32, voice: int) =
       self.note = newValue.int
       self.step = 0.0
       self.playing = if self.note == OffNote: false else: true
@@ -48,23 +48,23 @@ method init(self: Arp) =
           var (voice, param) = self.bindings[0].getParameter()
           param.value = newValue
           param.onchange(newValue, voice)
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return noteToNoteName(value.int)
     ),
-    Parameter(kind: Int, name: "chord", min: 0.0, max: chordList.high.float, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Int, name: "chord", min: 0.0, max: chordList.high.float32, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.chord = newValue.int
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return chordList[value.int][0]
     ),
-    Parameter(kind: Int, name: "mode", min: mode.low.float, max: mode.high.float, default: Up.float, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Int, name: "mode", min: mode.low.float32, max: mode.high.float32, default: Up.float32, onchange: proc(newValue: float32, voice: int) =
       self.mode = newValue.ArpMode
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return $value.ArpMode
     ),
-    Parameter(kind: Int, name: "speed", min: 1.0, max: 16.0, default: 4.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Int, name: "speed", min: 1.0, max: 16.0, default: 4.0, onchange: proc(newValue: float32, voice: int) =
       self.speed = newValue
     ),
-    Parameter(kind: Int, name: "notes", min: 1.0, max: 16.0, default: 4.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Int, name: "notes", min: 1.0, max: 16.0, default: 4.0, onchange: proc(newValue: float32, voice: int) =
       self.nNotes = newValue.int
     ),
   ])
@@ -76,7 +76,7 @@ method process(self: Arp) =
     let lastTick = step.int
     step += (beatsPerSecond() * speed) * invSampleRate
     if step.int >= nNotes:
-      step = step mod nNotes.float
+      step = step mod nNotes.float32
     let i = step.int
     if bindings[0].machine != nil:
       if lastTick != i:
@@ -92,7 +92,7 @@ method process(self: Arp) =
         of UpDown:
           j = if i < nNotes div 2: i else: nNotes - i
         let oct = j div intervals.len
-        param.value = (note + intervals[j mod intervals.len] + oct * 12).float
+        param.value = (note + intervals[j mod intervals.len] + oct * 12).float32
         param.onchange(param.value, voice)
 
 method drawExtraData(self: Arp, x,y,w,h: int) =

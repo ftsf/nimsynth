@@ -420,12 +420,12 @@ method init(self: FMSynth) =
   name = "fmSYNTH"
 
   self.globalParams.add([
-    Parameter(name: "algoritm", kind: Int, min: 0.0, max: algorithms.high.float, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "algoritm", kind: Int, min: 0.0, max: algorithms.high.float32, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.algorithm = newValue.int
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return $(self.algorithm.int + 1)
     ),
-    Parameter(name: "feedback", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "feedback", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       self.feedback = newValue
     ),
   ])
@@ -434,49 +434,49 @@ method init(self: FMSynth) =
     (proc() =
       let opId = i
       self.globalParams.add([
-        Parameter(name: $(opId+1) & ":AMP", kind: Float, min: 0.0, max: 1.0, default: if opId == 0: 1.0 else: 0.0, separator: true, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":AMP", kind: Float, min: 0.0, max: 1.0, default: if opId == 0: 1.0 else: 0.0, separator: true, onchange: proc(newValue: float32, voice: int) =
           self.amps[opId] = newValue
         ),
-        Parameter(name: $(opId+1) & ":FIXED", kind: Int, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":FIXED", kind: Int, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
           self.fixed[opId] = newValue.bool
         ),
-        Parameter(name: $(opId+1) & ":OCT", kind: Int, min: -8.0, max: 8.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":OCT", kind: Int, min: -8.0, max: 8.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
           self.octOffsets[opId] = newValue.int
         ),
-        Parameter(name: $(opId+1) & ":SEMI", kind: Int, min: -12.0, max: 12.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":SEMI", kind: Int, min: -12.0, max: 12.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
           self.semiOffsets[opId] = newValue.int
         ),
-        Parameter(name: $(opId+1) & ":CENT", kind: Int, min: -100.0, max: 100.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":CENT", kind: Int, min: -100.0, max: 100.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
           self.centOffsets[opId] = newValue.int
         ),
-        Parameter(name: $(opId+1) & ":MULT", kind: Float, min: 0.5, max: 8.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":MULT", kind: Float, min: 0.5, max: 8.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
           self.multipliers[opId] = newValue
         ),
-        Parameter(name: $(opId+1) & ":A", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":A", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
           self.envSettings[opId].a = newValue
         ),
-        Parameter(name: $(opId+1) & ":D", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":D", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float32, voice: int) =
           self.envSettings[opId].d = newValue
         ),
-        Parameter(name: $(opId+1) & ":S", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":S", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
           self.envSettings[opId].s = newValue
         ),
-        Parameter(name: $(opId+1) & ":R", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":R", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
           self.envSettings[opId].r = newValue
         ),
       ])
     )()
 
   self.voiceParams.add([
-    Parameter(name: "note", kind: Note, min: 0.0, max: 255.0, default: OffNote, separator: true, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "note", kind: Note, min: 0.0, max: 255.0, default: OffNote, separator: true, onchange: proc(newValue: float32, voice: int) =
       self.initNote(voice, newValue.int)
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       if value == OffNote:
         return "Off"
       else:
         return noteToNoteName(value.int)
     ),
-    Parameter(name: "vel", kind: Float, min: 0.0, max: 1.0, seqkind: skInt8, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "vel", kind: Float, min: 0.0, max: 1.0, seqkind: skInt8, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       var voice = FMSynthVoice(self.voices[voice])
       voice.velocity = newValue
     ),

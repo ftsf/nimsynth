@@ -22,7 +22,7 @@ method init(self: LFSRMachine) =
   lfsr.init()
 
   globalParams.add([
-    Parameter(kind: Float, name: "freq", min: 20.0'f, max: 24000.0'f, default: 440.0'f, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Float, name: "freq", min: 20.0'f, max: 24000.0'f, default: 440.0'f, onchange: proc(newValue: float32, voice: int) =
       self.freq = clamp(newValue, 20.0'f, 24000'f)
     ),
   ])

@@ -12,18 +12,18 @@ import core/lfsr
 
 type
   GBPulseOsc = object
-    freq: float
-    phase: float
+    freq: float32
+    phase: float32
     pulse: int
 
   GBWaveOsc = object
-    freq: float
+    freq: float32
     wave: int
-    phase: float
+    phase: float32
     waveRam: array[16, array[32, uint8]]
 
   GBNoiseOsc = object
-    freq: float
+    freq: float32
     lfsr: LFSR
     nextClick: int
 
@@ -48,12 +48,12 @@ proc process(self: var GBWaveOsc): float32 =
   phase += (freq * invSampleRate) * TAU
   if phase >= TAU:
     phase -= TAU
-  result = (waveRam[wave][floor(invLerp(0.0, TAU, phase) * 32.0).int].float / 7.5) - 1.0
+  result = (waveRam[wave][floor(invLerp(0.0, TAU, phase) * 32.0).int].float32 / 7.5) - 1.0
 
-proc gbFreqToHz(n: int): float =
-  return (4194304/(4*2^3*(2048-n))).float
+proc gbFreqToHz(n: int): float32 =
+  return (4194304/(4*2^3*(2048-n))).float32
 
-proc hzToGbFreq(hz: float): int =
+proc hzToGbFreq(hz: float32): int =
   return 2048 - 2^17 div hz.int
 
 type
@@ -110,7 +110,7 @@ method init*(self: GBSynth) =
     (proc() =
       let voiceId = i
       self.globalParams.add([
-        Parameter(name: $voiceId & ":note", separator: true, deferred: true, kind: Note, min: OffNote, max: 255.0, default: OffNote, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $voiceId & ":note", separator: true, deferred: true, kind: Note, min: OffNote, max: 255.0, default: OffNote, onchange: proc(newValue: float32, voice: int) =
           var v = self.gbVoices[voiceId].addr
           if newValue == OffNote:
             v.samplesLeft = 0
@@ -121,7 +121,7 @@ method init*(self: GBSynth) =
             of 0:
               self.gbOsc0.freq = noteToHz(newValue)
               v.freqShadowRegister = hzToGbFreq(self.gbOsc0.freq)
-              v.nextSweepUpdate = (0.0078 * sampleRate.float * v.sweepTime.float).int
+              v.nextSweepUpdate = (0.0078 * sampleRate.float32 * v.sweepTime.float32).int
               v.sweepEnabled = v.sweepShift > 0 or v.sweepTime > 0
             of 1:
               self.gbOsc1.freq = noteToHz(newValue)
@@ -138,36 +138,36 @@ method init*(self: GBSynth) =
             v.volume = if voice == 2: 15 else: v.envInit
             v.enabled = true
 
-        , getValueString: proc(value: float, voice: int): string =
+        , getValueString: proc(value: float32, voice: int): string =
           if value == OffNote:
             return "Off"
           else:
             return noteToNoteName(value.int)
         ),
-        Parameter(name: $voiceId & ":len", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $voiceId & ":len", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
           var v = self.gbVoices[voiceId].addr
-          v.noteLength = (newValue * sampleRate.float).int
+          v.noteLength = (newValue * sampleRate.float32).int
         ),
-        Parameter(name: $voiceId & ":left", kind: Int, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $voiceId & ":left", kind: Int, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
           var v = self.gbVoices[voiceId].addr
           v.left = newValue.bool
         ),
-        Parameter(name: $voiceId & ":right", kind: Int, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $voiceId & ":right", kind: Int, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
           var v = self.gbVoices[voiceId].addr
           v.right = newValue.bool
         ),
       ])
       if voiceId != 2:
         self.globalParams.add([
-          Parameter(name: $voiceId & ":env init", kind: Int, min: 0.0, max: 15.0, default: 15.0, onchange: proc(newValue: float, voice: int) =
+          Parameter(name: $voiceId & ":env init", kind: Int, min: 0.0, max: 15.0, default: 15.0, onchange: proc(newValue: float32, voice: int) =
             var v = self.gbVoices[voiceId].addr
             v.envInit = newValue.int
           ),
-          Parameter(name: $voiceId & ":env mode", kind: Int, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+          Parameter(name: $voiceId & ":env mode", kind: Int, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
             var v = self.gbVoices[voiceId].addr
             v.envMode = newValue.int
           ),
-          Parameter(name: $voiceId & ":env change", kind: Int, min: 0.0, max: 7.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+          Parameter(name: $voiceId & ":env change", kind: Int, min: 0.0, max: 7.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
             var v = self.gbVoices[voiceId].addr
             v.envChange = newValue.int
           ),
@@ -175,22 +175,22 @@ method init*(self: GBSynth) =
       else:
         # wave select
         self.globalParams.add([
-          Parameter(name: $voiceId & ":wave", kind: Int, min: 0.0, max: 15.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+          Parameter(name: $voiceId & ":wave", kind: Int, min: 0.0, max: 15.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
             self.gbOsc2.wave = newValue.int
           ),
         ])
       if i == 0:
         # sweep params
         self.globalParams.add([
-          Parameter(name: $voiceId & ":sweep time", kind: Int, min: 0.0, max: 7.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+          Parameter(name: $voiceId & ":sweep time", kind: Int, min: 0.0, max: 7.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
             var v = self.gbVoices[voiceId].addr
             v.sweepTime = newValue.int
           ),
-          Parameter(name: $voiceId & ":sweep mode", kind: Int, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+          Parameter(name: $voiceId & ":sweep mode", kind: Int, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
             var v = self.gbVoices[voiceId].addr
             v.sweepMode = newValue.int
           ),
-          Parameter(name: $voiceId & ":sweep shift", kind: Int, min: 0.0, max: 7.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+          Parameter(name: $voiceId & ":sweep shift", kind: Int, min: 0.0, max: 7.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
             var v = self.gbVoices[voiceId].addr
             v.sweepShift = newValue.int
           ),
@@ -198,12 +198,12 @@ method init*(self: GBSynth) =
       if i == 0 or i == 1:
         # pulse specific params
         self.globalParams.add([
-          Parameter(name: $voiceId & ":pw", kind: Int, min: 0.0, max: 3.0, default: 2.0, onchange: proc(newValue: float, voice: int) =
+          Parameter(name: $voiceId & ":pw", kind: Int, min: 0.0, max: 3.0, default: 2.0, onchange: proc(newValue: float32, voice: int) =
             if voiceId == 0:
               self.gbOsc0.pulse = newValue.int
             elif voiceId == 1:
               self.gbOsc1.pulse = newValue.int
-          , getValueString: proc(value: float, voice: int): string =
+          , getValueString: proc(value: float32, voice: int): string =
             case value.int:
             of 0:
               return "0.125"
@@ -243,7 +243,7 @@ method process*(self: GBSynth) {.inline.} =
         if i == 0 and v.sweepTime > 0:
             v.nextSweepUpdate -= 1
             if v.nextSweepUpdate <= 0:
-              v.nextSweepUpdate = (0.0078 * sampleRate.float * v.sweepTime.float).int
+              v.nextSweepUpdate = (0.0078 * sampleRate.float32 * v.sweepTime.float32).int
               if v.sweepEnabled and v.sweepShift > 0:
                 var x = v.freqShadowRegister shr v.sweepShift
                 if v.sweepMode == 1:
@@ -256,15 +256,15 @@ method process*(self: GBSynth) {.inline.} =
         if i == 3:
           gbOsc3.nextclick -= 1
           if gbOsc3.nextclick == 0:
-            v.output = gbOsc3.lfsr.process() * (v.volume.float / 15.0)
+            v.output = gbOsc3.lfsr.process() * (v.volume.float32 / 15.0)
             gbOsc3.nextclick = ((1.0 / gbOsc3.freq) * sampleRate).int
           else:
-            v.output = gbOsc3.lfsr.output * (v.volume.float / 15.0)
+            v.output = gbOsc3.lfsr.output * (v.volume.float32 / 15.0)
         else:
           if i == 0:
-            v.output = gbOsc0.process() * (v.volume.float / 15.0)
+            v.output = gbOsc0.process() * (v.volume.float32 / 15.0)
           elif i == 1:
-            v.output = gbOsc1.process() * (v.volume.float / 15.0)
+            v.output = gbOsc1.process() * (v.volume.float32 / 15.0)
           elif i == 2:
             v.output = gbOsc2.process()
 

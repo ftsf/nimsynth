@@ -1,6 +1,7 @@
 import common
 import math
 import util
+import nico
 
 const maxSamples = 48000
 
@@ -9,8 +10,8 @@ type
     tape*: array[maxSamples, float32]
     readHead*: int
     writeHead*: int
-    delayTime*: float # in seconds
-    feedback*: float
+    delayTime*: float32 # in seconds
+    feedback*: float32
 
 {.this:self.}
 

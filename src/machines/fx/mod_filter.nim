@@ -2,6 +2,7 @@ import math
 
 import common
 import util
+import nico
 
 import core.filter
 
@@ -22,17 +23,17 @@ method init(self: FilterMachine) =
   filter.init()
 
   self.globalParams.add([
-    Parameter(name: "type", kind: Int, min: FilterKind.low.float, max: FilterKind.high.float, default: Lowpass.float, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "type", kind: Int, min: FilterKind.low.float32, max: FilterKind.high.float32, default: Lowpass.float32, onchange: proc(newValue: float32, voice: int) =
       self.filter.kind = newValue.FilterKind
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return $value.FilterKind
     ),
-    Parameter(name: "cutoff", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "cutoff", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float32, voice: int) =
       self.filter.cutoff = exp(lerp(-8.0, -0.8, newValue))
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return $(exp(lerp(-8.0, -0.8, value)) * sampleRate).int & " hZ"
     ),
-    Parameter(name: "q", kind: Float, min: 0.00001, max: 10.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "q", kind: Float, min: 0.00001, max: 10.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       self.filter.resonance = newValue
     ),
   ])

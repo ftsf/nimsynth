@@ -42,7 +42,7 @@ const arrowVerts = [
 
 proc newLayoutView*(): LayoutView =
   result = new(LayoutView)
-  result.camera = vec2f(screenWidth.float / 2.0, screenHeight.float / 2.0)
+  result.camera = vec2f(screenWidth.float32 / 2.0, screenHeight.float32 / 2.0)
   result.currentMachine = nil
   result.keyboardMachine = nil
   result.windows = @[]
@@ -53,25 +53,24 @@ proc addMachineMenu(self: LayoutView, mv: Vec2f, title: string, action: proc(mt:
   var menu = newMenu(mv, title)
   machineTypesByCategory.sort((x,y) => cmp(x[0], y[0]))
   for cat, contents in pairs(machineTypesByCategory):
-    (proc =
-      let cat = cat
-      let contents = contents
-      var item = newMenuItem(cat) do():
+    closureScope:
+      var cat = cat
+      var contents = contents
+      var catitem = newMenuItem(cat) do():
         var menu = newMenu(mv, cat)
         for mtype in contents:
-          (proc =
-            let mtype = mtype
-            var item = newMenuItem(mtype.name, proc() =
+          closureScope:
+            var mtype = mtype
+            var mtypeName = mtype.name
+            var item = newMenuItem(mtypeName, proc() =
               action(mtype)
               if not self.shift:
                 popMenu()
             )
             menu.items.add(item)
-          )()
         popMenu()
         pushMenu(menu)
-      menu.items.add(item)
-    )()
+      menu.items.add(catitem)
   return menu
 
 method draw*(self: LayoutView) =
@@ -496,7 +495,7 @@ method event*(self: LayoutView, event: Event): bool =
             currentView = currentMachine.getMachineView()
             return true
       of SCANCODE_HOME:
-          camera = vec2f(-screenWidth.float / 2.0, -screenHeight.float / 2.0)
+          camera = vec2f(-screenWidth.float32 / 2.0, -screenHeight.float32 / 2.0)
           return true
       of SCANCODE_DELETE, SCANCODE_BACKSPACE:
         if currentMachine != nil and currentMachine != masterMachine:

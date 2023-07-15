@@ -35,13 +35,13 @@ method init(self: SpectrogramMachine) =
   stereo = false
 
   self.globalParams.add([
-    Parameter(name: "size", kind: Int, min: 1.0, max: 8.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "size", kind: Int, min: 1.0, max: 8.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       resolution = clamp(newValue.int, 1, 8) * 1024
       buffer = newRingBuffer[float32](resolution)
       data = newSeq[float32](resolution)
       responseGraph = newSeq[float32](resolution)
     ),
-    Parameter(name: "log", kind: Bool, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "log", kind: Bool, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       logView = newValue.bool
     ),
   ])
@@ -79,9 +79,9 @@ method drawBox(self: SpectrogramMachine) =
       highestPeakValue = responseGraph[i]
 
   setColor(1)
-  vline(pos.x - 32 + (highestPeak.float / (resolution div 2).float) * 64.0, pos.y - 31, pos.y + 31)
+  vline(pos.x - 32 + (highestPeak.float32 / (resolution div 2).float32) * 64.0, pos.y - 31, pos.y + 31)
 
-  let hz = sampleRateFractionToHz(highestPeak.float / resolution.float)
+  let hz = sampleRateFractionToHz(highestPeak.float32 / resolution.float32)
 
   printr("$1 hZ".format(hz.int), pos.x + 30, pos.y - 30)
   printr("$1".format(hzToNoteName(hz)), pos.x + 30, pos.y - 20)

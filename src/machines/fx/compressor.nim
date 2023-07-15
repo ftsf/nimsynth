@@ -14,8 +14,8 @@ type EnvDetectorKind = enum
 
 type EnvDetector = object of RootObj
   kind: EnvDetectorKind
-  attack,release: float
-  value: float
+  attack,release: float32
+  value: float32
 
 const rmsSize = 512
 
@@ -27,15 +27,15 @@ proc process(self: var EnvDetector, sample: float32) =
     value = release * (value - sample) + sample
 
 type Compressor = ref object of Machine
-  threshold: float
-  ratio: float
-  invRatio: float
+  threshold: float32
+  ratio: float32
+  invRatio: float32
   env: EnvDetector
-  preGain,postGain: float
-  inputLevelL: float
-  inputLevelR: float
-  inputSample: float
-  reduction: float
+  preGain,postGain: float32
+  inputLevelL: float32
+  inputLevelR: float32
+  inputSample: float32
+  reduction: float32
   rms: array[rmsSize, float32]
 
 
@@ -49,26 +49,26 @@ method init(self: Compressor) =
   name = "comp"
 
   self.globalParams.add([
-    Parameter(name: "threshold", kind: Float, min: 0.0, max: 1.0, default: 1.00, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "threshold", kind: Float, min: 0.0, max: 1.0, default: 1.00, onchange: proc(newValue: float32, voice: int) =
       self.threshold = newValue
     ),
-    Parameter(name: "ratio", kind: Float, min: 1.0, max: 12.0, default: 3.00, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "ratio", kind: Float, min: 1.0, max: 12.0, default: 3.00, onchange: proc(newValue: float32, voice: int) =
       self.ratio = newValue
       self.invRatio = 1.0/newValue
     ),
-    Parameter(name: "attack", kind: Float, min: 0.0001, max: 0.5, default: 0.01, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "attack", kind: Float, min: 0.0001, max: 0.5, default: 0.01, onchange: proc(newValue: float32, voice: int) =
       self.env.attack = exp(ln(0.01) / (newValue * sampleRate))
     ),
-    Parameter(name: "release", kind: Float, min: 0.01, max: 5.0, default: 0.05, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "release", kind: Float, min: 0.01, max: 5.0, default: 0.05, onchange: proc(newValue: float32, voice: int) =
       self.env.release = exp(ln(0.01) / (newValue * sampleRate))
     ),
-    Parameter(name: "detector", kind: Int, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "detector", kind: Int, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.env.kind = newValue.EnvDetectorKind
     ),
-    Parameter(name: "pre gain", kind: Float, min: 0.0, max: 2.0, default: 1.00, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "pre gain", kind: Float, min: 0.0, max: 2.0, default: 1.00, onchange: proc(newValue: float32, voice: int) =
       self.preGain = newValue
     ),
-    Parameter(name: "post gain", kind: Float, min: 0.0, max: 2.0, default: 1.00, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "post gain", kind: Float, min: 0.0, max: 2.0, default: 1.00, onchange: proc(newValue: float32, voice: int) =
       self.postGain = newValue
     ),
   ])
@@ -112,26 +112,26 @@ proc newCompressor(): Machine =
 method drawExtraData(self: Compressor, x,y,w,h: int) =
   var yv = y
   setColor(11)
-  rectfill(x, yv, x + (w-1).float * abs(inputSample), yv + 4)
+  rectfill(x, yv, x + (w-1).float32 * abs(inputSample), yv + 4)
   yv += 5
   setColor(10)
-  rectfill(x + (w-1) - (w-1).float * abs(reduction), yv, x + (w-1), yv + 4)
+  rectfill(x + (w-1) - (w-1).float32 * abs(reduction), yv, x + (w-1), yv + 4)
 
   yv += 5
   # draw plot
   setColor(8)
   var xv = x
   while xv < x+w-1:
-    let input = (xv - x).float / w.float
+    let input = (xv - x).float32 / w.float32
     let output = clamp(input + getReduction(input), 0.0, 1.0)
-    pset(xv, yv + w - (output * w.float))
+    pset(xv, yv + w - (output * w.float32))
     xv += 1
   setColor(9)
   xv = x
-  while xv < x+(w-1).float * env.value:
-    let input = (xv - x).float / w.float
+  while xv < x+(w-1).float32 * env.value:
+    let input = (xv - x).float32 / w.float32
     let output = clamp(input + getReduction(input), 0.0, 1.0)
-    line(xv, yv + w, xv, yv + w - (output * w.float))
+    line(xv, yv + w, xv, yv + w - (output * w.float32))
     xv += 1
 
 method getInputName(self: Compressor, inputId: int): string =

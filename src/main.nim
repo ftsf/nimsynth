@@ -59,7 +59,6 @@ import machines/ui/xy
 
 import machines/util/arp
 import machines/util/chord
-import machines/util/chordprog
 import machines/util/dc
 import machines/util/karp
 import machines/util/lfo

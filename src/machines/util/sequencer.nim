@@ -59,7 +59,7 @@ type
     ticksPerBeat*: int
     beatsPerBar*: int
     playing: bool
-    subTick: float
+    subTick: float32
     looping: bool
     recording: bool
     recordColumn: int
@@ -67,20 +67,20 @@ type
   SequencerView* = ref object of MachineView
     clipboard: Pattern
 
-proc mapSeqValueToParamValue(value: int, param: ptr Parameter): float =
+proc mapSeqValueToParamValue(value: int, param: ptr Parameter): float32 =
   case param.kind:
   of Bool:
     return (if value == 0: 0.0 else: 1.0)
   of Note:
-    return value.float
+    return value.float32
   of Int:
-    return clamp(value.float, param.min, param.max)
+    return clamp(value.float32, param.min, param.max)
   of Trigger:
     return (if value == 1: 1.0 else: 0.0)
   of Float:
-    return lerp(param.min, param.max, invLerp(0.0, 999.0, clamp(value, 0, 999).float))
+    return lerp(param.min, param.max, invLerp(0.0, 999.0, clamp(value, 0, 999).float32))
 
-proc mapParamValueToSeqValue(value: float, param: ptr Parameter): int =
+proc mapParamValueToSeqValue(value: float32, param: ptr Parameter): int =
   case param.kind:
   of Bool:
     return (if value == 0.0: 0 else: 1)
@@ -147,36 +147,36 @@ method init*(self: Sequencer) =
   humanization = 0'f
 
   globalParams.add([
-    Parameter(kind: Int, name: "pattern", min: 0.0, max: 63.0, default: 0.0, ignoreSave: true, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Int, name: "pattern", min: 0.0, max: 63.0, default: 0.0, ignoreSave: true, onchange: proc(newValue: float32, voice: int) =
       self.playPattern(newValue.int)
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       if self.patterns[value.int] != nil:
         return $value.int & ": " & self.patterns[value.int].name
       else:
         return $value.int & ": empty"
     ),
-    Parameter(kind: Int, name: "tpb", min: -32.0, max: 32.0, default: 4.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Int, name: "tpb", min: -32.0, max: 32.0, default: 4.0, onchange: proc(newValue: float32, voice: int) =
       self.ticksPerBeat = newValue.int
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return (if value < 0: "1/" & $(-value.int) else: $value.int)
     ),
-    Parameter(kind: Int, name: "groove", min: -4.0, max: 4.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Int, name: "groove", min: -4.0, max: 4.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.groove = newValue.int
     ),
-    Parameter(kind: Float, name: "human", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Float, name: "human", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.humanization = newValue.float32
     ),
-    Parameter(kind: Int, name: "loop", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Int, name: "loop", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.looping = newValue.bool
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return (if value == 1.0: "on" else: "off")
     ),
-    Parameter(kind: Int, name: "play", min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Int, name: "play", min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       self.playing = newValue.bool
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return (if value == 1.0: "on" else: "off")
     ),
-    Parameter(kind: Int, name: "bpb", min: 1.0, max: 16.0, default: 4.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Int, name: "bpb", min: 1.0, max: 16.0, default: 4.0, onchange: proc(newValue: float32, voice: int) =
       self.beatsPerBar = newValue.int
     ),
   ])
@@ -321,12 +321,12 @@ proc drawPattern(self: Sequencer, x,y,w,h: int) =
     setColor(1)
     rectfill(x + colsPerPattern * 17 + 2, y, x + colsPerPattern * 17 + 7, y + h)
     setColor(13)
-    rectfill(x + colsPerPattern * 17 + 2, y + (startStep.float/pattern.rows.high.float) * h.float, x + colsPerPattern * 17 + 7, y + (endStep.float/pattern.rows.high.float) * h.float)
+    rectfill(x + colsPerPattern * 17 + 2, y + (startStep.float32/pattern.rows.high.float32) * h.float32, x + colsPerPattern * 17 + 7, y + (endStep.float32/pattern.rows.high.float32) * h.float32)
     if playingPattern == currentPattern:
       setColor(2)
-      rectfill(x + colsPerPattern * 17 + 2, y + (step.float/pattern.rows.len.float) * h.float, x + colsPerPattern * 17 + 7, y + ((step+1).float/pattern.rows.len.float) * h.float)
+      rectfill(x + colsPerPattern * 17 + 2, y + (step.float32/pattern.rows.len.float32) * h.float32, x + colsPerPattern * 17 + 7, y + ((step+1).float32/pattern.rows.len.float32) * h.float32)
     setColor(7)
-    rectfill(x + colsPerPattern * 17 + 2, y + (currentStep.float/pattern.rows.len.float) * h.float, x + colsPerPattern * 17 + 7, y + ((currentStep+1).float/pattern.rows.len.float) * h.float)
+    rectfill(x + colsPerPattern * 17 + 2, y + (currentStep.float32/pattern.rows.len.float32) * h.float32, x + colsPerPattern * 17 + 7, y + ((currentStep+1).float32/pattern.rows.len.float32) * h.float32)
 
   clip()
 
@@ -370,16 +370,16 @@ proc drawPatternSelector(self: Sequencer, x,y,w,h: int) =
   print("tick:  " & $currentStep, x, y)
   y += 8
   if ticksPerBeat > 0:
-    print("length: " & floatToTimeStr(pattern.rows.len.float * (beatsPerSecond() / ticksPerBeat.float)), x, y)
+    print("length: " & floatToTimeStr(pattern.rows.len.float32 * (beatsPerSecond() / ticksPerBeat.float32)), x, y)
   elif ticksPerBeat < 0:
-    print("length: " & floatToTimeStr((pattern.rows.len.float / (1.0 / -ticksPerBeat.float)).float * beatsPerSecond()), x, y)
+    print("length: " & floatToTimeStr((pattern.rows.len.float32 / (1.0 / -ticksPerBeat.float32)).float32 * beatsPerSecond()), x, y)
   else:
     print("length: inf", x, y)
   y += 8
   if ticksPerBeat > 0:
-    print("time: " & floatToTimeStr(currentStep.float * (beatsPerSecond() / ticksPerBeat.float)), x, y)
+    print("time: " & floatToTimeStr(currentStep.float32 * (beatsPerSecond() / ticksPerBeat.float32)), x, y)
   elif ticksPerBeat < 0:
-    print("time: " & floatToTimeStr((currentStep.float / (1.0 / -ticksPerBeat.float)).float * beatsPerSecond()), x, y)
+    print("time: " & floatToTimeStr((currentStep.float32 / (1.0 / -ticksPerBeat.float32)).float32 * beatsPerSecond()), x, y)
   else:
     print("time: n/a", x, y)
   y += 8
@@ -388,7 +388,7 @@ proc drawPatternSelector(self: Sequencer, x,y,w,h: int) =
   print("recording: " & (if self.recording: "yes" else: "no"), x, y)
 
 
-method update(self: SequencerView, dt: float) =
+method update(self: SequencerView, dt: float32) =
   var s = Sequencer(machine)
 
   updateParams(screenWidth - 128, 8, 126, screenHeight - 9)
@@ -493,7 +493,7 @@ method process*(self: Sequencer) =
             param.value = mapSeqValueToParamValue(value, param)
             param.onchange(param.value, voice)
 
-    var realTicksPerBeat = if ticksPerBeat < 0: 1.0 / -ticksPerBeat.float else: ticksPerBeat.float
+    var realTicksPerBeat = if ticksPerBeat < 0: 1.0 / -ticksPerBeat.float32 else: ticksPerBeat.float32
     if realTicksPerBeat >= 1:
       if groove > 0:
         if step mod 2 == 0:
@@ -501,9 +501,9 @@ method process*(self: Sequencer) =
         else:
           realTicksPerBeat -= groove.float32
     if self.humanization > 0 and self.humanizationMap.len == pattern.rows.len:
-      subTick += invSampleRate * beatsPerSecond() * realTicksPerBeat.float * self.humanizationMap[self.step]
+      subTick += invSampleRate * beatsPerSecond() * realTicksPerBeat.float32 * self.humanizationMap[self.step]
     else:
-      subTick += invSampleRate * beatsPerSecond() * realTicksPerBeat.float
+      subTick += invSampleRate * beatsPerSecond() * realTicksPerBeat.float32
     if subTick >= 1.0:
       step += 1
       subTick = 0.0
@@ -534,7 +534,7 @@ proc setValue(self: Sequencer, newValue: int) =
       if value == Blank:
         value = 0
       let k = if subColumn == 0: 2 elif subColumn == 1: 1 else: 0
-      let d = (value/(10^k)) mod 10
+      let d = (value div (10^k)) mod 10
       value = value + (newValue - d) * (10^k)
 
     elif param.kind == Note:
@@ -677,8 +677,8 @@ proc key*(self: SequencerView, event: Event): bool =
           s.step = s.currentStep
         s.subTick = 0.0
     else:
-      s.globalParams[0].value = s.currentPattern.float
-      s.globalParams[0].onchange(s.currentPattern.float, -1)
+      s.globalParams[0].value = s.currentPattern.float32
+      s.globalParams[0].onchange(s.currentPattern.float32, -1)
       s.playing = true
     return true
   elif scancode == SCANCODE_HOME and down:
@@ -695,14 +695,14 @@ proc key*(self: SequencerView, event: Event): bool =
     # lower tpb
     var param = s.getParameterByName("tpb")
     s.ticksPerBeat -= 1
-    param.value = s.ticksPerBeat.float
+    param.value = s.ticksPerBeat.float32
     param.onchange(param.value, -1)
     return true
   elif scancode == SCANCODE_EQUALS and down:
     # increase tpb
     var param = s.getParameterByName("tpb")
     s.ticksPerBeat += 1
-    param.value = s.ticksPerBeat.float
+    param.value = s.ticksPerBeat.float32
     param.onchange(param.value, -1)
     return true
   elif down and scancode == SCANCODE_BACKSPACE:
@@ -749,8 +749,8 @@ proc key*(self: SequencerView, event: Event): bool =
 
   elif scancode == SCANCODE_T and ctrl and down:
     var menu = newMenu(vec2f(
-      (s.currentColumn * 16 + 12).float,
-      8.float
+      (s.currentColumn * 16 + 12).float32,
+      8.float32
     ), "bind machine")
 
     if s.bindings[s.currentColumn].machine != nil:

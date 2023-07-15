@@ -1,6 +1,6 @@
 import common
 
-# converts note int to float
+# converts note int to float32
 
 {.this:self.}
 
@@ -19,13 +19,13 @@ method init(self: NoteMachine) =
   bindings = newSeq[Binding](1)
 
   globalParams.add([
-    Parameter(kind: Note, name: "note", min: 0, max: 127, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Note, name: "note", min: 0, max: 127, onchange: proc(newValue: float32, voice: int) =
       if newValue != OffNote:
         if bindings[0].isBound():
           var (voice, param) = bindings[0].getParameter()
           param.value = newValue.noteToHz()
           param.onchange(param.value, voice)
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return noteToNoteName(value.int)
     ),
   ])

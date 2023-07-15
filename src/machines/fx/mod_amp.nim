@@ -3,7 +3,7 @@ import common
 # very basic amp
 
 type AmpMachine = ref object of Machine
-  amp: float
+  amp: float32
 
 {.this:self.}
 
@@ -15,7 +15,7 @@ method init(self: AmpMachine) =
   stereo = false
 
   self.globalParams.add([
-    Parameter(name: "amp", kind: Float, min: -10.0, max: 10.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "amp", kind: Float, min: -10.0, max: 10.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       self.amp = newValue
     ),
   ])

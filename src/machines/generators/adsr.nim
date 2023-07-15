@@ -24,31 +24,31 @@ method init(self: ADSRMachine) =
   env.init()
 
   globalParams.add([
-    Parameter(kind: Trigger, name: "trigger", min: 0, max: 1, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Trigger, name: "trigger", min: 0, max: 1, onchange: proc(newValue: float32, voice: int) =
       if newValue == OffNote or newValue == 0:
         env.release()
       else:
         env.trigger()
     ),
-    Parameter(name: "a", kind: Float, separator: true, min: 0.0, max: 5.0, default: 0.001, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "a", kind: Float, separator: true, min: 0.0, max: 5.0, default: 0.001, onchange: proc(newValue: float32, voice: int) =
       self.env.a = exp(newValue) - 1.0
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
-    Parameter(name: "d", kind: Float, min: 0.0, max: 5.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "d", kind: Float, min: 0.0, max: 5.0, default: 0.1, onchange: proc(newValue: float32, voice: int) =
       self.env.d = exp(newValue) - 1.0
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
-    Parameter(name: "ds", kind: Float, min: 0.1, max: 10.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "ds", kind: Float, min: 0.1, max: 10.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       self.env.decayExp = newValue
     ),
-    Parameter(name: "s", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "s", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float32, voice: int) =
       self.env.s = newValue
     ),
-    Parameter(name: "r", kind: Float, min: 0.0, max: 5.0, default: 0.01, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "r", kind: Float, min: 0.0, max: 5.0, default: 0.01, onchange: proc(newValue: float32, voice: int) =
       self.env.r = exp(newValue) - 1.0
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
   ])

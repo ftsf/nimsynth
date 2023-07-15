@@ -59,41 +59,41 @@ method init(self: XY) =
   speed = 5.0'f
 
   self.globalParams.add([
-    Parameter(name: "gamepad", kind: Int, min: 0'f, max: 3'f, default: 0'f, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "gamepad", kind: Int, min: 0'f, max: 3'f, default: 0'f, onchange: proc(newValue: float32, voice: int) =
       self.gamepad = newValue.int
     ),
-    Parameter(name: "xaxis", kind: Int, min: 0'f, max: NicoAxis.high.float, default: 0'f, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "xaxis", kind: Int, min: 0'f, max: NicoAxis.high.float32, default: 0'f, onchange: proc(newValue: float32, voice: int) =
       self.gamepadXAxis = newValue.int
     ),
-    Parameter(name: "invert x", kind: Bool, min: 0'f, max: 1'f, default: 0'f, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "invert x", kind: Bool, min: 0'f, max: 1'f, default: 0'f, onchange: proc(newValue: float32, voice: int) =
       self.invertXAxis = newValue.bool
     ),
-    Parameter(name: "xaxis min", kind: Float, min: -1'f, max: 1'f, default: -1'f, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "xaxis min", kind: Float, min: -1'f, max: 1'f, default: -1'f, onchange: proc(newValue: float32, voice: int) =
       self.xAxisMin = newValue.float32
     ),
-    Parameter(name: "xaxis max", kind: Float, min: -1'f, max: 1'f, default: 1'f, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "xaxis max", kind: Float, min: -1'f, max: 1'f, default: 1'f, onchange: proc(newValue: float32, voice: int) =
       self.xAxisMax = newValue.float32
     ),
-    Parameter(name: "xaxis type", kind: Int, min: 0'f, max: AxisType.high.float, default: 0'f, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "xaxis type", kind: Int, min: 0'f, max: AxisType.high.float32, default: 0'f, onchange: proc(newValue: float32, voice: int) =
       self.xAxisType = newValue.AxisType
     ),
-    Parameter(name: "yaxis", kind: Int, separator: true, min: 0'f, max: NicoAxis.high.float, default: 1'f, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "yaxis", kind: Int, separator: true, min: 0'f, max: NicoAxis.high.float32, default: 1'f, onchange: proc(newValue: float32, voice: int) =
       self.gamepadYAxis = newValue.int
     ),
-    Parameter(name: "invert y", kind: Bool, min: 0'f, max: 1'f, default: 0'f, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "invert y", kind: Bool, min: 0'f, max: 1'f, default: 0'f, onchange: proc(newValue: float32, voice: int) =
       self.invertYAxis = newValue.bool
     ),
-    Parameter(name: "yaxis min", kind: Float, min: -1'f, max: 1'f, default: -1'f, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "yaxis min", kind: Float, min: -1'f, max: 1'f, default: -1'f, onchange: proc(newValue: float32, voice: int) =
       self.yAxisMin = newValue.float32
     ),
-    Parameter(name: "yaxis max", kind: Float, min: -1'f, max: 1'f, default: 1'f, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "yaxis max", kind: Float, min: -1'f, max: 1'f, default: 1'f, onchange: proc(newValue: float32, voice: int) =
       self.yAxisMax = newValue.float32
     ),
 
-    Parameter(name: "yaxis type", kind: Int, min: 0'f, max: AxisType.high.float, default: 0'f, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "yaxis type", kind: Int, min: 0'f, max: AxisType.high.float32, default: 0'f, onchange: proc(newValue: float32, voice: int) =
       self.yAxisType = newValue.AxisType
     ),
-    Parameter(name: "speed", kind: Float, min: 0.1'f, max: 100'f, default: 10'f, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "speed", kind: Float, min: 0.1'f, max: 100'f, default: 10'f, onchange: proc(newValue: float32, voice: int) =
       self.speed = newValue
     ),
   ])

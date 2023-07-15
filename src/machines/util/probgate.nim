@@ -8,7 +8,7 @@ import random
 
 type
   ProbGate = ref object of Machine
-    probability: float
+    probability: float32
 
 method init(self: ProbGate) =
   procCall init(Machine(self))
@@ -19,10 +19,10 @@ method init(self: ProbGate) =
   bindings.setLen(1)
 
   globalParams.add([
-    Parameter(kind: Float, name: "%", min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Float, name: "%", min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float32, voice: int) =
       self.probability = newValue
     ),
-    Parameter(kind: Float, name: "input", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Float, name: "input", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       if rand(1.0) <= self.probability:
         if self.bindings[0].isBound():
           var (voice,param) = self.bindings[0].getParameter()

@@ -48,7 +48,7 @@ proc setMode(self: ParamRecorder, mode: ParamRecorderMode) =
     self.buffers[self.slot].setLen(length)
 
   var (voice,param) = self.getParameter(2)
-  param.value = self.mode.float
+  param.value = self.mode.float32
 
 
 method init(self: ParamRecorder) =
@@ -61,19 +61,19 @@ method init(self: ParamRecorder) =
   name = "prec"
 
   self.globalParams.add([
-    Parameter(name: "slot", kind: Int, min: 0.0, max: (nSlots-1).float, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "slot", kind: Int, min: 0.0, max: (nSlots-1).float32, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.slotNext = newValue.int
     ),
-    Parameter(name: "length", kind: Float, min: 0.0, max: 60.0, default: 10.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "length", kind: Float, min: 0.0, max: 60.0, default: 10.0, onchange: proc(newValue: float32, voice: int) =
       self.slotLength = newValue.int
     ),
-    Parameter(name: "mode", kind: Int, min: 0.0, max: 2.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "mode", kind: Int, min: 0.0, max: 2.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.setMode(newValue.int.ParamRecorderMode)
     ),
-    Parameter(name: "loop", kind: Int, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "loop", kind: Int, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.loop = newValue.bool
     ),
-    Parameter(name: "rate", kind: Int, min: 1.0, max: 10000.0, default: 60.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "rate", kind: Int, min: 1.0, max: 10000.0, default: 60.0, onchange: proc(newValue: float32, voice: int) =
       self.rate = newValue.int
       self.nextSample = self.rate
     ),
@@ -123,12 +123,12 @@ method drawBox(self: ParamRecorder) =
 
     block:
       setColor(if mode == Playback: 11 else: 3)
-      let x = x - 5 + ((readHead.float / buffers[slot].len.float) * 10.0).float
+      let x = x - 5 + ((readHead.float32 / buffers[slot].len.float32) * 10.0).float32
       line(x, y + 1, x, y + 7)
 
     if mode == Recording:
       setColor(8)
-      let x = x - 5 + ((writeHead.float / buffers[slot].len.float) * 10.0).float
+      let x = x - 5 + ((writeHead.float32 / buffers[slot].len.float32) * 10.0).float32
       line(x, y + 1, x, y + 7)
 
 
@@ -164,7 +164,7 @@ method process(self: ParamRecorder) =
           writeHead = 0
           setMode(Stop)
       of Playback:
-        param.value = buffers[slot][readHead mod buffers[slot].len].float
+        param.value = buffers[slot][readHead mod buffers[slot].len].float32
         param.onchange(param.value, voice)
         readHead += 1
         if readHead > buffers[slot].high:

@@ -54,30 +54,30 @@ type
     output: float32
 
   BasicFMSynthVoice = ref object of Voice
-    pitch: float
+    pitch: float32
     note: int
-    velocity: float
+    velocity: float32
     operators: array[nOperators, BasicFMSynthOperator]
     pitchEnv: Envelope
-    pitchEnvMod: float
+    pitchEnvMod: float32
     glissando: OnePoleFilter
 
   BasicFMSynth = ref object of Machine
     octOffsets: array[nOperators, int]     # adds to the base pitch
     semiOffsets: array[nOperators, int]     # adds to the base pitch
     centOffsets: array[nOperators, int]     # adds to the base pitch
-    multipliers: array[nOperators, float] # multiplies the base pitch
-    krs: array[nOperators, float] # key envelope rate scaling
-    velSense: array[nOperators, float]
-    amps: array[nOperators, float]
+    multipliers: array[nOperators, float32] # multiplies the base pitch
+    krs: array[nOperators, float32] # key envelope rate scaling
+    velSense: array[nOperators, float32]
+    amps: array[nOperators, float32]
     fixed: array[nOperators, bool]
     waves: array[nOperators, OscKind]
     envSettings: array[nOperators, EnvelopeSettings]
-    pitchEnvSettings: tuple[a,d,s,r: float]
-    pitchEnvMod: float
+    pitchEnvSettings: tuple[a,d,s,r: float32]
+    pitchEnvMod: float32
     algorithm: int # 0..31 which layout of operators to use
-    feedback: float
-    glissando: float
+    feedback: float32
+    glissando: float32
 
 {.this:self.}
 
@@ -109,7 +109,7 @@ proc initNote(self: BasicFMSynth, voiceId: int, note: int) =
       voice.operators[i].env.release()
   else:
     voice.note = note
-    voice.pitch = noteToHz(note.float)
+    voice.pitch = noteToHz(note.float32)
     voice.pitchEnv.a = self.pitchEnvSettings.a
     voice.pitchEnv.d = self.pitchEnvSettings.d
     voice.pitchEnv.s = self.pitchEnvSettings.s
@@ -139,36 +139,36 @@ method init(self: BasicFMSynth) =
   algorithm = 0
 
   self.globalParams.add([
-    Parameter(name: "algoritm", kind: Int, min: 0.0, max: algorithms.high.float, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "algoritm", kind: Int, min: 0.0, max: algorithms.high.float32, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.algorithm = newValue.int
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return $(self.algorithm.int + 1)
     ),
-    Parameter(name: "feedback", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "feedback", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.feedback = newValue
     ),
-    Parameter(name: "pmod", kind: Float, min: -24.0, max: 24.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "pmod", kind: Float, min: -24.0, max: 24.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.pitchEnvMod = newValue
     ),
-    Parameter(name: "pmod:a", kind: Float, min: 0.0, max: 5.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "pmod:a", kind: Float, min: 0.0, max: 5.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.pitchEnvSettings.a = exp(newValue) - 1
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
-    Parameter(name: "pmod:d", kind: Float, min: 0.0, max: 5.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "pmod:d", kind: Float, min: 0.0, max: 5.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.pitchEnvSettings.d = exp(newValue) - 1
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
-    Parameter(name: "pmod:s", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "pmod:s", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.pitchEnvSettings.s = newValue
     ),
-    Parameter(name: "pmod:r", kind: Float, min: 0.0, max: 5.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "pmod:r", kind: Float, min: 0.0, max: 5.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.pitchEnvSettings.r = exp(newValue) - 1
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
-    Parameter(name: "glissando", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "glissando", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.glissando = exp(lerp(-12.0, 0.0, 1.0-newValue))
     ),
   ])
@@ -178,59 +178,59 @@ method init(self: BasicFMSynth) =
     (proc() =
       let opId = i
       self.globalParams.add([
-        Parameter(name: $(opId+1) & ":AMP", separator: true, kind: Float, min: 0.0, max: 1.0, default: if opId == 0: 1.0 else: 0.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":AMP", separator: true, kind: Float, min: 0.0, max: 1.0, default: if opId == 0: 1.0 else: 0.0, onchange: proc(newValue: float32, voice: int) =
           self.amps[opId] = newValue
         ),
-        Parameter(name: $(opId+1) & ":WAVE", kind: Int, min: OscKind.low.float, max: OscKind.high.float, default: OscKind.Sin.float, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":WAVE", kind: Int, min: OscKind.low.float32, max: OscKind.high.float32, default: OscKind.Sin.float32, onchange: proc(newValue: float32, voice: int) =
           self.waves[opId] = newValue.OscKind
         ),
-        Parameter(name: $(opId+1) & ":FIXED", kind: Bool, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":FIXED", kind: Bool, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
           self.fixed[opId] = newValue.bool
         ),
-        Parameter(name: $(opId+1) & ":OCT", kind: Int, min: -8.0, max: 8.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":OCT", kind: Int, min: -8.0, max: 8.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
           self.octOffsets[opId] = newValue.int
         ),
-        Parameter(name: $(opId+1) & ":SEMI", kind: Int, min: -12.0, max: 12.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":SEMI", kind: Int, min: -12.0, max: 12.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
           self.semiOffsets[opId] = newValue.int
         ),
-        Parameter(name: $(opId+1) & ":CENT", kind: Int, min: -100.0, max: 100.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":CENT", kind: Int, min: -100.0, max: 100.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
           self.centOffsets[opId] = newValue.int
         ),
-        Parameter(name: $(opId+1) & ":MULT", kind: Float, min: 0.5, max: 8.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":MULT", kind: Float, min: 0.5, max: 8.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
           self.multipliers[opId] = newValue
         ),
-        Parameter(name: $(opId+1) & ":KRS", kind: Float, min: -1.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":KRS", kind: Float, min: -1.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
           self.krs[opId] = newValue
         ),
-        Parameter(name: $(opId+1) & ":VEL", kind: Float, min: -1.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":VEL", kind: Float, min: -1.0, max: 1.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
           self.velSense[opId] = newValue
         ),
-        Parameter(name: $(opId+1) & ":A", kind: Float, min: 0.0, max: 5.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":A", kind: Float, min: 0.0, max: 5.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
           self.envSettings[opId].a = exp(newValue) - 1.0
-        , getValueString: proc(value: float, voice: int): string =
+        , getValueString: proc(value: float32, voice: int): string =
           return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
         ),
-        Parameter(name: $(opId+1) & ":D", kind: Float, min: 0.0, max: 5.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":D", kind: Float, min: 0.0, max: 5.0, default: 0.5, onchange: proc(newValue: float32, voice: int) =
           self.envSettings[opId].d = exp(newValue) - 1.0
-        , getValueString: proc(value: float, voice: int): string =
+        , getValueString: proc(value: float32, voice: int): string =
           return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
         ),
-        Parameter(name: $(opId+1) & ":S", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":S", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
           self.envSettings[opId].s = newValue
         ),
-        Parameter(name: $(opId+1) & ":R", kind: Float, min: 0.0, max: 5.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $(opId+1) & ":R", kind: Float, min: 0.0, max: 5.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
           self.envSettings[opId].r = exp(newValue) - 1.0
-        , getValueString: proc(value: float, voice: int): string =
+        , getValueString: proc(value: float32, voice: int): string =
           return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
         ),
       ])
     )()
 
   self.voiceParams.add([
-    Parameter(name: "note", kind: Note, separator: true, deferred: true, min: OffNote, max: 255.0, default: OffNote, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "note", kind: Note, separator: true, deferred: true, min: OffNote, max: 255.0, default: OffNote, onchange: proc(newValue: float32, voice: int) =
       self.initNote(voice, newValue.int)
     ),
-    Parameter(name: "vel", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "vel", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       var v = BasicFMSynthVoice(self.voices[voice])
       v.velocity = newValue
     ),
@@ -252,7 +252,7 @@ method process(self: BasicFMSynth) {.inline.} =
 
     let pitchMod = pow(2.0, (v.pitchEnv.process() * pitchEnvMod) / 12.0)
     for i,operator in mpairs(v.operators):
-      operator.osc.freq = (if fixed[i]: 440.0 else: baseFreq * pitchMod) * multipliers[i] * pow(2.0, centOffsets[i].float / 1200.0 + semiOffsets[i].float / 12.0 + octOffsets[i].float)
+      operator.osc.freq = (if fixed[i]: 440.0 else: baseFreq * pitchMod) * multipliers[i] * pow(2.0, centOffsets[i].float32 / 1200.0 + semiOffsets[i].float32 / 12.0 + octOffsets[i].float32)
       let opId = i+1
       operator.output = operator.osc.process(operator.phaseOffset) * operator.env.process() * amps[i]
 
@@ -340,7 +340,7 @@ method trigger*(self: BasicFMSynth, note: int) =
     if v.note == OffNote:
       self.initNote(i, note)
       let param = v.getParameter(0)
-      param.value = note.float
+      param.value = note.float32
       return
 
 method release*(self: BasicFMSynth, note: int) =
@@ -349,7 +349,7 @@ method release*(self: BasicFMSynth, note: int) =
     if v.note == note:
       self.initNote(i, OffNote)
       let param = v.getParameter(0)
-      param.value = OffNote.float
+      param.value = OffNote.float32
 
 proc newBasicFMSynth(): Machine =
   var fm = new(BasicFMSynth)

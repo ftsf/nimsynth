@@ -18,10 +18,10 @@ type
     CenterAmp
   LFO = ref object of Machine
     osc: LFOOsc
-    min,max: float
-    center,amp: float
+    min,max: float32
+    center,amp: float32
     mode: LFOMode
-    freq: float
+    freq: float32
     bpmSync: bool
 
 {.this:self.}
@@ -46,28 +46,28 @@ method init(self: LFO) =
   osc.pulseWidth = 0.5
 
   globalParams.add([
-    Parameter(name: "freq", kind: Float, min: 0.0, max: 10.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "freq", kind: Float, min: 0.0, max: 10.0, default: 0.1, onchange: proc(newValue: float32, voice: int) =
       self.freq = newValue
       self.setFreq()
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       if self.bpmSync:
         return getFractionStr((value * 16.0).int, 16)
       else:
         return $value.formatFloat(ffDecimal, 2) & " hZ"
     ),
-    Parameter(name: "mode", kind: Int, min: 0, max: LFOMode.high.float, default: MinMax.float, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "mode", kind: Int, min: 0, max: LFOMode.high.float32, default: MinMax.float32, onchange: proc(newValue: float32, voice: int) =
       self.mode = newValue.LFOMode
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return $value.LFOMode
     ),
-    Parameter(name: "shape", kind: Int, min: OscKind.low.float, max: OscKind.high.float, default: Sin.float, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "shape", kind: Int, min: OscKind.low.float32, max: OscKind.high.float32, default: Sin.float32, onchange: proc(newValue: float32, voice: int) =
       self.osc.kind = newValue.OscKind
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return $value.OscKind
     ),
-    Parameter(name: "min", kind: Float, min: 0.0, max: 1.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "min", kind: Float, min: 0.0, max: 1.0, default: 0.1, onchange: proc(newValue: float32, voice: int) =
       self.min = newValue
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       var binding = self.bindings[0]
       if binding.machine != nil:
         var (voice, param) = binding.machine.getParameter(binding.param)
@@ -75,9 +75,9 @@ method init(self: LFO) =
       else:
         return value.formatFloat(ffDecimal, 2)
     ),
-    Parameter(name: "max", kind: Float, min: 0.0, max: 1.0, default: 0.9, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "max", kind: Float, min: 0.0, max: 1.0, default: 0.9, onchange: proc(newValue: float32, voice: int) =
       self.max = newValue
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       var binding = self.bindings[0]
       if binding.machine != nil:
         var (voice, param) = binding.machine.getParameter(binding.param)
@@ -85,9 +85,9 @@ method init(self: LFO) =
       else:
         return value.formatFloat(ffDecimal, 2)
     ),
-    Parameter(name: "center", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "center", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float32, voice: int) =
       self.center = newValue
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       var binding = self.bindings[0]
       if binding.machine != nil:
         var (voice, param) = binding.machine.getParameter(binding.param)
@@ -95,16 +95,16 @@ method init(self: LFO) =
       else:
         return value.formatFloat(ffDecimal, 2)
     ),
-    Parameter(name: "amp", kind: Float, min: 0.0, max: 1.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "amp", kind: Float, min: 0.0, max: 1.0, default: 0.1, onchange: proc(newValue: float32, voice: int) =
       self.amp = newValue
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
         return (value * 100.0).formatFloat(ffDecimal, 2) & "%"
     ),
-    Parameter(name: "bpmsync", kind: Bool, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "bpmsync", kind: Bool, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.bpmSync = newValue.bool
       self.setFreq()
     ),
-    Parameter(name: "phase", kind: Float, min: 0.0, max: TAU, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "phase", kind: Float, min: 0.0, max: TAU, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.osc.phase = newValue
     ),
   ])

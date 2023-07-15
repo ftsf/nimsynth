@@ -59,27 +59,27 @@ method init(self: ChordMachine) =
   setDefaults()
 
   globalParams.add([
-    Parameter(kind: Note, name: "note", min: OffNote, max: 256.0, default: OffNote, deferred: true, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Note, name: "note", min: OffNote, max: 256.0, default: OffNote, deferred: true, onchange: proc(newValue: float32, voice: int) =
       self.root = newValue.int
       self.startChord(self.root, self.chord, self.inversion)
 
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return noteToNoteName(value.int)
     ),
-    Parameter(kind: Int, name: "chord", min: 0.0, max: chordList.high.float, deferred: true, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Int, name: "chord", min: 0.0, max: chordList.high.float32, deferred: true, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.chord = newValue.int
       self.startChord(self.root, self.chord, self.inversion)
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return chordList[value.int][0]
     ),
-    Parameter(kind: Int, name: "inversion", min: 0.0, max: 4.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Int, name: "inversion", min: 0.0, max: 4.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.inversion = newValue.int
       self.startChord(self.root, self.chord, self.inversion)
     ),
-    Parameter(kind: Float, name: "delay", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Float, name: "delay", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.delay = newValue.float32
     ),
-    Parameter(kind: Int, name: "reverse", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Int, name: "reverse", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.reverse = newValue.bool
     ),
   ])

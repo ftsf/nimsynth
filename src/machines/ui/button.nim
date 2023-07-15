@@ -12,8 +12,8 @@ import ui/layoutview
 
 type Button = ref object of Machine
   state: bool
-  onValue: float
-  offValue: float
+  onValue: float32
+  offValue: float32
   toggle: bool
   gamepad: int
   gamepadButton: int
@@ -42,22 +42,22 @@ method init(self: Button) =
   name = "button"
 
   self.globalParams.add([
-    Parameter(name: "state", kind: Trigger, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "state", kind: Trigger, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.state = newValue.bool
     ),
-    Parameter(name: "on", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "on", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       self.onValue = newValue
     ),
-    Parameter(name: "off", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "off", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.offValue = newValue
     ),
-    Parameter(name: "toggle", kind: Int, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "toggle", kind: Int, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.toggle = newValue.bool
     ),
-    Parameter(name: "gamepad", kind: Int, min: 0'f, max: 3'f, default: 0'f, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "gamepad", kind: Int, min: 0'f, max: 3'f, default: 0'f, onchange: proc(newValue: float32, voice: int) =
       self.gamepad = newValue.int
     ),
-    Parameter(name: "button", kind: Int, min: -1'f, max: NicoButton.high.float, default: -1, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "button", kind: Int, min: -1'f, max: NicoButton.high.float32, default: -1, onchange: proc(newValue: float32, voice: int) =
       self.gamepadButton = newValue.int
     ),
   ])

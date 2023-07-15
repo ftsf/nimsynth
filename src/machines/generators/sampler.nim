@@ -51,33 +51,33 @@ method init(self: Sampler) =
   self.stereo = true
 
   self.voiceParams.add([
-    Parameter(name: "note", separator: true, deferred: true, kind: Note, min: OffNote, max: 127.0, default: OffNote, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "note", separator: true, deferred: true, kind: Note, min: OffNote, max: 127.0, default: OffNote, onchange: proc(newValue: float32, voice: int) =
       self.initNote(voice, newValue.int)
     ),
-    Parameter(name: "a", kind: Float, min: 0.0, max: 5.0, default: 0.001, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "a", kind: Float, min: 0.0, max: 5.0, default: 0.001, onchange: proc(newValue: float32, voice: int) =
       var v = SamplerVoice(self.voices[voice])
       v.env.a = exp(newValue) - 1.0
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
-    Parameter(name: "d", kind: Float, min: 0.0, max: 5.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "d", kind: Float, min: 0.0, max: 5.0, default: 0.1, onchange: proc(newValue: float32, voice: int) =
       var v = SamplerVoice(self.voices[voice])
       v.env.d = exp(newValue) - 1.0
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
-    Parameter(name: "dexp", kind: Float, min: 0.1, max: 10.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "dexp", kind: Float, min: 0.1, max: 10.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       var v = SamplerVoice(self.voices[voice])
       v.env.decayExp = newValue
     ),
-    Parameter(name: "s", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "s", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float32, voice: int) =
       var v = SamplerVoice(self.voices[voice])
       v.env.s = newValue
     ),
-    Parameter(name: "r", kind: Float, min: 0.0, max: 5.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "r", kind: Float, min: 0.0, max: 5.0, default: 0.1, onchange: proc(newValue: float32, voice: int) =
       var v = SamplerVoice(self.voices[voice])
       v.env.r = exp(newValue) - 1.0
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
   ])
@@ -143,7 +143,7 @@ method trigger*(self: Sampler, note: int) =
     if v.note == OffNote:
       self.initNote(i, note)
       let param = v.getParameter(0)
-      param.value = note.float
+      param.value = note.float32
       return
 
 method release*(self: Sampler, note: int) =
@@ -152,7 +152,7 @@ method release*(self: Sampler, note: int) =
     if v.note == note:
       self.initNote(i, OffNote)
       let param = v.getParameter(0)
-      param.value = OffNote.float
+      param.value = OffNote.float32
 
 proc newMachine(): Machine =
   var m = new(Sampler)

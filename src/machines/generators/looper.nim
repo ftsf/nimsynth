@@ -29,22 +29,22 @@ method init(self: Looper) =
   osc.stereo = true
 
   globalParams.add([
-    Parameter(name: "trigger", separator: true, deferred: true, kind: Trigger, min: 0.0, max: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "trigger", separator: true, deferred: true, kind: Trigger, min: 0.0, max: 1.0, onchange: proc(newValue: float32, voice: int) =
       if osc.sample != nil:
         playing = true
         osc.reset()
     ),
-    Parameter(name: "loop", kind: Bool, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "loop", kind: Bool, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       osc.loop = newValue.bool
     ),
-    Parameter(name: "speed", kind: Float, min: 0.00001, max: 4.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "speed", kind: Float, min: 0.00001, max: 4.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       osc.speed = newValue
     ),
-    Parameter(name: "length", kind: Int, min: 1.0, max: 64.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
-      osc.setSpeedByLength(newValue.int.float / beatsPerSecond())
+    Parameter(name: "length", kind: Int, min: 1.0, max: 64.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
+      osc.setSpeedByLength(newValue.int.float32 / beatsPerSecond())
       globalParams[2].value = osc.speed
     ),
-    Parameter(name: "offset", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "offset", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       osc.offset = newValue
     ),
   ])
@@ -53,7 +53,7 @@ method init(self: Looper) =
 
 method onBPMChange(self: Looper, bpm: int) =
   let length = globalParams[3].value.int
-  osc.setSpeedByLength(length.float / beatsPerSecond())
+  osc.setSpeedByLength(length.float32 / beatsPerSecond())
   globalParams[2].value = osc.speed
 
 method process*(self: Looper) {.inline.} =

@@ -50,13 +50,13 @@ method drawContents(self: ParamWindow, x,y,w,h: int) =
     # draw slider fill
     setColor(if i == self.currentParam: 8 else: 6)
 
-    let zeroX = x + paramNameWidth + sliderWidth.float * clamp(invLerp(param.min, param.max, 0.0), 0.0, 1.0)
-    rectfill(clamp(zeroX, minX, maxX), yv, clamp(minX + sliderWidth.float * invLerp(param.min, param.max, param.value), minX, maxX), yv+4)
+    let zeroX = x + paramNameWidth + sliderWidth.float32 * clamp(invLerp(param.min, param.max, 0.0), 0.0, 1.0)
+    rectfill(clamp(zeroX, minX, maxX), yv, clamp(minX + sliderWidth.float32 * invLerp(param.min, param.max, param.value), minX, maxX), yv+4)
 
     # draw default bar
     if param.kind != Note:
       setColor(7)
-      let defaultX = minX + sliderWidth.float * invLerp(param.min, param.max, param.default)
+      let defaultX = minX + sliderWidth.float32 * invLerp(param.min, param.max, param.default)
       line(defaultX, yv, defaultX, yv+4)
 
     yv += 8
@@ -144,15 +144,15 @@ method eventContents(self: ParamWindow, x,y,w,h: int, e: Event): bool =
       var (voice, param) = self.machine.getParameter(self.currentParam, self.favOnly)
       if shift():
         # jump directly to value
-        param.value = lerp(param.min, param.max, clamp(invLerp(paramNameWidth.float, paramNameWidth.float + sliderWidth.float, e.x.float), 0.0, 1.0))
+        param.value = lerp(param.min, param.max, clamp(invLerp(paramNameWidth.float32, paramNameWidth.float + sliderWidth.float, e.x.float), 0.0, 1.0))
       else:
         # relative shift
         let range = param.max - param.min
-        let ydist = e.y.float - self.clickPos.y
-        let sensitivity = clamp(10.0 / abs(e.y.float - self.clickPos.y))
-        let speed = (range / sliderWidth.float) * sensitivity
+        let ydist = e.y.float32 - self.clickPos.y
+        let sensitivity = clamp(10.0 / abs(e.y.float32 - self.clickPos.y))
+        let speed = (range / sliderWidth.float32) * sensitivity
         if ydist < 3:
-          param.value = lerp(param.min, param.max, clamp(invLerp(paramNameWidth.float, paramNameWidth.float + sliderWidth.float, (e.x - x).float), 0.0, 1.0))
+          param.value = lerp(param.min, param.max, clamp(invLerp(paramNameWidth.float32, paramNameWidth.float + sliderWidth.float, (e.x - x).float), 0.0, 1.0))
         else:
           param.value = clamp(param.value + e.xrel * speed, param.min, param.max)
       param.onchange(param.value, voice)

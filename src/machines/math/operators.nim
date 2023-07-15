@@ -21,7 +21,7 @@ type
     operation: Operation
   OperatorE = ref object of Machine
     operation: Operation
-    v1,v2: float
+    v1,v2: float32
 
 method init(self: Operator) =
   procCall init(Machine(self))
@@ -31,9 +31,9 @@ method init(self: Operator) =
   stereo = false
 
   globalParams.add([
-    Parameter(kind: Int, name: "op", min: Operation.low.float, max: Operation.high.float, default: Add.float, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Int, name: "op", min: Operation.low.float32, max: Operation.high.float32, default: Add.float32, onchange: proc(newValue: float32, voice: int) =
       self.operation = newValue.Operation
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return $value.Operation
     ),
   ])
@@ -68,17 +68,17 @@ method init(self: OperatorE) =
   nBindings = 1
 
   globalParams.add([
-    Parameter(kind: Int, name: "op", min: Operation.low.float, max: Operation.high.float, default: Add.float, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Int, name: "op", min: Operation.low.float32, max: Operation.high.float32, default: Add.float32, onchange: proc(newValue: float32, voice: int) =
       self.operation = newValue.Operation
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return $value.Operation
     ),
-    Parameter(kind: Float, name: "v1", min: -1000.0, max: 1000.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Float, name: "v1", min: -1000.0, max: 1000.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.v1 = newValue
       self.send()
 
     ),
-    Parameter(kind: Float, name: "v2", min: -1000.0, max: 1000.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Float, name: "v2", min: -1000.0, max: 1000.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.v2 = newValue
       self.send()
     ),

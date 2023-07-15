@@ -180,11 +180,11 @@ proc getCubicInterpolatedSample*(s: Sample, pos: float32, channel: int): float32
     alpha)
 
 proc getInterpolatedSampleLoop*(s: Sample, pos: float32, channel: int): float32 =
-  let pos = pos mod s.length.float32
-  let alpha = pos mod 1.0
+  let pos = floorMod(pos, s.length.float32)
+  let alpha = floorMod(pos, 1f)
   return lerp(
-    s.data[pos.int * s.channels + channel],
-    s.data[(pos.int+1) * s.channels + channel],
+    s.data[modSign(pos.int, s.length) * s.channels + channel],
+    s.data[modSign(pos.int+1, s.length) * s.channels + channel],
     alpha)
 
 proc getCubicInterpolatedSampleLoop*(s: Sample, pos: float32, channel: int): float32 =
@@ -221,19 +221,33 @@ proc process*(self: var SampleOsc): float32 =
 proc newSampleMenu*(mv: Vec2f, prefix = "samples/", action: proc(sample: Sample) = nil): Menu =
   var menu = newMenu(mv, "load sample")
   var count = 0
+
+  block:
+    # current
+    menu.items.add(newMenuItemText(prefix))
+
+    # parent
+    if prefix != "/" and prefix != "":
+      let dirname = absolutePath(parentDir(prefix))
+      menu.items.add(newMenuItem("..") do():
+        let (mx,my) = mouse()
+        let mv = vec2f(mx,my)
+        pushMenu(newSampleMenu(menu.pos, dirname, action))
+      )
+
   for file in walkPattern(prefix & "*"):
     count += 1
     (proc() =
       let file = file
       if existsDir(file):
-        let dirname = file[prefix.len..file.high]
+        let dirname = lastPathPart(file)
         menu.items.add(newMenuItem(dirname & "/") do():
           let (mx,my) = mouse()
           let mv = vec2f(mx,my)
-          pushMenu(newSampleMenu(mv, file & "/", action))
+          pushMenu(newSampleMenu(menu.pos, file & "/", action))
         )
       else:
-        let sampleName = file[(prefix.len)..file.high-4]
+        let sampleName = changeFileExt(lastPathPart(file), "")
         let item = newMenuItem(sampleName) do():
           let sample = loadSample(file, sampleName)
           action(sample)
@@ -251,6 +265,9 @@ proc newSampleMenu*(mv: Vec2f, prefix = "samples/", action: proc(sample: Sample)
   if count == 0:
     menu.items.add(newMenuItem("no samples"))
   return menu
+
+proc newDefaultSampleMenu*(mv: Vec2f, action: proc(sample: Sample) = nil): Menu =
+  newSampleMenu(mv, defaultSampleDir, action)
 
 proc drawSample*(self: Sample, x,y,w,h: int, startOffset = 0'f, endOffset = 1'f) =
   var left0,left1: int

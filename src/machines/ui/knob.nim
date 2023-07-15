@@ -15,10 +15,10 @@ import ui/menu
 type Knob = ref object of Machine
   lastmv: Vec2f
   held: bool
-  min,max: float
-  sensitivity: float
-  center: float
-  spring: float
+  min,max: float32
+  sensitivity: float32
+  center: float32
+  spring: float32
   midicc: int
   learning: bool
 
@@ -33,22 +33,22 @@ method init(self: Knob) =
   midiChannel = 0
 
   self.globalParams.add([
-    Parameter(name: "min", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "min", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.min = newValue
     ),
-    Parameter(name: "max", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "max", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       self.max = newValue
     ),
-    Parameter(name: "sensitiv", kind: Float, min: 0.0001, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "sensitiv", kind: Float, min: 0.0001, max: 1.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       self.sensitivity = newValue
     ),
-    Parameter(name: "center", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "center", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float32, voice: int) =
       self.center = newValue
     ),
-    Parameter(name: "spring", kind: Float, min: 0.0, max: 10.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "spring", kind: Float, min: 0.0, max: 10.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.spring = newValue
     ),
-    Parameter(name: "cc", kind: Int, min: 0.0, max: 120.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "cc", kind: Int, min: 0.0, max: 120.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.midicc = newValue.int
     ),
   ])
@@ -72,7 +72,7 @@ method drawBox(self: Knob) =
     let range = max - min
     if range != 0.0:
       let angle = lerp(degToRad(-180.0 - 45.0), degToRad(45.0), ((param.value - min) / range))
-      line(x,y, x + cos(angle) * 4, y + sin(angle) * 4)
+      line(x,y, x + (cos(angle) * 4f).int, y + (sin(angle) * 4f).int)
     printShadowC(param.name, x, y + 8)
     printShadowC(
       if param.getValueString != nil:
@@ -101,7 +101,7 @@ method midiEvent(self: Knob, event: MidiEvent) =
   if event.command == 3:
     if learning:
       self.midicc = event.data1.int
-      self.globalParams[4].value = self.midicc.float
+      self.globalParams[4].value = self.midicc.float32
       self.learning = false
       echo "assigned cc: ", self.midicc
     elif event.data1 == midicc.uint8:
@@ -109,7 +109,7 @@ method midiEvent(self: Knob, event: MidiEvent) =
         var (voice,param) = bindings[0].getParameter()
         let min = lerp(param.min,param.max,min)
         let max = lerp(param.min,param.max,max)
-        param.value = lerp(min, max, event.data2.float / 127.0)
+        param.value = lerp(min, max, event.data2.float32 / 127.0)
         param.onchange(param.value, voice)
 
 

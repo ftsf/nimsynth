@@ -13,10 +13,10 @@ type
   Rect* = tuple[x,y,w,h: int]
   ABC = tuple[a,b,c: float32]
 
-proc `*`*(v: Vec2f, s: float): Vec2f =
+proc `*`*(v: Vec2f, s: float32): Vec2f =
   return vec2f(v.x*s,v.y*s)
 
-proc `/`*(a: Vec2f,s: float): Vec2f =
+proc `/`*(a: Vec2f,s: float32): Vec2f =
   return vec2f(a.x/s,a.y/s)
 
 proc `+`*(a,b: Vec2f): Vec2f =
@@ -28,7 +28,7 @@ proc `-`*(v: Vec2f): Vec2f =
 proc isZero*(v: Vec2f): bool =
   return v.x == 0 and v.y == 0
 
-proc rndVec*(mag: float): Vec2f =
+proc rndVec*(mag: float32): Vec2f =
   let hm = mag/2
   vec2f(
     rnd(mag)-hm,
@@ -49,16 +49,7 @@ proc poly*(verts: Polygon | Triangle | Quad) =
     for i in 0..verts.high:
       line(verts[i],verts[(i+1) mod verts.len])
 
-proc lerp*[T](a, b: T, t: float): T {.inline.} =
-  # lerp takes a and b and returns a if t == 0, b if t == 1
-  return a + (b - a) * t
-
-proc invLerp*[T](a, b: T, t: T): float {.inline.} =
-  # invLerp takes a and b and returns 0 if t == a and 1 if t == b
-  assert(b!=a)
-  return (t - a) / (b - a)
-
-proc cubic*[T](x0,x1,x2,x3: T, t: float): T {.inline.} =
+proc cubic*[T](x0,x1,x2,x3: T, t: float32): T {.inline.} =
   let a0 = x3 - x2 - x0 + x1
   let a1 = x0 - x1 - a0
   let a2 = x2 - x0
@@ -72,16 +63,16 @@ proc trifill*(a,b,c: Vec2f) =
 proc trifill*(tri: Triangle | Polygon) =
   trifill(tri[0],tri[1],tri[2])
 
-proc circfill*(p: Vec2f, r: float) =
+proc circfill*(p: Vec2f, r: float32) =
   circfill(p.x,p.y,r)
 
-proc rotatePoint*(p: Vec2f, angle: float, o = vec2f(0,0)): Vec2f =
+proc rotatePoint*(p: Vec2f, angle: float32, o = vec2f(0,0)): Vec2f =
   vec2f(
     cos(angle) * (p.x - o.x) - sin(angle) * (p.y - o.y) + o.x,
     sin(angle) * (p.x - o.x) + cos(angle) * (p.y - o.y) + o.y
   )
 
-proc rotatedPoly*(offset: Vec2f, verts: openArray[Vec2f], angle: float, origin = vec2f(0,0)): Polygon =
+proc rotatedPoly*(offset: Vec2f, verts: openArray[Vec2f], angle: float32, origin = vec2f(0,0)): Polygon =
   var p = newSeq[Vec2f](verts.len())
   for i in 0..verts.high:
     let v = offset + rotatePoint(verts[i],angle,origin)
@@ -115,7 +106,7 @@ proc rrectfill*(aabb: AABB) =
 proc rrect*(aabb: AABB) =
   rrect(aabb.min.x.int, aabb.min.y.int, aabb.max.x.int, aabb.max.y.int)
 
-proc getAABB*(p: Vec2f, expand: float): AABB =
+proc getAABB*(p: Vec2f, expand: float32): AABB =
   result.min.x = p.x - expand
   result.min.y = p.y - expand
   result.max.x = p.x + expand
@@ -149,7 +140,7 @@ proc expandAABB*(aabb: AABB, vel: Vec2f): AABB =
   result.min.y = aabb.min.y - abs(vel.y)
   result.max.y = aabb.max.y + abs(vel.y)
 
-proc expandAABB*(aabb: AABB, expand: float): AABB =
+proc expandAABB*(aabb: AABB, expand: float32): AABB =
   result.min.x = aabb.min.x - expand
   result.max.x = aabb.max.x + expand
   result.min.y = aabb.min.y - expand
@@ -168,7 +159,7 @@ proc rnd*[T](x: seq[T]): T =
 proc intersects*(a, b: AABB): bool =
   return not ( a.min.x > b.max.x or a.min.y > b.max.y or a.max.x < b.min.x or a.max.y < b.min.y )
 
-proc sideOfLine*(v1, v2, p: Vec2f): float =
+proc sideOfLine*(v1, v2, p: Vec2f): float32 =
   let px = p.x
   let py = p.y
   return (px - v1.x) * (v2.y - v1.y) - (py - v1.y) * (v2.x - v1.x)
@@ -272,17 +263,17 @@ proc pointInRect*(p: Vec2f, r: Rect): bool =
          p.y >= r.y and p.y <= r.y + r.h - 1
 
 proc pointInTile*(p: Vec2f, x, y: int): bool =
-  return pointInAABB(p, (vec2f(x.float*8.0,y.float*8.0),vec2f(x.float*8+7,y.float*8+7)))
+  return pointInAABB(p, (vec2f(x.float32*8.0,y.float32*8.0),vec2f(x.float32*8+7,y.float32*8+7)))
 
-proc floatToTimeStr*(time: float): string =
+proc floatToTimeStr*(time: float32): string =
   let sign = if time < 0: "-" else: ""
   let time = abs(time)
   let minutes = int(time/60)
-  let seconds = int(time - float(minutes*60))
+  let seconds = int(time - float32(minutes*60))
   let ms = int(time mod 1.0 * 1000)
   return "$1$2:$3.$4".format(sign,($minutes).align(2,'0'),($seconds).align(2,'0'),($ms).align(3,'0'))
 
-proc bezierQuadratic*(s, e, cp: Vec2f, mu: float): Vec2f =
+proc bezierQuadratic*(s, e, cp: Vec2f, mu: float32): Vec2f =
   let mu2 = mu * mu
   let mum1 = 1 - mu
   let mum12 = mum1 * mum1
@@ -292,18 +283,18 @@ proc bezierQuadratic*(s, e, cp: Vec2f, mu: float): Vec2f =
     s.y * mum12 + 2 * cp.y * mum1 * mu + e.y * mu2
   )
 
-proc bezierQuadraticLength*(s, e, cp: Vec2f, steps: int): float =
+proc bezierQuadraticLength*(s, e, cp: Vec2f, steps: int): float32 =
   var l = 0.0
   var v = s
   var next: Vec2f
   for i in 0..steps-1:
-    next = bezierQuadratic(s,e,cp,float(i)/float(steps))
+    next = bezierQuadratic(s,e,cp,float32(i)/float32(steps))
     if i > 0:
       l += (next - v).length
       v = next
   return l
 
-proc bezierCubic*(p1, p2, p3, p4: Vec2f, mu: float): Vec2f =
+proc bezierCubic*(p1, p2, p3, p4: Vec2f, mu: float32): Vec2f =
   let mum1 = 1 - mu
   let mum13 = mum1 * mum1 * mum1
   let mu3 = mu * mu * mu
@@ -313,12 +304,12 @@ proc bezierCubic*(p1, p2, p3, p4: Vec2f, mu: float): Vec2f =
     p1.y * mum13 + 3*mu*mum1*mum1*p2.y + 3*mu*mu*mum1*p3.y + mu3*p4.y,
   )
 
-proc bezierCubicLength*(s, e, cp1, cp2: Vec2f, steps: int): float =
+proc bezierCubicLength*(s, e, cp1, cp2: Vec2f, steps: int): float32 =
   var l = 0.0
   var v = s
   var next: Vec2f
   for i in 0..steps-1:
-    next = bezierCubic(s,e,cp1,cp2,float(i)/float(steps))
+    next = bezierCubic(s,e,cp1,cp2,float32(i)/float32(steps))
     if i > 0:
       l += (next - v).length
       v = next
@@ -331,11 +322,11 @@ proc closestPointOnLine*(line: Line, p: Vec2f): Vec2f =
   let t = max(0.0, min(1.0, dot(p-line[0], line[1] - line[0]) / l2))
   return line[0] + t * (line[1] - line[0])
 
-proc lineSegDistanceSqr*(line: Line, p: Vec2f): float =
+proc lineSegDistanceSqr*(line: Line, p: Vec2f): float32 =
   let proj = closestPointOnLine(line, p)
   return (p - proj).length2
 
-proc lineSegDistance*(line: Line, p: Vec2f): float =
+proc lineSegDistance*(line: Line, p: Vec2f): float32 =
   return sqrt(lineSegDistanceSqr(line, p))
 
 template alias*(a,b: untyped): untyped =
@@ -375,7 +366,7 @@ proc wrap*[T](x,min,max: T): T =
 proc roundTo*(x,y: int): int =
   return (x div y) * y
 
-proc wrapAngle*(angle: float): float =
+proc wrapAngle*(angle: float32): float32 =
   var angle = angle
   while angle > PI:
     angle -= TAU
@@ -383,7 +374,7 @@ proc wrapAngle*(angle: float): float =
     angle += TAU
   return angle
 
-proc wrapAngleTAU*(angle: float): float =
+proc wrapAngleTAU*(angle: float32): float32 =
   var angle = angle
   while angle > TAU:
     angle -= TAU
@@ -391,11 +382,11 @@ proc wrapAngleTAU*(angle: float): float =
     angle += TAU
   return angle
 
-proc getSubsample*[T](a: openarray[T], s: float): T =
+proc getSubsample*[T](a: openarray[T], s: float32): T =
   let alpha = s mod 1.0
   return lerp(a[s.int], if s < a.high: a[s.int+1] else: 0.0, alpha)
 
-proc getFractionStr*(a,b: int | float): string =
+proc getFractionStr*(a,b: int | float32): string =
   let g = gcd(a,b)
   if a == 0:
     return $a

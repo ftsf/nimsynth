@@ -16,46 +16,46 @@ import core/envelope
 
 type
   SynthVoice = ref object of Voice
-    pitch: float
+    pitch: float32
     note: int
-    velocity: float
+    velocity: float32
     osc1,osc2,osc3,osc4: Osc
     env1,env2,env3: Envelope
     filter: BiquadFilter
     glissando: OnePoleFilter
   Synth = ref object of Machine
-    osc1Amount: float
+    osc1Amount: float32
     osc1Kind: OscKind
-    osc1Pw: float
-    osc1Semi: float
-    osc1Cent: float
+    osc1Pw: float32
+    osc1Semi: float32
+    osc1Cent: float32
 
-    osc2Amount: float
+    osc2Amount: float32
     osc2Kind: OscKind
-    osc2Pw: float
-    osc2Semi: float
-    osc2Cent: float
+    osc2Pw: float32
+    osc2Semi: float32
+    osc2Cent: float32
 
     osc3Kind: OscKind
-    osc3Amount: float
-    osc3Pw: float
+    osc3Amount: float32
+    osc3Pw: float32
 
-    osc4Amount: float
+    osc4Amount: float32
 
-    glissando: float
-    vibratoAmp: float
+    glissando: float32
+    vibratoAmp: float32
     vibratoOsc: LFOOsc
     filterKind: FilterKind
-    cutoff: float
-    resonance: float
+    cutoff: float32
+    resonance: float32
     env: array[3, EnvelopeSettings]
-    env2CutoffMod: float
-    env3PitchMod1: float
-    env3PitchMod2: float
-    env3QMod: float
-    env3O2GainMod: float
+    env2CutoffMod: float32
+    env3PitchMod1: float32
+    env3PitchMod2: float32
+    env3QMod: float32
+    env3O2GainMod: float32
 
-    keytracking: float
+    keytracking: float32
     keytrkReference: int
 
     retrigger: bool
@@ -105,7 +105,7 @@ proc initNote(self: Synth, voiceId: int, note: int) =
       voice.env2.release()
       voice.env3.release()
     else:
-      voice.pitch = noteToHz(note.float)
+      voice.pitch = noteToHz(note.float32)
       if not self.retrigger:
         voice.env1.triggerIfReady(voice.velocity)
         voice.env2.triggerIfReady(voice.velocity)
@@ -128,180 +128,180 @@ method init*(self: Synth) =
   vibratoOsc.freq = 1'f
 
   self.globalParams.add([
-    Parameter(name: "osc1", kind: Int, min: 0.0, max: OscKind.high.int.float, default: Saw.int.float, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "osc1", kind: Int, min: 0.0, max: OscKind.high.int.float32, default: Saw.int.float32, onchange: proc(newValue: float32, voice: int) =
       self.osc1Kind = newValue.OscKind
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
         return $(value.OscKind)
     ),
-    Parameter(name: "osc1pw", kind: Float, min: 0.01, max: 0.99, default: 0.5, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "osc1pw", kind: Float, min: 0.01, max: 0.99, default: 0.5, onchange: proc(newValue: float32, voice: int) =
       self.osc1Pw = newValue
     ),
-    Parameter(name: "osc1gain", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "osc1gain", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float32, voice: int) =
       self.osc1Amount = newValue
     ),
-    Parameter(name: "osc1semi", kind: Int, min: -24.0, max: 24.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
-      self.osc1Semi = newValue.int.float
+    Parameter(name: "osc1semi", kind: Int, min: -24.0, max: 24.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
+      self.osc1Semi = newValue.int.float32
     ),
-    Parameter(name: "osc1cent", kind: Int, min: -100.0, max: 100.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
-      self.osc1Cent = newValue.int.float
+    Parameter(name: "osc1cent", kind: Int, min: -100.0, max: 100.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
+      self.osc1Cent = newValue.int.float32
     ),
 
-    Parameter(name: "osc2", kind: Int, separator: true, min: 0.0, max: OscKind.high.int.float, default: Saw.int.float, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "osc2", kind: Int, separator: true, min: 0.0, max: OscKind.high.int.float32, default: Saw.int.float32, onchange: proc(newValue: float32, voice: int) =
       self.osc2Kind = newValue.OscKind
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
         return $(value.OscKind)
     ),
-    Parameter(name: "osc2pw", kind: Float, min: 0.01, max: 0.99, default: 0.5, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "osc2pw", kind: Float, min: 0.01, max: 0.99, default: 0.5, onchange: proc(newValue: float32, voice: int) =
       self.osc2Pw = newValue
     ),
-    Parameter(name: "osc2gain", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "osc2gain", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float32, voice: int) =
       self.osc2Amount = newValue
     ),
-    Parameter(name: "osc2semi", kind: Int, min: -24.0, max: 24.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
-      self.osc2Semi = newValue.int.float
+    Parameter(name: "osc2semi", kind: Int, min: -24.0, max: 24.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
+      self.osc2Semi = newValue.int.float32
     ),
-    Parameter(name: "osc2cent", kind: Int, min: -100.0, max: 100.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
-      self.osc2Cent = newValue.int.float
+    Parameter(name: "osc2cent", kind: Int, min: -100.0, max: 100.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
+      self.osc2Cent = newValue.int.float32
     ),
 
-    Parameter(name: "sub", kind: Int, separator: true, min: 0.0, max: OscKind.high.int.float, default: Sin.int.float, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "sub", kind: Int, separator: true, min: 0.0, max: OscKind.high.int.float32, default: Sin.int.float32, onchange: proc(newValue: float32, voice: int) =
       self.osc3Kind = newValue.OscKind
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
         return $(value.OscKind)
     ),
-    Parameter(name: "subgain", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "subgain", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.osc3Amount = newValue
     ),
-    Parameter(name: "pw", kind: Float, min: 0.01, max: 0.99, default: 0.5, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "pw", kind: Float, min: 0.01, max: 0.99, default: 0.5, onchange: proc(newValue: float32, voice: int) =
       self.osc2Pw = newValue
     ),
 
-    Parameter(name: "noise", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "noise", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.osc4Amount = newValue
     ),
-    Parameter(name: "filt", kind: Int, separator: true, min: FilterKind.low.float, max: FilterKind.high.float, default: Lowpass.float, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "filt", kind: Int, separator: true, min: FilterKind.low.float32, max: FilterKind.high.float32, default: Lowpass.float32, onchange: proc(newValue: float32, voice: int) =
       self.filterKind = newValue.FilterKind
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
         return $(value.FilterKind)
     ),
-    Parameter(name: "cutoff", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
-      self.cutoff = exp(lerp(-8.0, -0.8, newValue)), getValueString: proc(value: float, voice: int): string =
+    Parameter(name: "cutoff", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float32, voice: int) =
+      self.cutoff = exp(lerp(-8.0, -0.8, newValue)), getValueString: proc(value: float32, voice: int): string =
       return $(exp(lerp(-8.0, -0.8, value)) * sampleRate).int & " hZ"
     ),
-    Parameter(name: "q", kind: Float, min: 0.0001, max: 10.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "q", kind: Float, min: 0.0001, max: 10.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       self.resonance = newValue
     ),
-    Parameter(name: "env1 a", kind: Float, separator: true, min: 0.0, max: 5.0, default: 0.001, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env1 a", kind: Float, separator: true, min: 0.0, max: 5.0, default: 0.001, onchange: proc(newValue: float32, voice: int) =
       self.env[0].a = exp(newValue) - 1.0
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
-    Parameter(name: "env1 d", kind: Float, min: 0.0, max: 5.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env1 d", kind: Float, min: 0.0, max: 5.0, default: 0.1, onchange: proc(newValue: float32, voice: int) =
       self.env[0].d = exp(newValue) - 1.0
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
-    Parameter(name: "env1 ds", kind: Float, min: 0.1, max: 10.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env1 ds", kind: Float, min: 0.1, max: 10.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       self.env[0].decayExp = newValue
     ),
-    Parameter(name: "env1 s", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env1 s", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float32, voice: int) =
       self.env[0].s = newValue
     ),
-    Parameter(name: "env1 r", kind: Float, min: 0.0, max: 5.0, default: 0.01, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env1 r", kind: Float, min: 0.0, max: 5.0, default: 0.01, onchange: proc(newValue: float32, voice: int) =
       self.env[0].r = exp(newValue) - 1.0
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
-    Parameter(name: "env2 a", kind: Float, separator: true, min: 0.0, max: 5.0, default: 0.001, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env2 a", kind: Float, separator: true, min: 0.0, max: 5.0, default: 0.001, onchange: proc(newValue: float32, voice: int) =
       self.env[1].a = exp(newValue) - 1.0
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
-    Parameter(name: "env2 d", kind: Float, min: 0.0, max: 5.0, default: 0.05, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env2 d", kind: Float, min: 0.0, max: 5.0, default: 0.05, onchange: proc(newValue: float32, voice: int) =
       self.env[1].d = exp(newValue) - 1.0
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
-    Parameter(name: "env2 ds", kind: Float, min: 0.1, max: 10.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env2 ds", kind: Float, min: 0.1, max: 10.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       self.env[1].decayExp = newValue
     ),
-    Parameter(name: "env2 s", kind: Float, min: 0.0, max: 1.0, default: 0.25, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env2 s", kind: Float, min: 0.0, max: 1.0, default: 0.25, onchange: proc(newValue: float32, voice: int) =
       self.env[1].s = newValue
     ),
-    Parameter(name: "env2 r", kind: Float, min: 0.0, max: 5.0, default: 0.001, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env2 r", kind: Float, min: 0.0, max: 5.0, default: 0.001, onchange: proc(newValue: float32, voice: int) =
       self.env[1].r = exp(newValue) - 1.0
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
-    Parameter(name: "env2 cut", kind: Float, min: -10.0, max: 10.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env2 cut", kind: Float, min: -10.0, max: 10.0, default: 0.1, onchange: proc(newValue: float32, voice: int) =
       self.env2CutoffMod = newValue
     ),
-    Parameter(name: "env3 a", kind: Float, separator: true, min: 0.0, max: 5.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env3 a", kind: Float, separator: true, min: 0.0, max: 5.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.env[2].a = exp(newValue) - 1.0
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
-    Parameter(name: "env3 d", kind: Float, min: 0.0, max: 5.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env3 d", kind: Float, min: 0.0, max: 5.0, default: 0.1, onchange: proc(newValue: float32, voice: int) =
       self.env[2].d = exp(newValue) - 1.0
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
-    Parameter(name: "env3 ds", kind: Float, min: 0.1, max: 10.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env3 ds", kind: Float, min: 0.1, max: 10.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       self.env[2].decayExp = newValue
     ),
-    Parameter(name: "env3 s", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env3 s", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.env[2].s = newValue
     ),
-    Parameter(name: "env3 r", kind: Float, min: 0.0, max: 5.0, default: 0.001, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env3 r", kind: Float, min: 0.0, max: 5.0, default: 0.001, onchange: proc(newValue: float32, voice: int) =
       self.env[2].r = exp(newValue) - 1.0
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return (exp(value) - 1.0).formatFloat(ffDecimal, 2) & " s"
     ),
-    Parameter(name: "env3 pmod1", kind: Float, min: -24.0, max: 24.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env3 pmod1", kind: Float, min: -24.0, max: 24.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.env3PitchMod1 = newValue
     ),
-    Parameter(name: "env3 pmod2", kind: Float, min: -24.0, max: 24.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env3 pmod2", kind: Float, min: -24.0, max: 24.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.env3PitchMod2 = newValue
     ),
-    Parameter(name: "env3 qmod", kind: Float, min: -10.0, max: 10.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env3 qmod", kind: Float, min: -10.0, max: 10.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.env3QMod = newValue
     ),
-    Parameter(name: "env3 o2gain", kind: Float, min: -1.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "env3 o2gain", kind: Float, min: -1.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.env3O2GainMod = newValue
     ),
-    Parameter(name: "glissando", kind: Float, separator: true, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "glissando", kind: Float, separator: true, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.glissando = exp(lerp(-12.0, 0.0, 1.0-newValue))
     ),
-    Parameter(name: "vib freq", kind: Float, min: 0.1, max: 100.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "vib freq", kind: Float, min: 0.1, max: 100.0, default: 0.1, onchange: proc(newValue: float32, voice: int) =
       self.vibratoOsc.freq = newValue
     ),
-    Parameter(name: "vib amp", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "vib amp", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.vibratoAmp = newValue
     ),
-    Parameter(name: "ktrk", kind: Float, min: -2.0, max: 2.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "ktrk", kind: Float, min: -2.0, max: 2.0, default: 0.5, onchange: proc(newValue: float32, voice: int) =
       self.keytracking = newValue
     ),
-    Parameter(name: "ref", kind: Note, min: 0, max: 256.0, default: 60.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "ref", kind: Note, min: 0, max: 256.0, default: 60.0, onchange: proc(newValue: float32, voice: int) =
       self.keytrkReference = newValue.int
     ),
-    Parameter(name: "retrig", kind: Bool, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "retrig", kind: Bool, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       self.retrigger = newValue.bool
     ),
-    Parameter(name: "sync", kind: Bool, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "sync", kind: Bool, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.sync = newValue.bool
     ),
   ])
   self.voiceParams.add([
-    Parameter(name: "note", kind: Note, deferred: true, separator: true, min: OffNote, max: 255.0, default: OffNote, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "note", kind: Note, deferred: true, separator: true, min: OffNote, max: 255.0, default: OffNote, onchange: proc(newValue: float32, voice: int) =
       self.initNote(voice, newValue.int)
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       if value == OffNote:
         return "Off"
       else:
         return noteToNoteName(value.int)
 
     ),
-    Parameter(name: "vel", kind: Float, min: 0.0, max: 1.0, seqkind: skInt8, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "vel", kind: Float, min: 0.0, max: 1.0, seqkind: skInt8, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       var voice: SynthVoice = SynthVoice(self.voices[voice])
       voice.velocity = newValue
     ),
@@ -386,7 +386,7 @@ method trigger*(self: Synth, note: int) =
     if v.note == OffNote:
       initNote(i, note)
       let param = v.getParameter(0)
-      param.value = note.float
+      param.value = note.float32
       return
 
 method release*(self: Synth, note: int) =
@@ -395,4 +395,4 @@ method release*(self: Synth, note: int) =
     if v.note == note:
       initNote(i, OffNote)
       let param = v.getParameter(0)
-      param.value = OffNote.float
+      param.value = OffNote.float32

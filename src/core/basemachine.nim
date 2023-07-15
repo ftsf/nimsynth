@@ -220,14 +220,14 @@ method drawParams*(self: Machine, x,y,w,h: int, favOnly: bool = false) {.base.} 
     # draw slider fill
     setColor(if i == currentParam: 8 else: 6)
 
-    let zeroX = x + paramNameWidth + sliderWidth.float * clamp(invLerp(param.min, param.max, 0.0), 0.0, 1.0)
+    let zeroX = x + paramNameWidth + (sliderWidth.float * clamp(invLerp(param.min, param.max, 0.0f), 0.0f, 1.0f)).int
 
-    rectfill(zeroX, yv, x + paramNameWidth + sliderWidth.float * invLerp(param.min, param.max, param.value), yv+4)
+    rectfill(zeroX, yv, x + paramNameWidth + (sliderWidth.float * invLerp(param.min, param.max, param.value)).int, yv+4)
 
     # draw default bar
     if param.kind != Note:
       setColor(7)
-      let defaultX = x + paramNameWidth + sliderWidth.float * invLerp(param.min, param.max, param.default)
+      let defaultX = x + paramNameWidth + (sliderWidth.float * invLerp(param.min, param.max, param.default)).int
       line(defaultX, yv, defaultX, yv+4)
 
     yv += 8

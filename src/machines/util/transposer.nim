@@ -23,19 +23,19 @@ method init(self: Transposer) =
   name = "transp"
 
   globalParams.add([
-    Parameter(name: "input", kind: Note, deferred: true, min: OffNote, max: 255.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "input", kind: Note, deferred: true, min: OffNote, max: 255.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       if self.bindings[0].isBound():
         var (voice,param) = self.bindings[0].getParameter()
         if newValue == OffNote:
           param.value = OffNote
         else:
-          param.value = newValue + (self.octaves * 12 + self.semitones).float
+          param.value = newValue + (self.octaves * 12 + self.semitones).float32
         param.onchange(param.value, voice)
     ),
-    Parameter(name: "oct", kind: Int, min: -4.0, max: 4.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "oct", kind: Int, min: -4.0, max: 4.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.octaves = newValue.int
     ),
-    Parameter(name: "semi", kind: Int, min: -12.0, max: 12.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "semi", kind: Int, min: -12.0, max: 12.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.semitones = newValue.int
     ),
   ])

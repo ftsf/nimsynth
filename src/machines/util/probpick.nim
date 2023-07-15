@@ -8,8 +8,8 @@ import random
 
 type
   ProbPickVoice = ref object of Voice
-    value: float
-    weight: float
+    value: float32
+    weight: float32
   ProbPick = ref object of Machine
 
 method init(self: ProbPickVoice, machine: Machine) =
@@ -29,7 +29,7 @@ method init(self: ProbPick) =
   bindings.setLen(1)
 
   globalParams.add([
-    Parameter(kind: Trigger, name: "trigger", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Trigger, name: "trigger", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       # sum up all the voices
       var weight = 0.0
       if self.bindings[0].isBound():
@@ -49,11 +49,11 @@ method init(self: ProbPick) =
     ),
   ])
   voiceParams.add([
-    Parameter(kind: Float, name: "output", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Float, name: "output", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       var v = ProbPickVoice(self.voices[voice])
       v.value = newValue
     ),
-    Parameter(kind: Float, name: "weight", min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Float, name: "weight", min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float32, voice: int) =
       var v = ProbPickVoice(self.voices[voice])
       v.weight = newValue
     ),

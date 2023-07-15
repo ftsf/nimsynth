@@ -40,16 +40,16 @@ const names = [
 type
 
   OrganVoice = ref object of Voice
-    pitch: float
+    pitch: float32
     note: int
     oscs: array[nOperators, Osc]
     env: Envelope
 
   Organ = ref object of Machine
-    amps: array[nOperators, float]
-    envSettings: tuple[a,d,s,r: float]
+    amps: array[nOperators, float32]
+    envSettings: tuple[a,d,s,r: float32]
     tremolo: Osc
-    tremoloAmount: float
+    tremoloAmount: float32
 
 {.this:self.}
 
@@ -71,7 +71,7 @@ proc initNote(self: Organ, voiceId: int, note: int) =
     voice.env.release()
   else:
     voice.note = note
-    voice.pitch = noteToHz(note.float)
+    voice.pitch = noteToHz(note.float32)
     voice.env.a = self.envSettings.a
     voice.env.d = self.envSettings.d
     voice.env.s = self.envSettings.s
@@ -84,7 +84,7 @@ method trigger(self: Organ, note: int) =
     if v.note == OffNote:
       initNote(i, note)
       let param = v.getParameter(0)
-      param.value = note.float
+      param.value = note.float32
       return
 
 method release(self: Organ, note: int) =
@@ -93,7 +93,7 @@ method release(self: Organ, note: int) =
     if v.note == note:
       initNote(i, OffNote)
       let param = v.getParameter(0)
-      param.value = OffNote.float
+      param.value = OffNote.float32
 
 method init(self: Organ) =
   procCall init(Machine(self))
@@ -106,22 +106,22 @@ method init(self: Organ) =
   name = "organ"
 
   self.globalParams.add([
-    Parameter(name: "a", kind: Float, min: 0.0, max: 1.0, default: 0.01, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "a", kind: Float, min: 0.0, max: 1.0, default: 0.01, onchange: proc(newValue: float32, voice: int) =
       self.envSettings.a = newValue
     ),
-    Parameter(name: "d", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "d", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.envSettings.d = newValue
     ),
-    Parameter(name: "s", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "s", kind: Float, min: 0.0, max: 1.0, default: 1.0, onchange: proc(newValue: float32, voice: int) =
       self.envSettings.s = newValue
     ),
-    Parameter(name: "r", kind: Float, min: 0.0, max: 1.0, default: 0.1, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "r", kind: Float, min: 0.0, max: 1.0, default: 0.1, onchange: proc(newValue: float32, voice: int) =
       self.envSettings.r = newValue
     ),
-    Parameter(name: "tremolo spd", kind: Float, min: 0.0, max: 60.0, default: 10.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "tremolo spd", kind: Float, min: 0.0, max: 60.0, default: 10.0, onchange: proc(newValue: float32, voice: int) =
       self.tremolo.freq = newValue
     ),
-    Parameter(name: "tremolo amt", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "tremolo amt", kind: Float, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.tremoloAmount = newValue
     ),
   ])
@@ -131,16 +131,16 @@ method init(self: Organ) =
     (proc() =
       let opId = i
       self.globalParams.add([
-        Parameter(name: names[opId], kind: Int, min: 0.0, max: 8.0, default: if opId == 2: 1.0 else: 0.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: names[opId], kind: Int, min: 0.0, max: 8.0, default: if opId == 2: 1.0 else: 0.0, onchange: proc(newValue: float32, voice: int) =
           self.amps[opId] = newValue / 8.0
         ),
       ])
     )()
 
   self.voiceParams.add([
-    Parameter(name: "note", kind: Note, min: 0.0, max: 255.0, default: OffNote, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "note", kind: Note, min: 0.0, max: 255.0, default: OffNote, onchange: proc(newValue: float32, voice: int) =
       self.initNote(voice, newValue.int)
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       if value == OffNote:
         return "Off"
       else:

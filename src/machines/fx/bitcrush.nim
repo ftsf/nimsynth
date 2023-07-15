@@ -25,7 +25,7 @@ method init(self: BitCrush) =
   stereo = false
 
   globalParams.add([
-    Parameter(name: "depth", kind: Int, min: 1.0, max: 32.0, default: 32.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(name: "depth", kind: Int, min: 1.0, max: 32.0, default: 32.0, onchange: proc(newValue: float32, voice: int) =
       self.bitDepth = newValue.uint8
     ),
   ])

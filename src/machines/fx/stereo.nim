@@ -4,7 +4,7 @@ import core/filter
 
 type
   Stereo* = ref object of Machine
-    pan: float
+    pan: float32
     allpassL: AllpassFilter
     allpassR: AllpassFilter
 
@@ -15,13 +15,13 @@ method init*(self: Stereo) =
   self.nOutputs = 1
   self.stereo = true
   self.globalParams.add([
-    Parameter(kind: Float, name: "pan", min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Float, name: "pan", min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float32, voice: int) =
       self.pan = newValue
     ),
-    Parameter(kind: Float, name: "phaseL", min: -1.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Float, name: "phaseL", min: -1.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.allpassL.cutoff = newValue
     ),
-    Parameter(kind: Float, name: "phaseR", min: -1.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Float, name: "phaseR", min: -1.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.allpassR.cutoff = newValue
     )
   ])

@@ -19,11 +19,11 @@ const maxSteps = 16
 
 type
   KArp = ref object of Machine
-    speed: float # tpb
+    speed: float32 # tpb
     mode: KArpMode
 
     steps: array[maxSteps, int]
-    step: float
+    step: float32
 
 method init(self: KArp) =
   procCall init(Machine(self))
@@ -40,22 +40,22 @@ method init(self: KArp) =
     steps[i] = OffNote
 
   globalParams.add([
-    Parameter(kind: Int, name: "mode", min: mode.low.float, max: mode.high.float, default: Up.float, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Int, name: "mode", min: mode.low.float32, max: mode.high.float32, default: Up.float32, onchange: proc(newValue: float32, voice: int) =
       self.mode = newValue.KArpMode
-    , getValueString: proc(value: float, voice: int): string =
+    , getValueString: proc(value: float32, voice: int): string =
       return $value.KArpMode
     ),
-    Parameter(kind: Int, name: "speed", min: 1.0, max: 16.0, default: 4.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Int, name: "speed", min: 1.0, max: 16.0, default: 4.0, onchange: proc(newValue: float32, voice: int) =
       self.speed = newValue
     ),
-    Parameter(kind: Trigger, name: "reset", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Trigger, name: "reset", min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
       self.step = 0.0
     ),
 
   ])
 
   voiceParams.add([
-    Parameter(kind: Note, name: "note", min: OffNote, max: 256.0, default: OffNote, onchange: proc(newValue: float, voice: int) =
+    Parameter(kind: Note, name: "note", min: OffNote, max: 256.0, default: OffNote, onchange: proc(newValue: float32, voice: int) =
       self.steps[voice] = newValue.int
     ),
   ])
@@ -78,7 +78,7 @@ method process(self: KArp) =
     step += (beatsPerSecond() * speed) * invSampleRate
     if step.int != lastStep:
       trigger = true
-    step = step mod nSteps.float
+    step = step mod nSteps.float32
     let i = step.int
     if trigger:
       if bindings[0].machine != nil:
@@ -87,7 +87,7 @@ method process(self: KArp) =
           if steps[j] != OffNote:
             if k == i:
               var (voice, param) = bindings[0].getParameter()
-              param.value = steps[j].float
+              param.value = steps[j].float32
               param.onchange(param.value, voice)
               break
             k += 1

@@ -43,34 +43,34 @@ method init(self: EQ) =
         self.filtersR[i].kind = Peak
 
       self.globalParams.add([
-        Parameter(name: $i & ": enabled", kind: Int, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $i & ": enabled", kind: Int, min: 0.0, max: 1.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
           self.filtersOn[i] = newValue.bool
-        , getValueString: proc(value: float, voice: int): string =
+        , getValueString: proc(value: float32, voice: int): string =
           return (if value.bool: "on" else: "off")
         ),
-        Parameter(name: $i & ": type", kind: Int, min: Peak.float, max: FilterKind.high.float, default: Peak.float, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $i & ": type", kind: Int, min: Peak.float32, max: FilterKind.high.float32, default: Peak.float32, onchange: proc(newValue: float32, voice: int) =
           self.filtersL[i].kind = newValue.FilterKind
           self.filtersR[i].kind = newValue.FilterKind
           self.filtersL[i].calc()
           self.filtersR[i].calc()
-        , getValueString: proc(value: float, voice: int): string =
+        , getValueString: proc(value: float32, voice: int): string =
           return $value.FilterKind
         ),
-        Parameter(name: $i & ": cutoff", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $i & ": cutoff", kind: Float, min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float32, voice: int) =
           self.filtersL[i].cutoff = exp(lerp(-8.0, -0.8, newValue))
           self.filtersR[i].cutoff = exp(lerp(-8.0, -0.8, newValue))
           self.filtersL[i].calc()
           self.filtersR[i].calc()
-        , getValueString: proc(value: float, voice: int): string =
+        , getValueString: proc(value: float32, voice: int): string =
           return $(exp(lerp(-8.0, -0.8, value)) * sampleRate).int & " hZ"
         ),
-        Parameter(name: $i & ": q", kind: Float, min: 0.0001, max: 5.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $i & ": q", kind: Float, min: 0.0001, max: 5.0, default: 0.5, onchange: proc(newValue: float32, voice: int) =
           self.filtersL[i].resonance = newValue
           self.filtersR[i].resonance = newValue
           self.filtersL[i].calc()
           self.filtersR[i].calc()
         ),
-        Parameter(name: $i & ": gain", kind: Float, min: -24.0, max: 24.0, default: 0.0, onchange: proc(newValue: float, voice: int) =
+        Parameter(name: $i & ": gain", kind: Float, min: -24.0, max: 24.0, default: 0.0, onchange: proc(newValue: float32, voice: int) =
           self.filtersL[i].peakGain = newValue
           self.filtersR[i].peakGain = newValue
           self.filtersL[i].calc()
@@ -128,8 +128,8 @@ method drawExtraData(self: EQ, x,y,w,h: int) =
     var response = graphResponse(impulse, resolution)
     setColor(6)
     for i in 1..<resolution:
-      let y0 = response[(i-1)] * 10.0
-      let y1 = response[i] * 10.0
+      let y0 = (response[(i-1)] * 10.0f).int
+      let y1 = (response[i] * 10.0f).int
       line(x + (i-1), h - y0, x + i, h - y1)
 
   when false:
@@ -140,8 +140,8 @@ method drawExtraData(self: EQ, x,y,w,h: int) =
       var response = graphResponse(input, resolution)
       setColor(8)
       for i in 1..<w:
-        let y0 = response.getSubsample((i-1).float * (resolution.float / w.float))
-        let y1 = response.getSubsample(i.float * (resolution.float / w.float))
+        let y0 = response.getSubsample((i-1).float32 * (resolution.float32 / w.float32))
+        let y1 = response.getSubsample(i.float32 * (resolution.float32 / w.float32))
         line(x + (i-1), h - y0, x + i, h - y1)
     block:
       var output: array[bufferSize, float32]
@@ -150,8 +150,8 @@ method drawExtraData(self: EQ, x,y,w,h: int) =
       var response = graphResponse(output, resolution)
       setColor(9)
       for i in 1..<w:
-        let y0 = response.getSubsample((i-1).float * (resolution.float / w.float))
-        let y1 = response.getSubsample(i.float * (resolution.float / w.float))
+        let y0 = response.getSubsample((i-1).float32 * (resolution.float32 / w.float32))
+        let y1 = response.getSubsample(i.float32 * (resolution.float32 / w.float32))
         line(x + (i-1), h - y0, x + i, h - y1)
 
 registerMachine("eq", newEQ, "fx")

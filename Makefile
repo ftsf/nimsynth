@@ -1,6 +1,7 @@
 SOURCES=$(shell find src -name '*.nim')
 DATE=$(shell date +%Y-%m-%d)
-NIMC=nim -p:src
+NIMC=nim c
+OPTS=-p:src -d:nimNoLentIterators
 
 JACK=0
 
@@ -11,10 +12,10 @@ JACK_FLAGS=
 endif
 
 synth: $(SOURCES)
-	${NIMC} c -d:release -o:$@ src/main.nim
+	${NIMC} ${OPTS} -d:release -o:$@ src/main.nim
 
 synth-debug: $(SOURCES)
-	${NIMC} c -d:debug -o:$@ src/main.nim
+	${NIMC} ${OPTS} -d:debug -o:$@ src/main.nim
 
 run: synth
 	./synth

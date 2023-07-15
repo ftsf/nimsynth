@@ -7,15 +7,15 @@ const nChannels = 8
 
 type
   Master* = ref object of Machine
-    beatsPerMinute*: float
-    gain: float
-    channel: array[nChannels, float]
-    channelGain: array[nChannels, float]
-    channelPan: array[nChannels, float]
-    channelPeaksL: array[nChannels, float]
-    channelPeaksR: array[nChannels, float]
-    totalPeakL: float
-    totalPeakR: float
+    beatsPerMinute*: float32
+    gain: float32
+    channel: array[nChannels, float32]
+    channelGain: array[nChannels, float32]
+    channelPan: array[nChannels, float32]
+    channelPeaksL: array[nChannels, float32]
+    channelPeaksR: array[nChannels, float32]
+    totalPeakL: float32
+    totalPeakR: float32
 
 method init*(self: Master) =
   procCall init(Machine(self))
@@ -23,17 +23,17 @@ method init*(self: Master) =
   className = "master"
   nInputs = nChannels
   nOutputs = 1
-  gain = 1.0
+  gain = 1.0f
   for i in 0..<nChannels:
-    channelGain[i] = 1.0
+    channelGain[i] = 1.0f
   stereo = true
-  beatsPerMinute = 128.0
+  beatsPerMinute = 128.0f
   globalParams.add([
-    Parameter(kind: Float, name: "volume", min: 0.0, max: 10.0, default: 1.0, value: 1.0, onchange: proc(newValue: float, voice: int) =
-      self.gain = clamp(newValue, 0.0, 10.0)
+    Parameter(kind: Float, name: "volume", min: 0.0f, max: 10.0f, default: 1.0f, value: 1.0f, onchange: proc(newValue: float32, voice: int) =
+      self.gain = clamp(newValue, 0.0f, 10.0f)
     ),
-    Parameter(kind: Int, name: "bpm", min: 1.0, max: 300.0, default: 128.0, value: 128.0, onchange: proc(newValue: float, voice: int) =
-      self.beatsPerMinute = clamp(newValue, 1.0, 300.0)
+    Parameter(kind: Int, name: "bpm", min: 1.0f, max: 300.0f, default: 128.0f, value: 128.0f, onchange: proc(newValue: float32, voice: int) =
+      self.beatsPerMinute = clamp(newValue, 1.0f, 300.0f)
       for machine in mitems(machines):
         machine.onBPMChange(self.beatsPerMinute.int)
     ),
@@ -43,10 +43,10 @@ method init*(self: Master) =
     closureScope:
       var j = i
       globalParams.add([
-        Parameter(kind: Float, name: $(j+1) & ": gain", min: 0.0, max: 5.0, default: 1.0, separator: true, onchange: proc(newValue: float, voice: int) =
+        Parameter(kind: Float, name: $(j+1) & ": gain", min: 0.0, max: 5.0, default: 1.0, separator: true, onchange: proc(newValue: float32, voice: int) =
           self.channelGain[j] = newValue
         ),
-        Parameter(kind: Float, name: $(j+1) & ": pan", min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float, voice: int) =
+        Parameter(kind: Float, name: $(j+1) & ": pan", min: 0.0, max: 1.0, default: 0.5, onchange: proc(newValue: float32, voice: int) =
           self.channelPan[j] = newValue
         )
       ])
@@ -88,11 +88,11 @@ proc newMaster(): Machine =
   result.init()
   masterMachine = result
 
-proc beatsPerMinute*(): float =
+proc beatsPerMinute*(): float32 =
   var m = Master(masterMachine)
   return m.beatsPerMinute
 
-proc beatsPerSecond*(): float =
+proc beatsPerSecond*(): float32 =
   var m = Master(masterMachine)
   return m.beatsPerMinute / 60.0
 
@@ -121,19 +121,19 @@ method drawExtraData(self: Master, x,y,w,h: int) =
       setColor(4)
     else:
       setColor(3)
-    rectfill(x + 1, y + 8, x + 1 + (w - 2).float32 * (clamp(ampL, 0.0, 2.0) * 0.5), y + 8 + 4)
+    rectfill(x + 1, y + 8, x + 1 + ((w - 2).float32 * (clamp(ampL, 0.0, 2.0) * 0.5)).int, y + 8 + 4)
     if ampR > 0.9:
       setColor(7)
     elif ampR > 0.75:
       setColor(4)
     else:
       setColor(3)
-    rectfill(x + 1, y + 8 + 4 + 2, x + 1 + (w - 2).float32 * (clamp(ampR, 0.0, 2.0) * 0.5), y + 8 + 4 + 2 + 4)
+    rectfill(x + 1, y + 8 + 4 + 2, x + 1 + ((w - 2).float32 * (clamp(ampR, 0.0, 2.0) * 0.5)).int, y + 8 + 4 + 2 + 4)
 
     setColor(7)
     vline(x + 1 + (w - 2) div 2, y + 10, y + 24)
     setColor(8)
-    vline(x + 1 + (((w - 2) div 2).float * channelGain[i]).int, y + 8, y + 26)
+    vline(x + 1 + (((w - 2) div 2).float32 * channelGain[i]).int, y + 8, y + 26)
 
     y += 25
 
@@ -146,27 +146,27 @@ method drawExtraData(self: Master, x,y,w,h: int) =
     let ampL = totalL
     let ampR = totalR
 
-    if ampL > 0.9:
+    if ampL > 0.9f:
       setColor(7)
-    elif ampL > 0.75:
+    elif ampL > 0.75f:
       setColor(4)
     else:
       setColor(3)
-    rectfill(x + 1, y + 8, x + 1 + (w - 2).float32 * (clamp(ampL, 0.0, 2.0) * 0.5), y + 8 + 4)
+    rectfill(x + 1, y + 8, x + 1 + ((w - 2).float32 * (clamp(ampL, 0.0, 2.0) * 0.5)).int, y + 8 + 4)
     if ampR > 0.9:
       setColor(7)
-    elif ampR > 0.75:
+    elif ampR > 0.75f:
       setColor(4)
     else:
       setColor(3)
-    rectfill(x + 1, y + 8 + 4 + 2, x + 1 + (w - 2).float32 * (clamp(ampR, 0.0, 2.0) * 0.5), y + 8 + 4 + 2 + 4)
+    rectfill(x + 1, y + 8 + 4 + 2, x + 1 + ((w - 2).float32 * (clamp(ampR, 0.0, 2.0) * 0.5)).int, y + 8 + 4 + 2 + 4)
 
     setColor(7)
     vline(x + 1 + (w - 2) div 2, y + 10, y + 24)
     setColor(8)
-    vline(x + 1 + (((w - 2) div 2).float * gain).int, y + 8, y + 26)
+    vline(x + 1 + (((w - 2) div 2).float32 * gain).int, y + 8, y + 26)
 
-  totalPeakL *= 0.9
-  totalPeakR *= 0.9
+  totalPeakL *= 0.9f
+  totalPeakR *= 0.9f
 
 registerMachine("master", newMaster)
