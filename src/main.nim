@@ -67,11 +67,12 @@ import machines/util/paramrecorder
 import machines/util/probgate
 import machines/util/probpath
 import machines/util/probpick
+import machines/util/recorder
+import machines/util/scale
 import machines/util/sequencer
+import machines/util/spectrogram
 import machines/util/split
 import machines/util/transposer
-import machines/util/spectrogram
-import machines/util/scale
 
 import ui/machineview
 import ui/layoutview
@@ -126,7 +127,7 @@ when defined(jack):
 
     for i in 0..<nframes * 2:
       let time = i div 2
-      sampleId += 1
+      sampleChannel = i mod 2
 
       if midiEvent.time == time.int and eventIndex < nMidiEvents:
         for machine in mitems(machines):
@@ -146,7 +147,7 @@ when defined(jack):
       # update all machines
       for machine in mitems(machines):
         if not machine.disabled and not machine.bypass:
-          if machine.stereo or sampleId mod 2 == 0:
+          if machine.stereo or sampleChannel == 0:
             machine.process()
             for input in mitems(machine.inputs):
               let s = abs(input.getSample())
@@ -164,6 +165,8 @@ when defined(jack):
         if samplesR[time] > 1.0 or samplesR[time] < -1.0:
           glitch += abs(samplesR[time]) - 1.0
 
+      sampleId += 1
+
   proc setSampleRate(nframes: jack_nframes, arg: pointer): cint =
     echo "sampleRate: ", nframes
     sampleRate = nframes.float
@@ -180,7 +183,7 @@ else:
 
     sampleId += 1
 
-    inputSample = audioInSample
+    inputSample = input
 
     # update all machines
     for machine in mitems(machines):

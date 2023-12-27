@@ -92,9 +92,9 @@ proc beatsPerMinute*(): float32 =
   var m = Master(masterMachine)
   return m.beatsPerMinute
 
-proc beatsPerSecond*(): float32 =
-  var m = Master(masterMachine)
-  return m.beatsPerMinute / 60.0
+proc beatsPerSecond*(): float32 = beatsPerMinute() / 60.0
+
+proc secondsPerBeat*(): float32 = 1.0 / beatsPerSecond()
 
 import nico
 

@@ -18,6 +18,7 @@ type
     playing: bool
     osc: SampleOsc
     env: Envelope
+    vel: int
 
 method addVoice*(self: Sampler) =
   var voice = new(SamplerVoice)
@@ -41,7 +42,7 @@ proc initNote*(self: Sampler, voiceId: int, note: int) =
       voice.playing = true
       voice.osc.reset()
       voice.osc.speed = noteToHz(note.float32) / voice.osc.sample.rootPitch
-      voice.env.trigger()
+      voice.env.trigger(voice.vel.float32 / 127.0f)
 
 method init(self: Sampler) =
   procCall init(Machine(self))
@@ -53,6 +54,9 @@ method init(self: Sampler) =
   self.voiceParams.add([
     Parameter(name: "note", separator: true, deferred: true, kind: Note, min: OffNote, max: 127.0, default: OffNote, onchange: proc(newValue: float32, voice: int) =
       self.initNote(voice, newValue.int)
+    ),
+    Parameter(name: "vel", separator: false, deferred: false, kind: Int, min: 0.0, max: 127.0, default: 80.0, onchange: proc(newValue: float32, voice: int) =
+      SamplerVoice(self.voices[voice]).vel = newValue.int
     ),
     Parameter(name: "a", kind: Float, min: 0.0, max: 5.0, default: 0.001, onchange: proc(newValue: float32, voice: int) =
       var v = SamplerVoice(self.voices[voice])

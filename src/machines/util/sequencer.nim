@@ -481,6 +481,7 @@ method process*(self: Sequencer) =
             let value = pattern.rows[step][i]
             param.value = mapSeqValueToParamValue(value, param)
             param.onchange(param.value, voice)
+            param[].trigger(voice)
 
       for i,binding in bindings:
         if binding.machine != nil:
@@ -492,6 +493,7 @@ method process*(self: Sequencer) =
             let value = pattern.rows[step][i]
             param.value = mapSeqValueToParamValue(value, param)
             param.onchange(param.value, voice)
+            param[].trigger(voice)
 
     var realTicksPerBeat = if ticksPerBeat < 0: 1.0 / -ticksPerBeat.float32 else: ticksPerBeat.float32
     if realTicksPerBeat >= 1:

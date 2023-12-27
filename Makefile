@@ -1,7 +1,7 @@
 SOURCES=$(shell find src -name '*.nim')
 DATE=$(shell date +%Y-%m-%d)
 NIMC=nim c
-OPTS=-p:src -d:nimNoLentIterators
+OPTS=-p:src -d:nimNoLentIterators -d:audioInput
 
 JACK=0
 

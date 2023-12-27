@@ -18,6 +18,7 @@ type Button = ref object of Machine
   gamepad: int
   gamepadButton: int
   eventListener: EventListener
+  color: int
 
 {.this:self.}
 
@@ -59,6 +60,9 @@ method init(self: Button) =
     ),
     Parameter(name: "button", kind: Int, min: -1'f, max: NicoButton.high.float32, default: -1, onchange: proc(newValue: float32, voice: int) =
       self.gamepadButton = newValue.int
+    ),
+    Parameter(name: "color", kind: Int, min: 1f, max: 16f, default: 4f, onchange: proc(newValue: float32, voice: int) =
+      self.color = newValue.int
     ),
   ])
 
@@ -131,10 +135,17 @@ method drawBox(self: Button) =
       circ(self.pos.x, self.pos.y, 7)
 
   else:
-    setColor(if state: 5 else: 4)
+    setColor(if state: 7 else: self.color)
     rrectfill(getButtonAABB())
     setColor(1)
     rrect(getButtonAABB())
+
+    var binding = bindings[0].addr
+    if binding.machine != nil:
+      var (voice, param) = binding.machine.getParameter(binding.param)
+      setColor(6)
+      printc(param.name, self.pos.x, self.pos.y + 9)
+
 
   if self.gamepadButton >= 0 and self.gamepadButton < gamepadButtonNames.len:
     setColor(0)

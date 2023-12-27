@@ -94,7 +94,7 @@ method draw*(self: MachineView) =
   let paramWidth = screenWidth div 3 + paramNameWidth
   drawParams(1,1, paramWidth, screenHeight - 1)
 
-  machine.drawExtraData(paramWidth + 4, 16, screenWidth - paramWidth - 4, screenHeight - 16)
+  machine.drawExtraData(paramWidth + 4, 16, screenWidth - paramWidth - 4, screenHeight - 16 - 16)
 
 proc updateParams*(self: MachineView, x,y,w,h: int) =
 #  if mousebtn(0):
@@ -175,8 +175,11 @@ proc key*(self: MachineView, event: Event): bool =
       of Float:
         let move = if shift: 0.001 elif ctrl: 0.1 else: 0.01
         param.value = clamp(param.value + range * move * dir, param.min, param.max)
+
       if param.onchange != nil:
         param.onchange(param.value, voice)
+      param[].trigger(voice)
+
       return true
     of SCANCODE_KP_PLUS, SCANCODE_EQUALS:
       machine.addVoice()

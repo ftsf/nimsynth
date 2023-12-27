@@ -2,6 +2,7 @@ import math
 import strutils
 import tables
 import sequtils
+import algorithm
 
 import nico
 import nico/vec
@@ -27,6 +28,7 @@ import core/ringbuffer
 var baseOctave* = 4
 
 var sampleId*: int
+var sampleChannel*: int
 
 var oscilliscopeBuffer*: RingBuffer[float32]
 
@@ -94,6 +96,7 @@ type
     separator*: bool # put a space above it
     ignoreSave*: bool # value wont be saved to file
     fav*: bool
+    triggerTime*: uint32
 
   MidiEvent* = object
     time*: int
@@ -316,7 +319,8 @@ method addVoice*(self: Machine) {.base.} =
 method setDefaults*(self: Machine) {.base.} =
   for i,param in mpairs(self.globalParams):
     param.value = param.default
-    param.onchange(param.value, -1)
+    if param.kind != Trigger:
+      param.onchange(param.value, -1)
 
   outputSamples.setLen(nOutputs)
 
@@ -540,6 +544,7 @@ proc clearLayout*() =
   nextMachineId = 0
   baseOctave = 4
   sampleId = 0
+  sampleChannel = 0
   oscilliscopeBuffer = newRingBuffer[float32](oscilliscopeBufferSize)
   statusMessage = "ready to rok"
   statusUpdateTime = 0
@@ -890,7 +895,7 @@ proc saveLayout*(name: string) =
   if fp == nil:
     echo "error opening file for saving"
     return
-  fp.write(%l)
+  fp.write((%l).pretty())
   fp.close()
 
   echo "saved layout to ", name
@@ -900,6 +905,8 @@ proc getLayouts*(): seq[string] =
   let prefix = "layouts/"
   for file in walkFiles("layouts/*.json"):
     result.add(file[prefix.len..file.high-5])
+  result.sort() do(a,b: string) -> int:
+    if fileNewer(prefix & a & ".json", prefix & b & ".json"): -1 else: 1
 
 proc loadLayout*(name: string) =
   clearLayout()
@@ -1124,6 +1131,9 @@ proc linearToDb*(linear: float32): float32 =
   if linear == 0:
     return -Inf
   return 10.0 * log10(linear)
+
+proc trigger*(self: var Parameter, voice: int) =
+  self.triggerTime = frame + 5
 
 proc valueString*(self: Parameter, value: float32): string =
   if self.getValueString != nil:

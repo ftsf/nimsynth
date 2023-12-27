@@ -94,6 +94,12 @@ func pointInPoly*(p: Vec2f, poly: Polygon | Triangle | Quad): bool =
 
 type AABB* = tuple[min: Vec2f, max: Vec2f]
 
+proc w*(self: AABB): float32 =
+  self.max.x - self.min.x
+
+proc h*(self: AABB): float32 =
+  self.max.y - self.min.y
+
 proc rectfill*(aabb: AABB) =
   rectfill(aabb.min.x.int, aabb.min.y.int, aabb.max.x.int, aabb.max.y.int)
 

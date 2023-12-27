@@ -35,29 +35,45 @@ method drawContents(self: ParamWindow, x,y,w,h: int) =
 
     setColor(if i == self.currentParam: 8 elif param.fav: 10 else: 7)
     print((if voice > -1: $voice & ": " else: "") & param.name, x, yv)
-    printr(param[].valueString(param.value), x + 63, yv)
+
+    if param.kind != Trigger:
+      printr(param[].valueString(param.value), x + 63, yv)
     var range = (param.max - param.min)
     if range == 0.0:
       range = 1.0
 
     let minX = x + paramNameWidth
-    let maxX = minX + sliderWidth
+    var maxX = minX + sliderWidth
 
-    # draw slider background
-    setColor(0)
-    rectfill(minX, yv, maxX, yv+4)
-
-    # draw slider fill
-    setColor(if i == self.currentParam: 8 else: 6)
-
-    let zeroX = x + paramNameWidth + sliderWidth.float32 * clamp(invLerp(param.min, param.max, 0.0), 0.0, 1.0)
-    rectfill(clamp(zeroX, minX, maxX), yv, clamp(minX + sliderWidth.float32 * invLerp(param.min, param.max, param.value), minX, maxX), yv+4)
-
-    # draw default bar
-    if param.kind != Note:
+    if param.kind == Trigger:
+      # draw button
+      maxX = minX + 8
+      if param.triggerTime == frame:
+        setColor(7)
+      elif param.triggerTime >= frame:
+        setColor(8)
+      else:
+        setColor(0)
+      rectfill(minX, yv, maxX, yv+4)
       setColor(7)
-      let defaultX = minX + sliderWidth.float32 * invLerp(param.min, param.max, param.default)
-      line(defaultX, yv, defaultX, yv+4)
+      rect(minX-1, yv-1, maxX+1, yv+4+1)
+
+    else:
+      # draw slider background
+      setColor(0)
+      rectfill(minX, yv, maxX, yv+4)
+
+      # draw slider fill
+      setColor(if i == self.currentParam: 8 else: 6)
+
+      let zeroX = x + paramNameWidth + sliderWidth.float32 * clamp(invLerp(param.min, param.max, 0.0), 0.0, 1.0)
+      rectfill(clamp(zeroX, minX, maxX), yv, clamp(minX + sliderWidth.float32 * invLerp(param.min, param.max, param.value), minX, maxX), yv+4)
+
+      # draw default bar
+      if param.kind != Note:
+        setColor(7)
+        let defaultX = minX + sliderWidth.float32 * invLerp(param.min, param.max, param.default)
+        line(defaultX, yv, defaultX, yv+4)
 
     yv += 8
 
@@ -112,8 +128,17 @@ method eventContents(self: ParamWindow, x,y,w,h: int, e: Event): bool =
         if i >= 0:
           if mv.x > x + paramNameWidth:
             self.currentParam = i
-            self.dragging = true
-            self.clickPos = mv
+            let (voice,param) = self.machine.getParameter(self.currentParam, self.favOnly)
+            if param.kind == Trigger:
+              param.onchange(param.value, voice)
+              param[].trigger(voice)
+            elif param.kind == Bool:
+              param.value = if param.value == 0f: 1f else: 0f
+              param.onchange(param.value, voice)
+              param[].trigger(voice)
+            else:
+              self.dragging = true
+              self.clickPos = mv
             return true
           elif mv.x < x + paramNameWidth and e.clicks == 2:
             let (voice, param) = self.machine.getParameter(i, self.favOnly)
@@ -135,6 +160,7 @@ method eventContents(self: ParamWindow, x,y,w,h: int, e: Event): bool =
               let (voice,param) = self.machine.getParameter(self.currentParam, self.favOnly)
               param.value = param.default
               param.onchange(param.value, voice)
+              param[].trigger(voice)
               return true
             yv += 8
     else:
